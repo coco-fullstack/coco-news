@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Trading/交易系统checklist.md",
+                "file": "Inbox/同步测试2.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "交易系统checklist"
+              "title": "同步测试2"
             }
           }
         ]
@@ -186,6 +186,11 @@
   },
   "active": "9563960a1b86d611",
   "lastOpenFiles": [
+    "Inbox/测试同步.md",
+    "Inbox/同步测试2.md",
+    "HOME.md",
+    "Inbox",
+    "Trading/交易系统checklist.md",
     "Learning/阅读书单.md",
     "Research/Crypto x AI 全景.md",
     "Research/AI Agent.md",
