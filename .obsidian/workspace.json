@@ -27,12 +27,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "投资交易/策略/趋势交易策略.md",
-                "mode": "source",
+                "file": "投资交易/投资交易全景图.md",
+                "mode": "preview",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "趋势交易策略"
+              "title": "投资交易全景图"
             }
           }
         ],
@@ -212,14 +212,20 @@
   },
   "active": "821e08a90b2b9b3a",
   "lastOpenFiles": [
-    "杂七杂八/常用指令.md",
+    "投资交易/思考/交易思维：概率vs确定性.md",
+    "投资交易/思考/牛熊周期思考.md",
+    "投资交易/思考/我的投资原则.md",
+    "投资交易/思考/AI Agent支付赛道.md",
+    "日记/2026-02-18.md",
     "投资交易/策略/趋势交易策略.md",
     "投资交易/策略/交易系统checklist.md",
+    "投资交易/研究/SkyAI.md",
+    "投资交易/研究/KITE AI.md",
     "投资交易/投资交易全景图.md",
+    "杂七杂八/常用指令.md",
     "conflict-files-obsidian-git.md",
     "学习/学习全景图.md",
     "全景图.md",
-    "投资交易/研究/SkyAI.md",
     "HOME.md",
     "CLAUDE.md",
     "杂七杂八/conflict-files-obsidian-git.md",
@@ -230,18 +236,12 @@
     "coco的旅行日记",
     "buy/想买的东西.md",
     "buy",
-    "投资交易/研究/KITE AI.md",
     "常用指令.md",
-    "日记/2026-02-18.md",
     "杂七杂八",
     "模板/币种研究模板.md",
     "模板/交易日志模板.md",
     "模板/交易策略模板.md",
     "投资交易/研究/Crypto x AI 全景.md",
-    "投资交易/研究/AI Agent.md",
-    "投资交易/研究/DeFAI.md",
-    "杂七杂八/HOME.md",
-    "模板/币种自动研究.md",
     "购物清单",
     "规划",
     "灵感",
