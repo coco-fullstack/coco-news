@@ -21,6 +21,10 @@ status: active
 - **官网**：https://gokite.ai
 - **Twitter**：https://x.com/GoKiteAI
 
+## 实时行情
+
+> [TradingView K线图 →](https://www.tradingview.com/chart/?symbol=BINANCE:KITEUSDT)  |  [CoinGecko →](https://www.coingecko.com/en/coins/kite)  |  [Binance →](https://www.binance.com/zh-CN/trade/KITEUSDT)
+
 ## 项目简介
 
 Kite 是第一个 AI 支付区块链（Layer-1），专为 AI Agent 经济设计，让自主 AI Agent 能够在链上交易、支付和协作，无需人类中介。
