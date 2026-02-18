@@ -1,42 +1,68 @@
-# Vault 整理规则
+# 知识库管理规则
 
-你是我的个人知识库管理助手。请按以下规则帮我整理笔记。
+你是我的个人知识库管理助手（Obsidian vault）。按以下规则帮我整理笔记。
 
 ## 文件夹结构
 
-- Inbox/ — 未整理的原始想法
-- Web3/Research/ — Web3 深度研究（赛道分析、项目研究）
-- Web3/Thoughts/ — Web3 想法观察（短想法、市场感觉）
-- Trading/策略/ — 交易策略、工具、checklist
-- Trading/思考/ — 交易思维、心理、复盘
-- Learning/ — 学习笔记、书单
-- Templates/ — 模板文件
-- Archive/ — 归档
+```
+coco/
+├── 投资交易/          ← Web3、加密货币、交易，所有跟钱相关的
+│   ├── 研究/          ← 赛道分析、项目研究、深度调研
+│   ├── 策略/          ← 交易策略、工具、系统、checklist
+│   └── 思考/          ← 投资感悟、市场观察、个人判断
+├── 学习/              ← 读书、课程、技能提升
+│   ├── 书单/          ← 书单、读书笔记
+│   └── 思考/          ← 学习感悟、方法论反思
+├── 模板/              ← 所有模板文件
+├── 收件箱/            ← 未整理的原始想法
+└── 归档/              ← 不再活跃的旧笔记
+```
 
 ## 分类原则
 
-- **按领域分大类**：Web3 只放 Web3 的，Trading 只放交易的
-- **大类内再细分**：Research vs Thoughts，策略 vs 思考
-- 以后新增领域直接建顶层文件夹（如 AI/、旅游/、Life/）
+- 按领域分大类，每个大类都有"思考"子文件夹
+- 投资交易 = Web3 + 加密 + 交易 + 链上研究，归在一起
+- 以后新增领域直接建顶层文件夹（如 AI/、旅行/、生活/、工作/）
+- 新领域也要包含"思考"子文件夹
 
 ## 整理规则
 
-1. 读取 Inbox/ 里的所有文件
-2. 根据内容判断分类，移动到对应文件夹
-3. 每条笔记添加 frontmatter（title, date, tags, related, status）
+1. 读取 收件箱/ 里的所有文件
+2. 根据内容判断领域和分类，移动到对应文件夹
+3. 每条笔记添加 frontmatter：
+   - title（标题）
+   - date（日期）
+   - tags（标签，英文）
+   - related（相关笔记，双向链接）
+   - status（状态：seed/active/archive）
 4. 识别提到的概念、币种、项目名，添加双向链接 [[]]
-5. 整理完删除 Inbox 中的原始文件
+5. 整理完删除 收件箱/ 中的原始文件
 
-## 标签体系
+## 标签体系（英文）
 
-- trading/strategy, trading/journal, trading/review
-- research/token, research/sector, research/thesis
-- learning/quant, learning/coding, learning/ai, learning/reading
-- token/币种名（如 token/KITE, token/BTC）
+### 投资交易
+- trading/strategy — 交易策略
+- trading/journal — 交易日志
+- trading/review — 交易复盘
+- research/sector — 赛道研究
+- research/token — 币种研究
+- research/thesis — 投资论点
+- token/币种名 — 具体币种（如 token/BTC）
+
+### 学习
+- learning/reading — 读书
+- learning/coding — 编程
+- learning/ai — 人工智能
+- learning/quant — 量化
+
+### 通用
+- thought/reflection — 个人反思
+- thought/insight — 灵感洞察
 
 ## 特殊处理
 
 - URL链接：提取标题描述，生成摘要笔记
-- 很短的内容：补充frontmatter后放入对应领域的Thoughts/
+- 很短的内容：补充 frontmatter 后放入对应领域的"思考/"
 - 涉及具体币种：添加 token/xxx 标签
 - 笔记内容保持中文，标签用英文
+- 文件夹名称全部用中文
