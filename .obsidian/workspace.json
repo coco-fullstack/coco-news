@@ -164,6 +164,16 @@
               "icon": "lucide-list",
               "title": "阅读书单 的大纲"
             }
+          },
+          {
+            "id": "bbfe5ea76af3661a",
+            "type": "leaf",
+            "state": {
+              "type": "calendar",
+              "state": {},
+              "icon": "calendar-with-checkmark",
+              "title": "Calendar"
+            }
           }
         ]
       }
@@ -185,7 +195,7 @@
       "obsidian-git:Open Git source control": false
     }
   },
-  "active": "4263bdf30a1da935",
+  "active": "ef4093c6bada7c64",
   "lastOpenFiles": [
     "日记/2026-02-18.md",
     "杂七杂八",
