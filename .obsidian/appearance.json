@@ -1,1 +1,6 @@
-{}
+{
+  "accentColor": "#b0f55c",
+  "interfaceFontFamily": "Hiragino Mincho ProN",
+  "theme": "obsidian",
+  "cssTheme": "Things"
+}

@@ -11,14 +11,12 @@
             "id": "92e106edb177de14",
             "type": "leaf",
             "state": {
-              "type": "markdown",
+              "type": "mindmapView",
               "state": {
-                "file": "buy/想买的东西.md",
-                "mode": "source",
-                "source": false
+                "file": "全景图.md"
               },
-              "icon": "lucide-file",
-              "title": "想买的东西"
+              "icon": "blocks",
+              "title": "全景图"
             }
           }
         ]
@@ -198,6 +196,7 @@
   },
   "active": "92e106edb177de14",
   "lastOpenFiles": [
+    "buy/想买的东西.md",
     "学习/书单/阅读书单.md",
     "灵感/有意思的点子.md",
     "灵感/想法收集.md",
@@ -221,7 +220,6 @@
     "coco的旅行日记/旅行计划模板.md",
     "coco的旅行日记/旅行愿望清单.md",
     "coco的旅行日记",
-    "buy/想买的东西.md",
     "buy",
     "模板/交易策略模板.md",
     "模板/币种研究模板.md",
