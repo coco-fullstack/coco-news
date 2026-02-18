@@ -8,35 +8,58 @@ related:
   - "[[AI Agent]]"
   - "[[DeFAI]]"
   - "[[AI Agent支付赛道]]"
-status: seed
+  - "[[KITE AI]]"
+  - "[[SkyAI]]"
+status: active
 ---
 
-## 概述
+> 切换到阅读模式（Ctrl+E）查看思维导图
 
-Crypto 和 AI 的交叉是 2025-2026 最大的叙事之一。两者互补：AI 需要去中心化的算力/数据/支付，Crypto 需要 AI 来提升用户体验和自动化。
+```markmap
+# Crypto x AI
 
-## 赛道地图
+## AI Agent — [[AI Agent]]
+### 支付 — [[AI Agent支付赛道]]
+- [[KITE AI]] — AI支付L1
+### DeFi — [[DeFAI]]
+- 交易Agent
+- 收益优化
+- 仓位管理
+### 社交
+- Agent间通信
+- 待研究
+### 框架/平台
+- ElizaOS (AI16Z)
+- Virtuals (VIRTUAL)
+- ARC (Rig框架)
+- [[SkyAI]] (MCP生态)
 
-```
-Crypto x AI
-├── AI Agent          → [[AI Agent]]（自主执行任务的智能体）
-│   ├── 支付          → [[AI Agent支付赛道]]
-│   ├── DeFi          → [[DeFAI]]
-│   ├── 社交          → 待研究
-│   └── 框架/平台     → ElizaOS, Virtuals, ARC
-├── 去中心化算力
-│   ├── GPU 市场      → Render, Akash, io.net
-│   └── 推理网络      → Ritual, Gensyn
-├── 去中心化数据
-│   ├── 数据市场      → Ocean Protocol
-│   └── 数据标注      → 待研究
-├── AI 模型
-│   ├── 链上推理      → Ritual
-│   └── 开源模型激励  → Bittensor (TAO)
-└── AI 工具/应用
-    ├── 市场分析      → AIXBT
-    ├── 代码审计      → 待研究
-    └── 内容生成      → 待研究
+## 去中心化算力
+### GPU市场
+- Render
+- Akash
+- io.net
+### 推理网络
+- Ritual
+- Gensyn
+
+## 去中心化数据
+### 数据市场
+- Ocean Protocol
+### 数据标注
+- 待研究
+
+## AI 模型
+### 链上推理
+- Ritual
+### 开源模型激励
+- Bittensor (TAO)
+
+## AI 工具/应用
+### 市场分析
+- AIXBT
+### 代码审计
+- 待研究
 ```
 
 ## 投资框架

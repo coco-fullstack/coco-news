@@ -25,11 +25,9 @@ status: active
 
 SkyAI 是一个基于 MCP（Model Context Protocol）的一站式 AI 生态系统，旨在跨行业无缝集成智能解决方案。
 
-## 实时行情（切换到阅读模式查看）
+## 实时行情
 
-<iframe src="https://s.tradingview.com/widgetembed/?symbol=BINANCE%3ASKYAIUSDT&interval=D&theme=dark&style=1&locale=zh_CN&hide_top_toolbar=1&save_image=0&calendar=0" width="100%" height="400" frameborder="0" allowtransparency="true" scrolling="no"></iframe>
-
-> [CoinGecko 实时数据 →](https://www.coingecko.com/en/coins/skyai)
+> [TradingView K线图 →](https://www.tradingview.com/chart/?symbol=BINANCE:SKYAIUSDT)  |  [CoinGecko →](https://www.coingecko.com/en/coins/skyai)  |  [Binance →](https://www.binance.com/zh-CN/trade/SKYAIUSDT)
 
 ## 快照数据（2026-02-18 创建时获取）
 
