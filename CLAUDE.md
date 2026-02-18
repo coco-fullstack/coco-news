@@ -5,12 +5,19 @@
 ## 文件夹结构
 
 - Inbox/ — 未整理的原始想法
-- Trading/ — 交易相关：策略、复盘、交易日志
-- Research/ — 项目调研：token分析、赛道研究
-- Learning/ — 学习笔记
-- Thoughts/ — 个人思考
+- Web3/Research/ — Web3 深度研究（赛道分析、项目研究）
+- Web3/Thoughts/ — Web3 想法观察（短想法、市场感觉）
+- Trading/策略/ — 交易策略、工具、checklist
+- Trading/思考/ — 交易思维、心理、复盘
+- Learning/ — 学习笔记、书单
 - Templates/ — 模板文件
 - Archive/ — 归档
+
+## 分类原则
+
+- **按领域分大类**：Web3 只放 Web3 的，Trading 只放交易的
+- **大类内再细分**：Research vs Thoughts，策略 vs 思考
+- 以后新增领域直接建顶层文件夹（如 AI/、旅游/、Life/）
 
 ## 整理规则
 
@@ -24,12 +31,12 @@
 
 - trading/strategy, trading/journal, trading/review
 - research/token, research/sector, research/thesis
-- learning/quant, learning/coding, learning/ai
+- learning/quant, learning/coding, learning/ai, learning/reading
 - token/币种名（如 token/KITE, token/BTC）
 
 ## 特殊处理
 
 - URL链接：提取标题描述，生成摘要笔记
-- 很短的内容：补充frontmatter后放入Thoughts/
+- 很短的内容：补充frontmatter后放入对应领域的Thoughts/
 - 涉及具体币种：添加 token/xxx 标签
 - 笔记内容保持中文，标签用英文
