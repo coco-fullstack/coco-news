@@ -1,0 +1,75 @@
+name: Cloud Knowledge Base
+
+on:
+  # 定时触发：每天 UTC 00:00 = 北京时间 08:00
+  schedule:
+    - cron: "0 0 * * *"
+
+  # Push 触发：仅 main 分支
+  push:
+    branches: [main]
+
+  # 手动触发（方便调试）
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # ── Job 1: 每日新闻抓取 ─────────────────────────────────────
+  daily-news:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run cloud_news.py
+        run: python scripts/cloud_news.py
+
+      - name: Commit and push news briefing
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "每日热点新闻/" || true
+          if git diff --cached --quiet; then
+            echo "No new files to commit"
+          else
+            git commit -m "docs: 自动生成 $(date -u -d '+8 hours' +%Y-%m-%d) 今日简报"
+            git push
+          fi
+
+  # ── Job 2: 金句同步到 Google Docs ──────────────────────────
+  sync-quotes:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # 需要前一个 commit 来做 diff
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Run sync_to_google.py
+        env:
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+          GOOGLE_DOC_ID: ${{ secrets.GOOGLE_DOC_ID }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.event.after }}
+        run: python scripts/sync_to_google.py
