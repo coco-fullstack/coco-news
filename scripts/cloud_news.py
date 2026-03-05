@@ -20,11 +20,13 @@ from html import unescape
 
 # ── RSS 源 ────────────────────────────────────────────────────────
 RSS_FEEDS = [
-    "https://36kr.com/feed",
-    "https://www.cls.cn/rss",
-    "https://rsshub.app/wallstreetcn/news/global",
-    "https://rsshub.app/jin10/flash",
-    "https://rsshub.app/coindesk/consensus-magazine",
+    # 币圈（主要）
+    "https://cointelegraph.com/rss",          # CoinTelegraph
+    "https://feeds.feedburner.com/CoinDesk",   # CoinDesk
+    "https://www.theblock.co/rss.xml",         # The Block
+    "https://cryptopanic.com/news/rss/",       # CryptoPanic（聚合币圈社交热门）
+    # 综合财经
+    "https://36kr.com/feed",                   # 36氪
 ]
 
 # ── 金融关键词 ────────────────────────────────────────────────────
