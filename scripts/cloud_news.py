@@ -37,7 +37,7 @@ TRACKED_COINS = {
     "polkadot": "DOT", "chainlink": "LINK", "sui": "SUI",
     "pepe": "PEPE", "shiba-inu": "SHIB",
     "uniswap": "UNI", "bittensor": "TAO",
-    "kiteai": "KITEAI", "biconomy": "BICO",
+    "kite-2": "KITE", "bio-protocol": "BIO",
 }
 
 # 价格提醒阈值
@@ -62,7 +62,7 @@ CRYPTO_KEYWORDS = [
     "ADA", "Cardano", "AVAX", "Avalanche", "DOT", "Polkadot",
     "LINK", "Chainlink", "SUI", "PEPE", "SHIB", "柴犬币",
     "MATIC", "Polygon", "ARB", "Arbitrum", "OP", "Optimism",
-    "UNI", "Uniswap", "TAO", "Bittensor", "KITEAI", "KITE", "BICO", "Biconomy",
+    "UNI", "Uniswap", "TAO", "Bittensor", "KITE", "BIO", "Bio Protocol",
     "空投", "airdrop", "质押", "staking", "Layer 2", "L2",
     "SEC", "监管", "regulation", "whale", "鲸鱼",
     "ETF", "现货ETF", "山寨币", "altcoin", "meme币", "memecoin",
