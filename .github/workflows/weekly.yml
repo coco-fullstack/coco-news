@@ -1,0 +1,27 @@
+name: Weekly Report
+
+on:
+  schedule:
+    # 每周日 UTC 01:00 = 北京时间 09:00
+    - cron: "0 1 * * 0"
+  workflow_dispatch:
+
+jobs:
+  weekly-report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Generate weekly report
+        env:
+          PUSHPLUS_TOKENS: ${{ secrets.PUSHPLUS_TOKENS }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        run: python scripts/cloud_news.py weekly
