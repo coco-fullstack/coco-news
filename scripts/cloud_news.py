@@ -1,7 +1,7 @@
 """
 cloud_news.py - 云端新闻抓取 + 多渠道推送
 支持两种模式：
-  daily  - 每日简报（金融详细 + 热门精选）
+  daily  - 每日简报（80%币圈 + 15%金融 + 5%热门/AI）
   urgent - 紧急检查（仅推送重大金融事件）
 """
 
@@ -21,37 +21,48 @@ from html import unescape
 # ── RSS 源 ────────────────────────────────────────────────────────
 RSS_FEEDS = [
     # 币圈（主要）
-    "https://cointelegraph.com/rss",          # CoinTelegraph
-    "https://feeds.feedburner.com/CoinDesk",   # CoinDesk
-    "https://www.theblock.co/rss.xml",         # The Block
-    "https://cryptopanic.com/news/rss/",       # CryptoPanic（聚合币圈社交热门）
+    "https://cointelegraph.com/rss",
+    "https://feeds.feedburner.com/CoinDesk",
+    "https://www.theblock.co/rss.xml",
     # 综合财经
-    "https://36kr.com/feed",                   # 36氪
+    "https://36kr.com/feed",
 ]
 
-# ── 金融关键词 ────────────────────────────────────────────────────
+# ── 分类关键词 ────────────────────────────────────────────────────
+CRYPTO_KEYWORDS = [
+    "BTC", "Bitcoin", "比特币", "ETH", "Ethereum", "以太坊",
+    "Solana", "SOL", "XRP", "BNB", "DOGE", "狗狗币",
+    "加密货币", "Crypto", "cryptocurrency", "币圈", "代币", "token",
+    "交易所", "Binance", "Coinbase", "OKX", "Bybit",
+    "稳定币", "stablecoin", "USDT", "USDC",
+    "DeFi", "DEX", "NFT", "Web3", "区块链", "blockchain",
+    "矿", "mining", "链上", "on-chain", "钱包", "wallet",
+    "空投", "airdrop", "质押", "staking", "Layer 2", "L2",
+    "SEC", "监管", "regulation",
+]
+
 FINANCE_KEYWORDS = [
-    # 币圈
-    "BTC", "Bitcoin", "比特币", "ETH", "以太坊", "加密货币", "Crypto",
-    "币圈", "代币", "交易所", "Binance", "Coinbase", "稳定币",
-    "DeFi", "NFT", "Web3", "区块链", "矿", "链上",
-    # 美股
     "美股", "纳斯达克", "标普", "道琼斯", "华尔街",
-    "NASDAQ", "S&P", "特斯拉", "苹果", "英伟达", "Meta", "谷歌",
+    "NASDAQ", "S&P", "Wall Street",
+    "特斯拉", "Tesla", "苹果", "Apple", "英伟达", "NVIDIA",
     "美联储", "Fed", "降息", "加息", "利率", "通胀", "CPI", "非农",
-    "财报", "营收", "市值", "IPO", "熔断",
-    # 黄金/大宗
-    "黄金", "Gold", "白银", "原油", "大宗商品",
-    # 通用金融
-    "股市", "暴跌", "暴涨", "崩盘", "牛市", "熊市", "做空",
+    "财报", "earnings", "营收", "市值", "IPO",
+    "黄金", "Gold", "白银", "原油", "oil", "大宗商品",
+    "股市", "牛市", "熊市", "做空",
     "融资", "投资", "估值", "上市", "退市",
 ]
 
-# 紧急事件关键词（触发即时推送）
+AI_KEYWORDS = [
+    "AI", "人工智能", "GPT", "大模型", "LLM", "Claude", "OpenAI",
+    "Gemini", "机器学习", "深度学习", "AGI", "芯片", "GPU",
+]
+
 URGENT_KEYWORDS = [
-    "暴跌", "暴涨", "崩盘", "熔断", "跳水", "飙升", "历史新高", "历史新低",
-    "紧急", "突发", "黑天鹅", "重磅", "央行", "美联储",
-    "降息", "加息", "战争", "制裁", "禁令",
+    "暴跌", "暴涨", "崩盘", "熔断", "跳水", "飙升",
+    "历史新高", "历史新低", "all-time high", "ATH",
+    "紧急", "突发", "黑天鹅", "重磅", "breaking",
+    "央行", "美联储", "降息", "加息",
+    "战争", "制裁", "禁令", "crash", "surge", "plunge",
 ]
 
 CST = timezone(timedelta(hours=8))
@@ -62,7 +73,10 @@ SMTP_USER = os.environ.get("SMTP_USER", "")
 SMTP_PASS = os.environ.get("SMTP_PASS", "")
 EMAIL_TO = os.environ.get("EMAIL_TO", "")
 
-MAX_TRENDING = 5  # 热门精选最多显示几条
+# 每日简报条数限制
+MAX_CRYPTO = 20
+MAX_FINANCE = 5
+MAX_OTHER = 3
 
 
 def fetch_rss(url: str) -> str:
@@ -76,7 +90,7 @@ def strip_html(text: str) -> str:
     return re.sub(r"<[^>]+>", "", unescape(text)).strip()
 
 
-def summarize(text: str, max_len: int = 60) -> str:
+def summarize(text: str, max_len: int = 80) -> str:
     text = strip_html(text).replace("\n", " ").strip()
     if len(text) <= max_len:
         return text
@@ -85,17 +99,23 @@ def summarize(text: str, max_len: int = 60) -> str:
 
 def classify(title: str, description: str) -> str:
     combined = f"{title} {description}"
+    for kw in CRYPTO_KEYWORDS:
+        if kw.lower() in combined.lower():
+            return "crypto"
     for kw in FINANCE_KEYWORDS:
-        if kw in combined:
+        if kw.lower() in combined.lower():
             return "finance"
+    for kw in AI_KEYWORDS:
+        if kw.lower() in combined.lower():
+            return "ai"
     return "other"
 
 
 def is_urgent(title: str, description: str) -> bool:
-    combined = f"{title} {description}"
-    finance = any(kw in combined for kw in FINANCE_KEYWORDS)
-    urgent = any(kw in combined for kw in URGENT_KEYWORDS)
-    return finance and urgent
+    combined = f"{title} {description}".lower()
+    has_finance = any(kw.lower() in combined for kw in CRYPTO_KEYWORDS + FINANCE_KEYWORDS)
+    has_urgent = any(kw.lower() in combined for kw in URGENT_KEYWORDS)
+    return has_finance and has_urgent
 
 
 def parse_feed(xml_text: str) -> list[dict]:
@@ -127,58 +147,58 @@ def parse_feed(xml_text: str) -> list[dict]:
     return items
 
 
-def build_daily_html(finance_items: list[dict], trending_items: list[dict], today: str) -> str:
-    now = datetime.now(CST).strftime('%H:%M')
-    html = f"""<h1 style="color:#333;">{today} 每日金融简报</h1>
-<p style="color:#888;">自动生成于 {now} CST</p><hr>"""
-
-    if finance_items:
-        html += '<h2 style="color:#e67e22;">金融市场</h2>'
-        for item in finance_items:
-            title = item["title"]
-            summary = summarize(item["description"])
-            link = item["link"]
-            html += f'''<div style="margin-bottom:12px;padding:10px;background:#fef9e7;border-left:4px solid #e67e22;">
+def render_section(items: list[dict], color: str, bg: str) -> str:
+    html = ""
+    for item in items:
+        title = item["title"]
+        summary = summarize(item["description"])
+        link = item["link"]
+        html += f'''<div style="margin-bottom:10px;padding:10px;background:{bg};border-left:4px solid {color};">
 <strong>{title}</strong><br>
-<span style="color:#666;">{summary}</span><br>'''
-            if link:
-                html += f'<a href="{link}">阅读原文</a>'
-            html += '</div>'
+<span style="color:#666;font-size:13px;">{summary}</span><br>'''
+        if link:
+            html += f'<a href="{link}" style="color:#3498db;font-size:13px;">阅读原文</a>'
+        html += '</div>'
+    return html
 
-    if trending_items:
+
+def build_daily_html(crypto: list[dict], finance: list[dict],
+                     other: list[dict], today: str) -> str:
+    now = datetime.now(CST).strftime('%H:%M')
+    html = f"""<h1 style="color:#333;">{today} 每日简报</h1>
+<p style="color:#888;font-size:13px;">自动生成于 {now} CST | 币圈 {len(crypto)} 条 · 金融 {len(finance)} 条 · 其他 {len(other)} 条</p><hr>"""
+
+    if crypto:
+        html += '<h2 style="color:#f39c12;">币圈动态</h2>'
+        html += render_section(crypto, "#f39c12", "#fef9e7")
+
+    if finance:
+        html += '<h2 style="color:#e67e22;">金融市场</h2>'
+        html += render_section(finance, "#e67e22", "#fdf2e9")
+
+    if other:
         html += '<h2 style="color:#3498db;">热门精选</h2>'
-        for item in trending_items[:MAX_TRENDING]:
+        for item in other:
             title = item["title"]
             link = item["link"]
             if link:
-                html += f'<p>- <a href="{link}">{title}</a></p>'
+                html += f'<p style="font-size:14px;">· <a href="{link}" style="color:#3498db;">{title}</a></p>'
             else:
-                html += f'<p>- {title}</p>'
+                html += f'<p style="font-size:14px;">· {title}</p>'
 
-    if not finance_items and not trending_items:
+    if not crypto and not finance and not other:
         html += '<p style="color:#999;">今日暂无重要新闻</p>'
 
-    html += f'<hr><p style="color:#aaa;font-size:12px;">GitHub Actions 自动生成 | {today}</p>'
+    html += f'<hr><p style="color:#aaa;font-size:11px;">GitHub Actions 自动生成 | {today}</p>'
     return html
 
 
 def build_urgent_html(urgent_items: list[dict]) -> str:
     now = datetime.now(CST).strftime('%H:%M')
-    html = f"""<h1 style="color:#c0392b;">紧急金融快讯</h1>
+    html = f"""<h1 style="color:#c0392b;">紧急快讯</h1>
 <p style="color:#888;">{now} CST</p><hr>"""
-
-    for item in urgent_items:
-        title = item["title"]
-        summary = summarize(item["description"])
-        link = item["link"]
-        html += f'''<div style="margin-bottom:12px;padding:10px;background:#fdedec;border-left:4px solid #c0392b;">
-<strong>{title}</strong><br>
-<span style="color:#666;">{summary}</span><br>'''
-        if link:
-            html += f'<a href="{link}">阅读原文</a>'
-        html += '</div>'
-
-    html += '<hr><p style="color:#aaa;font-size:12px;">GitHub Actions 紧急推送</p>'
+    html += render_section(urgent_items, "#c0392b", "#fdedec")
+    html += '<hr><p style="color:#aaa;font-size:11px;">GitHub Actions 紧急推送</p>'
     return html
 
 
@@ -252,6 +272,7 @@ def run_daily():
     today = datetime.now(CST).strftime(DATE_FMT)
     all_items = fetch_all_items()
 
+    crypto_items = []
     finance_items = []
     other_items = []
     seen_titles = set()
@@ -261,15 +282,22 @@ def run_daily():
             continue
         seen_titles.add(item["title"])
         cat = classify(item["title"], item["description"])
-        if cat == "finance":
+        if cat == "crypto":
+            crypto_items.append(item)
+        elif cat == "finance":
             finance_items.append(item)
         else:
             other_items.append(item)
 
-    print(f"[INFO] 金融: {len(finance_items)} 条, 其他: {len(other_items)} 条")
+    # 按比重限制条数
+    crypto_items = crypto_items[:MAX_CRYPTO]
+    finance_items = finance_items[:MAX_FINANCE]
+    other_items = other_items[:MAX_OTHER]
 
-    html = build_daily_html(finance_items, other_items, today)
-    push_all(f"{today} 每日金融简报", html)
+    print(f"[INFO] 币圈: {len(crypto_items)}, 金融: {len(finance_items)}, 其他: {len(other_items)}")
+
+    html = build_daily_html(crypto_items, finance_items, other_items, today)
+    push_all(f"{today} 每日简报", html)
 
 
 def run_urgent():
@@ -288,7 +316,7 @@ def run_urgent():
     if urgent_items:
         print(f"[ALERT] 发现 {len(urgent_items)} 条紧急新闻，立即推送！")
         html = build_urgent_html(urgent_items)
-        push_all(f"紧急金融快讯（{len(urgent_items)}条）", html)
+        push_all(f"紧急快讯（{len(urgent_items)}条）", html)
     else:
         print("[INFO] 无紧急新闻，不推送")
 
