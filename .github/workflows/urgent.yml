@@ -1,17 +1,13 @@
-name: Daily News Push
+name: Urgent News Check
 
 on:
   schedule:
-    # 每日简报：UTC 00:00 = 北京时间 08:00
-    - cron: "0 0 * * *"
+    # 每2小时检查一次紧急新闻（北京时间 8:00-22:00）
+    - cron: "0 0,2,4,6,8,10,12,14 * * *"
   workflow_dispatch:
-    inputs:
-      mode:
-        description: "运行模式: daily 或 urgent"
-        default: "daily"
 
 jobs:
-  daily-news:
+  urgent-check:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -22,10 +18,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Run cloud_news.py
+      - name: Check urgent news
         env:
           PUSHPLUS_TOKENS: ${{ secrets.PUSHPLUS_TOKENS }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
-        run: python scripts/cloud_news.py ${{ github.event.inputs.mode || 'daily' }}
+        run: python scripts/cloud_news.py urgent
