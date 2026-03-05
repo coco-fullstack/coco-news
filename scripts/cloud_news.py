@@ -1,13 +1,16 @@
 """
-cloud_news.py - 云端新闻抓取 + 微信推送
-每日定时抓取 RSS 源，按"工作/生活"分流，通过 PushPlus 推送到微信。
+cloud_news.py - 云端新闻抓取 + 多渠道推送
+每日定时抓取 RSS 源，按"工作/生活"分流，通过 PushPlus（微信）和邮件推送。
 """
 
 import json
 import os
 import re
+import smtplib
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone, timedelta
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from urllib.request import urlopen, Request
 from urllib.error import URLError
 from html import unescape
@@ -27,8 +30,13 @@ WORK_KEYWORDS = [
 CST = timezone(timedelta(hours=8))
 DATE_FMT = "%Y-%m-%d"
 
-# PushPlus Token（通过环境变量，多个用逗号分隔）
+# PushPlus（微信推送，多个 token 用逗号分隔）
 PUSHPLUS_TOKENS = os.environ.get("PUSHPLUS_TOKENS", "").split(",")
+
+# 邮件推送
+SMTP_USER = os.environ.get("SMTP_USER", "")
+SMTP_PASS = os.environ.get("SMTP_PASS", "")
+EMAIL_TO = os.environ.get("EMAIL_TO", "")
 
 
 def fetch_rss(url: str) -> str:
@@ -144,11 +152,29 @@ def push_wechat(title: str, html_body: str):
             with urlopen(req, timeout=30) as resp:
                 result = json.loads(resp.read().decode())
                 if result.get("code") == 200:
-                    print(f"[OK] 推送成功: token={token[:8]}...")
+                    print(f"[OK] 微信推送成功: token={token[:8]}...")
                 else:
-                    print(f"[WARN] 推送异常: {result}")
+                    print(f"[WARN] 微信推送异常: {result}")
         except (URLError, OSError) as e:
-            print(f"[ERROR] 推送失败: {e}")
+            print(f"[ERROR] 微信推送失败: {e}")
+
+
+def send_email(subject: str, html_body: str):
+    if not SMTP_USER or not SMTP_PASS or not EMAIL_TO:
+        print("[SKIP] 邮件未配置，跳过")
+        return
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = SMTP_USER
+    msg["To"] = EMAIL_TO
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+    with smtplib.SMTP("smtp.gmail.com", 587) as server:
+        server.starttls()
+        server.login(SMTP_USER, SMTP_PASS)
+        server.send_message(msg)
+
+    print(f"[OK] 邮件已发送至 {EMAIL_TO}")
 
 
 def main():
@@ -176,8 +202,10 @@ def main():
 
     print(f"[INFO] 工作: {len(work_items)} 条, 生活: {len(life_items)} 条")
 
+    title = f"{today} 今日简报"
     html_content = build_html(work_items, life_items, today)
-    push_wechat(f"{today} 今日简报", html_content)
+    push_wechat(title, html_content)
+    send_email(title, html_content)
 
 
 if __name__ == "__main__":

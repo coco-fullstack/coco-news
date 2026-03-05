@@ -1,4 +1,4 @@
-name: Daily News WeChat
+name: Daily News Push
 
 on:
   schedule:
@@ -20,4 +20,7 @@ jobs:
       - name: Run cloud_news.py
         env:
           PUSHPLUS_TOKENS: ${{ secrets.PUSHPLUS_TOKENS }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
         run: python scripts/cloud_news.py
