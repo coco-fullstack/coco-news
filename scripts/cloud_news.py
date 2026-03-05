@@ -1,7 +1,7 @@
 """
 cloud_news.py - 云端新闻抓取 + 多渠道推送
 支持两种模式：
-  daily  - 每日简报（80%币圈 + 15%金融 + 5%热门/AI）
+  daily  - 每日简报（币圈为主，中文总结 + 原文链接）
   urgent - 紧急检查（仅推送重大金融事件）
 """
 
@@ -16,6 +16,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from urllib.request import urlopen, Request
 from urllib.error import URLError
+from urllib.parse import quote
 from html import unescape
 
 # ── RSS 源 ────────────────────────────────────────────────────────
@@ -73,10 +74,9 @@ SMTP_USER = os.environ.get("SMTP_USER", "")
 SMTP_PASS = os.environ.get("SMTP_PASS", "")
 EMAIL_TO = os.environ.get("EMAIL_TO", "")
 
-# 每日简报条数限制
-MAX_CRYPTO = 20
-MAX_FINANCE = 5
-MAX_OTHER = 3
+MAX_CRYPTO = 15
+MAX_FINANCE = 3
+MAX_OTHER = 2
 
 
 def fetch_rss(url: str) -> str:
@@ -90,11 +90,30 @@ def strip_html(text: str) -> str:
     return re.sub(r"<[^>]+>", "", unescape(text)).strip()
 
 
-def summarize(text: str, max_len: int = 80) -> str:
+def summarize(text: str, max_len: int = 100) -> str:
     text = strip_html(text).replace("\n", " ").strip()
     if len(text) <= max_len:
         return text
     return text[:max_len] + "..."
+
+
+def is_chinese(text: str) -> bool:
+    return bool(re.search(r'[\u4e00-\u9fff]', text))
+
+
+def translate_to_chinese(text: str) -> str:
+    """用免费 Google Translate 接口翻译英文为中文"""
+    if is_chinese(text):
+        return text
+    try:
+        encoded = quote(text)
+        url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&q={encoded}"
+        req = Request(url, headers={"User-Agent": "CloudNewsBot/1.0"})
+        with urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode())
+            return "".join(part[0] for part in data[0] if part[0])
+    except Exception:
+        return text
 
 
 def classify(title: str, description: str) -> str:
@@ -147,17 +166,30 @@ def parse_feed(xml_text: str) -> list[dict]:
     return items
 
 
-def render_section(items: list[dict], color: str, bg: str) -> str:
+def translate_items(items: list[dict]) -> list[dict]:
+    """翻译标题和摘要为中文"""
+    for item in items:
+        item["title_cn"] = translate_to_chinese(item["title"])
+        desc_clean = strip_html(item["description"]).replace("\n", " ").strip()
+        if desc_clean:
+            item["summary_cn"] = translate_to_chinese(summarize(desc_clean))
+        else:
+            item["summary_cn"] = ""
+    return items
+
+
+def render_items_html(items: list[dict], color: str, bg: str) -> str:
     html = ""
     for item in items:
-        title = item["title"]
-        summary = summarize(item["description"])
+        title_cn = item.get("title_cn", item["title"])
+        summary_cn = item.get("summary_cn", "")
         link = item["link"]
         html += f'''<div style="margin-bottom:10px;padding:10px;background:{bg};border-left:4px solid {color};">
-<strong>{title}</strong><br>
-<span style="color:#666;font-size:13px;">{summary}</span><br>'''
+<strong>{title_cn}</strong><br>'''
+        if summary_cn:
+            html += f'<span style="color:#666;font-size:13px;">{summary_cn}</span><br>'
         if link:
-            html += f'<a href="{link}" style="color:#3498db;font-size:13px;">阅读原文</a>'
+            html += f'<a href="{link}" style="color:#3498db;font-size:12px;">查看原文</a>'
         html += '</div>'
     return html
 
@@ -166,25 +198,25 @@ def build_daily_html(crypto: list[dict], finance: list[dict],
                      other: list[dict], today: str) -> str:
     now = datetime.now(CST).strftime('%H:%M')
     html = f"""<h1 style="color:#333;">{today} 每日简报</h1>
-<p style="color:#888;font-size:13px;">自动生成于 {now} CST | 币圈 {len(crypto)} 条 · 金融 {len(finance)} 条 · 其他 {len(other)} 条</p><hr>"""
+<p style="color:#888;font-size:13px;">{now} CST | 币圈 {len(crypto)} 条 · 金融 {len(finance)} 条 · 其他 {len(other)} 条</p><hr>"""
 
     if crypto:
         html += '<h2 style="color:#f39c12;">币圈动态</h2>'
-        html += render_section(crypto, "#f39c12", "#fef9e7")
+        html += render_items_html(crypto, "#f39c12", "#fef9e7")
 
     if finance:
         html += '<h2 style="color:#e67e22;">金融市场</h2>'
-        html += render_section(finance, "#e67e22", "#fdf2e9")
+        html += render_items_html(finance, "#e67e22", "#fdf2e9")
 
     if other:
         html += '<h2 style="color:#3498db;">热门精选</h2>'
         for item in other:
-            title = item["title"]
+            title_cn = item.get("title_cn", item["title"])
             link = item["link"]
             if link:
-                html += f'<p style="font-size:14px;">· <a href="{link}" style="color:#3498db;">{title}</a></p>'
+                html += f'<p style="font-size:14px;">· <a href="{link}" style="color:#3498db;">{title_cn}</a></p>'
             else:
-                html += f'<p style="font-size:14px;">· {title}</p>'
+                html += f'<p style="font-size:14px;">· {title_cn}</p>'
 
     if not crypto and not finance and not other:
         html += '<p style="color:#999;">今日暂无重要新闻</p>'
@@ -197,7 +229,7 @@ def build_urgent_html(urgent_items: list[dict]) -> str:
     now = datetime.now(CST).strftime('%H:%M')
     html = f"""<h1 style="color:#c0392b;">紧急快讯</h1>
 <p style="color:#888;">{now} CST</p><hr>"""
-    html += render_section(urgent_items, "#c0392b", "#fdedec")
+    html += render_items_html(urgent_items, "#c0392b", "#fdedec")
     html += '<hr><p style="color:#aaa;font-size:11px;">GitHub Actions 紧急推送</p>'
     return html
 
@@ -289,10 +321,15 @@ def run_daily():
         else:
             other_items.append(item)
 
-    # 按比重限制条数
     crypto_items = crypto_items[:MAX_CRYPTO]
     finance_items = finance_items[:MAX_FINANCE]
     other_items = other_items[:MAX_OTHER]
+
+    # 翻译为中文
+    print(f"[INFO] 翻译中...")
+    crypto_items = translate_items(crypto_items)
+    finance_items = translate_items(finance_items)
+    other_items = translate_items(other_items)
 
     print(f"[INFO] 币圈: {len(crypto_items)}, 金融: {len(finance_items)}, 其他: {len(other_items)}")
 
@@ -314,6 +351,7 @@ def run_urgent():
             urgent_items.append(item)
 
     if urgent_items:
+        urgent_items = translate_items(urgent_items)
         print(f"[ALERT] 发现 {len(urgent_items)} 条紧急新闻，立即推送！")
         html = build_urgent_html(urgent_items)
         push_all(f"紧急快讯（{len(urgent_items)}条）", html)
