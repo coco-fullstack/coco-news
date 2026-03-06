@@ -103,6 +103,31 @@ VIP_KEYWORDS = [
 CST = timezone(timedelta(hours=8))
 DATE_FMT = "%Y-%m-%d"
 
+# RSS 日期格式
+RSS_DATE_FORMATS = [
+    "%a, %d %b %Y %H:%M:%S %z",      # RFC 822: Mon, 05 Mar 2026 08:00:00 +0000
+    "%a, %d %b %Y %H:%M:%S %Z",      # with timezone name
+    "%Y-%m-%dT%H:%M:%S%z",            # ISO 8601
+    "%Y-%m-%dT%H:%M:%SZ",             # ISO 8601 UTC
+]
+
+
+def parse_pub_date(date_str: str) -> str:
+    """解析 RSS 日期，返回北京时间 HH:MM 格式。"""
+    if not date_str:
+        return ""
+    date_str = date_str.strip()
+    for fmt in RSS_DATE_FORMATS:
+        try:
+            dt = datetime.strptime(date_str, fmt)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            dt_cst = dt.astimezone(CST)
+            return dt_cst.strftime("%H:%M")
+        except ValueError:
+            continue
+    return ""
+
 PUSHPLUS_TOKENS = os.environ.get("PUSHPLUS_TOKENS", "").split(",")
 SMTP_USER = os.environ.get("SMTP_USER", "")
 SMTP_PASS = os.environ.get("SMTP_PASS", "")
@@ -309,16 +334,19 @@ def parse_feed(xml_text: str) -> list[dict]:
         title = (item.findtext("title") or "").strip()
         link = (item.findtext("link") or "").strip()
         desc = (item.findtext("description") or "").strip()
+        pub_date = (item.findtext("pubDate") or "").strip()
         if title:
-            items.append({"title": title, "link": link, "description": desc})
+            items.append({"title": title, "link": link, "description": desc, "time": parse_pub_date(pub_date)})
     if not items:
         for entry in root.iter("{http://www.w3.org/2005/Atom}entry"):
             title = (entry.findtext("atom:title", "", ns) or "").strip()
             link_el = entry.find("atom:link", ns)
             link = link_el.get("href", "") if link_el is not None else ""
             desc = (entry.findtext("atom:summary", "", ns) or "").strip()
+            pub_date = (entry.findtext("atom:published", "", ns)
+                        or entry.findtext("atom:updated", "", ns) or "").strip()
             if title:
-                items.append({"title": title, "link": link, "description": desc})
+                items.append({"title": title, "link": link, "description": desc, "time": parse_pub_date(pub_date)})
     return items
 
 
@@ -461,8 +489,10 @@ def build_news_html(items: list[dict], section_title: str, color: str) -> str:
         summary_cn = item.get("summary_cn", "")
         link = item["link"]
         vip_tag = ' <span style="background:#ff6b6b;color:#fff;font-size:10px;padding:1px 4px;border-radius:3px;">大佬</span>' if item.get("is_vip") else ""
+        time_str = item.get("time", "")
+        time_tag = f' <span style="color:#aaa;font-size:11px;">{time_str}</span>' if time_str else ""
         html += f'<div style="margin-bottom:8px;padding:8px 10px;background:#f8f9fa;border-left:3px solid {color};font-size:14px;">'
-        html += f'<strong>{title_cn}</strong>{vip_tag}<br>'
+        html += f'<strong>{title_cn}</strong>{vip_tag}{time_tag}<br>'
         if summary_cn:
             html += f'<span style="color:#888;font-size:12px;">{summary_cn}</span><br>'
         if link:
