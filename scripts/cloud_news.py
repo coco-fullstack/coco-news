@@ -1027,6 +1027,344 @@ def _ftag(text: str, cls: str) -> str:
 
 
 # ══════════════════════════════════════════════════════════════════
+#  可视化组件 (纯 HTML/CSS，邮件兼容)
+# ══════════════════════════════════════════════════════════════════
+
+def _vis_gauge(value: int, label: str, max_val: int = 100) -> str:
+    """半圆仪表盘（恐贪指数等 0-100 值）"""
+    pct = max(0, min(100, value / max_val * 100))
+    # 角度：0% = -90deg (左), 100% = 90deg (右)
+    angle = -90 + (pct * 1.8)
+    # 颜色：红(恐惧) → 黄(中性) → 绿(贪婪)
+    if pct <= 25:
+        color = "#ea4335"
+    elif pct <= 45:
+        color = "#f4a261"
+    elif pct <= 55:
+        color = "#e9c46a"
+    elif pct <= 75:
+        color = "#87c38f"
+    else:
+        color = "#34a853"
+
+    return f'''<div style="text-align:center;margin:12px 0 8px">
+<div style="position:relative;width:140px;height:78px;margin:0 auto;overflow:hidden">
+<div style="width:140px;height:140px;border-radius:50%;
+  background:conic-gradient(from 0.75turn,{color} {pct}%,rgba(0,0,0,0.06) {pct}%);
+  -webkit-mask:radial-gradient(circle at 50% 50%,transparent 50px,#000 51px);
+  mask:radial-gradient(circle at 50% 50%,transparent 50px,#000 51px)"></div>
+<div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);
+  font-size:24px;font-weight:700;color:#1d1d1f;line-height:1">{value}</div>
+</div>
+<div style="font-size:10px;color:#999;margin-top:4px;text-transform:uppercase;letter-spacing:1px">{label}</div>
+</div>'''
+
+
+def _vis_progress_bar(long_pct: float, symbol: str) -> str:
+    """多空比彩色进度条"""
+    short_pct = 100 - long_pct
+    long_w = max(5, long_pct)
+    short_w = max(5, short_pct)
+    return f'''<div style="margin:6px 0 10px">
+<div style="display:flex;justify-content:space-between;font-size:10px;color:#999;margin-bottom:3px">
+<span>{symbol} 多 {long_pct:.1f}%</span><span>空 {short_pct:.1f}%</span></div>
+<div style="display:flex;height:8px;border-radius:4px;overflow:hidden;background:rgba(0,0,0,0.04)">
+<div style="width:{long_w:.1f}%;background:linear-gradient(90deg,#34a853,#87c38f);border-radius:4px 0 0 4px"></div>
+<div style="width:{short_w:.1f}%;background:linear-gradient(90deg,#f4a261,#ea4335);border-radius:0 4px 4px 0"></div>
+</div></div>'''
+
+
+def _vis_bar_chart(items: list[dict], value_key: str = "vs_btc",
+                   label_key: str = "symbol", max_items: int = 5) -> str:
+    """水平条形图（涨幅筛选、机构持仓等）"""
+    if not items:
+        return ""
+    display = items[:max_items]
+    max_val = max(abs(item[value_key]) for item in display) if display else 1
+    if max_val == 0:
+        max_val = 1
+
+    rows = ""
+    for item in display:
+        val = item[value_key]
+        w = abs(val) / max_val * 100
+        w = max(8, min(95, w))
+        color = "#34a853" if val >= 0 else "#ea4335"
+        label = item[label_key]
+        rows += f'''<div style="display:flex;align-items:center;margin:4px 0;font-size:11px">
+<span style="width:50px;color:#6e6e73;flex-shrink:0">{label}</span>
+<div style="flex:1;height:16px;background:rgba(0,0,0,0.03);border-radius:3px;overflow:hidden;margin:0 8px">
+<div style="width:{w:.0f}%;height:100%;background:{color};border-radius:3px;opacity:0.8"></div>
+</div>
+<span style="width:55px;text-align:right;font-weight:600;color:{color};font-variant-numeric:tabular-nums">{val:+.1f}%</span>
+</div>'''
+
+    return f'<div style="margin:10px 0">{rows}</div>'
+
+
+def _vis_timeline(expiries: list[dict], currency: str) -> str:
+    """期权到期时间轴（气泡大小=名义价值）"""
+    if not expiries:
+        return ""
+    max_notional = max(e["notional_usd"] for e in expiries) if expiries else 1
+    if max_notional == 0:
+        max_notional = 1
+
+    dots = ""
+    for exp in expiries[:5]:
+        days = exp["days_left"]
+        notional = exp["notional_usd"]
+        # 气泡大小: 12-36px
+        size = 12 + (notional / max_notional) * 24
+        color = "#ea4335" if exp["is_major"] else "#c9b99a"
+        opacity = "1" if days <= 7 else "0.7"
+        # 位置：0天=5%, 90天=95%
+        left_pct = 5 + min(90, days / 90 * 90)
+        dots += f'''<div style="position:absolute;left:{left_pct:.0f}%;top:50%;
+transform:translate(-50%,-50%);width:{size:.0f}px;height:{size:.0f}px;
+border-radius:50%;background:{color};opacity:{opacity};
+display:flex;align-items:center;justify-content:center;
+font-size:8px;color:#fff;font-weight:600">{days}d</div>'''
+
+    return f'''<div style="margin:8px 0 12px">
+<div style="font-size:10px;color:#b0a898;margin-bottom:4px">{currency} 到期时间轴</div>
+<div style="position:relative;height:44px;background:rgba(0,0,0,0.02);border-radius:8px;overflow:visible">
+<div style="position:absolute;top:50%;left:5%;right:5%;height:1px;background:rgba(0,0,0,0.08)"></div>
+{dots}
+</div>
+<div style="display:flex;justify-content:space-between;font-size:9px;color:#ccc;margin-top:2px">
+<span>今天</span><span>30天</span><span>90天</span></div>
+</div>'''
+
+
+def _vis_holdings_bars(companies: list[dict], max_items: int = 5) -> str:
+    """机构持仓比例条（类 treemap 横条）"""
+    if not companies:
+        return ""
+    total = sum(c["value_usd"] for c in companies[:max_items])
+    if total == 0:
+        return ""
+
+    colors = ["#c9b99a", "#b0a898", "#d4c5a9", "#a89880", "#e0d5c1"]
+    bars = ""
+    for i, comp in enumerate(companies[:max_items]):
+        pct = comp["value_usd"] / total * 100
+        if pct < 2:
+            continue
+        color = colors[i % len(colors)]
+        name = comp["name"][:12]
+        bars += f'<div style="width:{pct:.1f}%;background:{color};height:24px;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;font-weight:600;white-space:nowrap;overflow:hidden">{name}</div>'
+
+    return f'''<div style="display:flex;border-radius:6px;overflow:hidden;margin:8px 0">{bars}</div>'''
+
+
+# ══════════════════════════════════════════════════════════════════
+#  交易策略指标
+# ══════════════════════════════════════════════════════════════════
+
+def fetch_strategy_indicators() -> dict:
+    """获取 BTC/ETH 关键交易策略指标：MA 位置、MACD 方向、成交量趋势、资金费率趋势"""
+    import time as _time
+    result = {}
+
+    for coin_id, symbol in [("bitcoin", "BTC"), ("ethereum", "ETH")]:
+        info = {}
+
+        # 获取 60天价格数据，计算 MA、MACD、成交量趋势
+        url = f"{COINGECKO}/coins/{coin_id}/market_chart?vs_currency=usd&days=60&interval=daily"
+        data = fetch_json(url)
+        if not data or "prices" not in data:
+            continue
+
+        closes = [p[1] for p in data["prices"]]
+        volumes = [v[1] for v in data.get("total_volumes", [])]
+
+        if len(closes) < 30:
+            continue
+
+        current_price = closes[-1]
+
+        # MA7 / MA25 / MA50
+        ma7 = sum(closes[-7:]) / 7
+        ma25 = sum(closes[-25:]) / 25
+        ma50 = sum(closes[-50:]) / 50 if len(closes) >= 50 else None
+
+        info["price"] = current_price
+        info["ma7"] = ma7
+        info["ma25"] = ma25
+        info["ma50"] = ma50
+
+        # MA 信号：价格 vs MA 位置
+        if current_price > ma7 > ma25:
+            info["ma_signal"] = "多头排列"
+            info["ma_class"] = "g"
+        elif current_price < ma7 < ma25:
+            info["ma_signal"] = "空头排列"
+            info["ma_class"] = "r"
+        elif current_price > ma25:
+            info["ma_signal"] = "偏多"
+            info["ma_class"] = "g"
+        else:
+            info["ma_signal"] = "偏空"
+            info["ma_class"] = "r"
+
+        # MACD (12,26,9) 简化版
+        if len(closes) >= 26:
+            ema12 = _ema(closes, 12)
+            ema26 = _ema(closes, 26)
+            dif = ema12 - ema26
+            # 信号线：DIF 的 9日 EMA（近似用 SMA）
+            if len(closes) >= 35:
+                dif_series = []
+                for i in range(9):
+                    idx = len(closes) - 9 + i
+                    e12 = _ema(closes[:idx+1], 12)
+                    e26 = _ema(closes[:idx+1], 26)
+                    dif_series.append(e12 - e26)
+                dea = sum(dif_series) / len(dif_series)
+                macd_hist = (dif - dea) * 2
+                info["macd_dif"] = dif
+                info["macd_dea"] = dea
+                info["macd_hist"] = macd_hist
+                if dif > dea and macd_hist > 0:
+                    info["macd_signal"] = "金叉+红柱"
+                    info["macd_class"] = "g"
+                elif dif > dea:
+                    info["macd_signal"] = "金叉"
+                    info["macd_class"] = "g"
+                elif dif < dea and macd_hist < 0:
+                    info["macd_signal"] = "死叉+绿柱"
+                    info["macd_class"] = "r"
+                else:
+                    info["macd_signal"] = "死叉"
+                    info["macd_class"] = "r"
+
+        # 成交量分析：近7天 vs 前7天
+        if len(volumes) >= 14:
+            recent_vol = sum(volumes[-7:]) / 7
+            prev_vol = sum(volumes[-14:-7]) / 7
+            if prev_vol > 0:
+                vol_change = (recent_vol - prev_vol) / prev_vol * 100
+                info["vol_change"] = vol_change
+                info["vol_7d_avg"] = recent_vol
+                if vol_change > 30:
+                    info["vol_signal"] = "放量"
+                    info["vol_class"] = "r"
+                elif vol_change > 10:
+                    info["vol_signal"] = "温和放量"
+                    info["vol_class"] = "y"
+                elif vol_change < -30:
+                    info["vol_signal"] = "缩量"
+                    info["vol_class"] = "b"
+                else:
+                    info["vol_signal"] = "正常"
+                    info["vol_class"] = "g"
+
+        # 支撑/阻力位（近30天最高/最低 + 关键均线）
+        high_30d = max(closes[-30:])
+        low_30d = min(closes[-30:])
+        info["resistance"] = high_30d
+        info["support"] = low_30d
+        info["price_vs_range"] = (current_price - low_30d) / (high_30d - low_30d) * 100 if high_30d != low_30d else 50
+
+        result[symbol] = info
+        _time.sleep(1)
+
+    # 获取资金费率历史趋势（Binance 近3次费率）
+    for symbol in ["BTCUSDT", "ETHUSDT"]:
+        coin = symbol.replace("USDT", "")
+        url = f"https://fapi.binance.com/fapi/v1/fundingRate?symbol={symbol}&limit=3"
+        fr_data = fetch_json(url)
+        if fr_data and len(fr_data) >= 2 and coin in result:
+            rates = [float(r.get("fundingRate", 0)) * 100 for r in fr_data]
+            result[coin]["funding_rates"] = rates
+            trend = rates[-1] - rates[0]
+            if trend > 0.005:
+                result[coin]["funding_trend"] = "上升"
+                result[coin]["funding_trend_class"] = "r"
+            elif trend < -0.005:
+                result[coin]["funding_trend"] = "下降"
+                result[coin]["funding_trend_class"] = "g"
+            else:
+                result[coin]["funding_trend"] = "平稳"
+                result[coin]["funding_trend_class"] = "b"
+
+    return result
+
+
+def _ema(data: list[float], period: int) -> float:
+    """计算 EMA"""
+    if len(data) < period:
+        return data[-1] if data else 0
+    multiplier = 2 / (period + 1)
+    ema = sum(data[:period]) / period
+    for price in data[period:]:
+        ema = (price - ema) * multiplier + ema
+    return ema
+
+
+def _build_strategy_html(indicators: dict) -> str:
+    """构建交易策略指标 HTML 区块"""
+    if not indicators:
+        return ""
+
+    h = '<div class="s"><p class="st">交易策略指标</p>'
+
+    for sym in ["BTC", "ETH"]:
+        if sym not in indicators:
+            continue
+        ind = indicators[sym]
+        h += f'<div style="font-size:12px;font-weight:600;color:#1d1d1f;margin:8px 0 6px">{sym}</div>'
+
+        # MA 位置可视化 — 价格在区间中的位置
+        price_pos = ind.get("price_vs_range", 50)
+        ma_sig = ind.get("ma_signal", "—")
+        ma_cls = ind.get("ma_class", "b")
+        h += f'''<div class="r"><span class="l">均线</span><span class="v">{_ftag(ma_sig, ma_cls)}</span></div>'''
+
+        # MA 数值
+        ma7 = ind.get("ma7", 0)
+        ma25 = ind.get("ma25", 0)
+        h += f'<div style="font-size:10px;color:#999;padding:0 0 4px">MA7 {_p(ma7)} · MA25 {_p(ma25)}'
+        if ind.get("ma50"):
+            h += f' · MA50 {_p(ind["ma50"])}'
+        h += '</div>'
+
+        # 价格位置进度条（30天区间）
+        support = ind.get("support", 0)
+        resist = ind.get("resistance", 0)
+        h += f'''<div style="margin:4px 0 8px">
+<div style="display:flex;justify-content:space-between;font-size:9px;color:#999">
+<span>支撑 {_p(support)}</span><span>阻力 {_p(resist)}</span></div>
+<div style="height:6px;background:rgba(0,0,0,0.04);border-radius:3px;overflow:hidden;margin-top:2px">
+<div style="width:{price_pos:.0f}%;height:100%;background:linear-gradient(90deg,#34a853,#e9c46a,#ea4335);border-radius:3px"></div>
+</div></div>'''
+
+        # MACD
+        if "macd_signal" in ind:
+            macd_cls = ind.get("macd_class", "b")
+            h += f'<div class="r"><span class="l">MACD</span><span class="v">{_ftag(ind["macd_signal"], macd_cls)}</span></div>'
+
+        # 成交量
+        if "vol_signal" in ind:
+            vol_cls = ind.get("vol_class", "b")
+            vol_chg = ind.get("vol_change", 0)
+            h += f'<div class="r"><span class="l">成交量(7d)</span><span class="v">{_ftag(ind["vol_signal"], vol_cls)} {vol_chg:+.0f}%</span></div>'
+
+        # 资金费率趋势
+        if "funding_trend" in ind:
+            ft_cls = ind.get("funding_trend_class", "b")
+            rates = ind.get("funding_rates", [])
+            rate_str = " → ".join(f"{r:.4f}%" for r in rates) if rates else ""
+            h += f'<div class="r"><span class="l">费率趋势</span><span class="v">{_ftag(ind["funding_trend"], ft_cls)} {rate_str}</span></div>'
+
+        h += '<div class="dv"></div>'
+
+    h += '</div>'
+    return h
+
+
+# ══════════════════════════════════════════════════════════════════
 #  每日晨报 (Daily Digest)
 # ══════════════════════════════════════════════════════════════════
 
@@ -1092,6 +1430,9 @@ def build_daily_html(data: dict) -> str:
       </table>
     </div>"""
 
+    # ═══ 恐贪仪表盘 ═══
+    h += _vis_gauge(fng_val, fng_tag)
+
     # ═══ 一、AI 今日要点（最重要，放最前面）═══
     ai_summary = data.get("ai_summary", "")
     if ai_summary:
@@ -1116,14 +1457,16 @@ def build_daily_html(data: dict) -> str:
             tag = _ftag("超买", "r") if rsi >= RSI_OVERBOUGHT else _ftag("超卖", "b") if rsi <= RSI_OVERSOLD else ""
             h += f'<div class="r"><span class="l">{rlabel}</span><span class="v">{rsi:.0f} {tag}</span></div>'
 
-    # 多空比（合并显示）
+    # 多空比（可视化进度条）
     if ls:
         h += '<div class="dv"></div>'
         for sym in ["BTC", "ETH"]:
             if sym in ls:
                 lp = ls[sym]["long_pct"]
                 tag = _ftag("多头拥挤", "r") if lp > 65 else _ftag("空头拥挤", "g") if lp < 35 else ""
-                h += f'<div class="r"><span class="l">{sym} 多空</span><span class="v">L {lp:.0f}% / S {100-lp:.0f}% {tag}</span></div>'
+                h += _vis_progress_bar(lp, sym)
+                if tag:
+                    h += f'<div style="text-align:right;margin-top:-6px;margin-bottom:4px">{tag}</div>'
 
     # 清算（合并到这里，只显示关键数据）
     if liq and liq.get("total_24h", 0) > 0:
@@ -1160,13 +1503,15 @@ def build_daily_html(data: dict) -> str:
 
     h += '</div>'
 
-    # ═══ 期权交割日历 ═══
+    # ═══ 期权交割日历 (含时间轴可视化) ═══
     options = data.get("options_expiry", {})
     if options:
         h += '<div class="s"><p class="st">期权交割日历</p>'
         for currency in ["BTC", "ETH"]:
             if currency not in options or not options[currency]:
                 continue
+            # 时间轴气泡图
+            h += _vis_timeline(options[currency], currency)
             for exp in options[currency]:
                 days = exp["days_left"]
                 tag = _ftag("重大交割", "r") if exp["is_major"] else ""
@@ -1178,7 +1523,7 @@ def build_daily_html(data: dict) -> str:
                 h += f'<span class="v">{_mc(exp["notional_usd"])} ({exp["oi_coins"]:,.0f}枚) {tag}</span></div>'
         h += '</div>'
 
-    # ═══ 机构持仓 · 大额动向 ═══
+    # ═══ 机构持仓 · 大额动向 (含比例条可视化) ═══
     holdings = data.get("institutional", {})
     if holdings:
         h += '<div class="s"><p class="st">机构持仓 · 大额动向</p>'
@@ -1187,6 +1532,8 @@ def build_daily_html(data: dict) -> str:
                 continue
             hd = holdings[sym]
             h += f'<div class="r"><span class="l">{sym} 机构总持仓</span><span class="v">{_mc(hd["total_value_usd"])}</span></div>'
+            # 比例条可视化
+            h += _vis_holdings_bars(hd["top_companies"], 5)
             for comp in hd["top_companies"][:5]:
                 name = comp["name"]
                 if len(name) > 18:
@@ -1274,6 +1621,8 @@ def build_daily_html(data: dict) -> str:
 
             h += '<div class="dv"></div>'
             h += f'<p style="font-size:11px;color:#b0a898;margin:8px 0 4px;font-weight:600">{label} · 前200 ({len(top200)}个)</p>'
+            # 条形图可视化
+            h += _vis_bar_chart(top200[:5], "vs_btc", "symbol", 5)
             for coin in top200[:3]:
                 h += f'<div class="r"><span class="l">#{coin["rank"]} {coin["symbol"]}</span>'
                 h += f'<span class="v">{coin["change"]:+.1f}% <span style="font-size:10px;color:#34a853">+{coin["vs_btc"]:.1f}%</span></span></div>'
@@ -1290,6 +1639,11 @@ def build_daily_html(data: dict) -> str:
                     h += f'<p style="font-size:10px;color:#c7c7cc;text-align:center">...及其余 {len(after200)-3} 个</p>'
 
         h += '</div>'
+
+    # ═══ 交易策略指标 ═══
+    strategy = data.get("strategy_indicators", {})
+    if strategy:
+        h += _build_strategy_html(strategy)
 
     # ═══ 六、新闻 + 决策参考（合并）═══
     h += '<div class="s"><p class="st">新闻 & 研判</p>'
@@ -1501,6 +1855,7 @@ def run_daily():
         "coin_liquidations": _safe_fetch(fetch_coin_liquidations, {}),
         "screening": _safe_fetch(fetch_top200_vs_btc, {}),
         "institutional": _safe_fetch(fetch_institutional_holdings, {}),
+        "strategy_indicators": _safe_fetch(fetch_strategy_indicators, {}),
     }
 
     # 趋势评分
@@ -1515,7 +1870,8 @@ def run_daily():
           f"多空:{len(data['long_short'])} Gas:{data['gas_fee'].get('standard', '?')} "
           f"TVL:{_mc(data['defi_tvl'].get('total_tvl', 0))} "
           f"趋势:{data['trend_score']} 新闻:{len(data['news'])} "
-          f"期权到期:{opt_btc} 跑赢BTC:{ops_count}个")
+          f"期权到期:{opt_btc} 跑赢BTC:{ops_count}个 "
+          f"策略:{len(data.get('strategy_indicators', {}))}币")
 
     html = build_daily_html(data)
     push_all(f"{today} Market Digest", html)
