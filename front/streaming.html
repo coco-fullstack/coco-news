@@ -2,40 +2,41 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CineVerse — 全球影视浏览器</title>
+<title>CineVerse</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
-  --bg-primary: #08080a;
-  --bg-secondary: #111114;
+  --bg-primary: #0d1117;
+  --bg-secondary: #161b22;
+  --bg-tertiary: #1c2128;
   --bg-card: rgba(255,255,255,0.04);
-  --bg-glass: rgba(20,20,25,0.75);
-  --text-primary: #f0f0f2;
+  --text-primary: #e6edf3;
   --text-secondary: rgba(255,255,255,0.55);
   --text-tertiary: rgba(255,255,255,0.3);
-  --accent: #4a9eff;
-  --accent-glow: rgba(74,158,255,0.25);
-  --accent-warm: #ff6b4a;
-  --gradient-hero: linear-gradient(180deg, transparent 0%, rgba(8,8,10,0.4) 40%, rgba(8,8,10,0.85) 70%, var(--bg-primary) 100%);
+  --accent: #58a6ff;
+  --accent-glow: rgba(88,166,255,0.25);
+  --accent-green: #3fb950;
+  --accent-purple: #bc8cff;
+  --accent-warm: #ff7b72;
+  --border: rgba(255,255,255,0.08);
+  --gradient-hero: linear-gradient(180deg, transparent 0%, rgba(13,17,23,0.4) 40%, rgba(13,17,23,0.85) 70%, var(--bg-primary) 100%);
   --gradient-side: linear-gradient(90deg, var(--bg-primary) 0%, transparent 30%, transparent 70%, var(--bg-primary) 100%);
   --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
-  --radius-xl: 28px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
   --shadow-card: 0 4px 24px rgba(0,0,0,0.4);
-  --shadow-glow: 0 0 60px rgba(74,158,255,0.15);
   --font-display: 'Bebas Neue', sans-serif;
   --font-body: 'Outfit', sans-serif;
   --nav-height: 64px;
-  --carousel-gap: 14px;
 }
 
 html { scroll-behavior: smooth; }
-
 body {
   font-family: var(--font-body);
   background: var(--bg-primary);
@@ -43,60 +44,309 @@ body {
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
 }
-
 ::-webkit-scrollbar { width: 6px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
 
-/* ===== SETUP SCREEN ===== */
+/* ============================================
+   SETUP / WELCOME SCREEN (GitHub-inspired)
+   ============================================ */
 .setup-screen {
   position: fixed; inset: 0; z-index: 9999;
-  display: flex; align-items: center; justify-content: center;
   background: var(--bg-primary);
-  transition: opacity 0.6s, visibility 0.6s;
+  transition: opacity 0.8s ease, visibility 0.8s;
+  overflow: hidden;
 }
 .setup-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
-.setup-card {
-  width: min(460px, 90vw); padding: 48px 40px;
+
+/* Animated grid background */
+.setup-grid-bg {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(88,166,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(88,166,255,0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+  animation: gridMove 20s linear infinite;
+}
+@keyframes gridMove {
+  0% { transform: translate(0, 0); }
+  100% { transform: translate(60px, 60px); }
+}
+
+/* Floating orbs */
+.setup-orbs {
+  position: absolute; inset: 0; overflow: hidden;
+}
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  animation: orbFloat 15s ease-in-out infinite;
+  opacity: 0.4;
+}
+.orb-1 { width: 400px; height: 400px; background: var(--accent); top: -10%; left: -5%; animation-delay: 0s; }
+.orb-2 { width: 350px; height: 350px; background: var(--accent-purple); bottom: -10%; right: -5%; animation-delay: -5s; }
+.orb-3 { width: 300px; height: 300px; background: var(--accent-green); top: 50%; left: 50%; animation-delay: -10s; opacity: 0.2; }
+@keyframes orbFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -30px) scale(1.05); }
+  66% { transform: translate(-20px, 20px) scale(0.95); }
+}
+
+/* Floating movie posters in background */
+.setup-posters {
+  position: absolute; inset: 0; overflow: hidden; opacity: 0.06;
+}
+.float-poster {
+  position: absolute;
+  width: 120px;
+  aspect-ratio: 2/3;
   background: var(--bg-secondary);
-  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  animation: posterFloat 25s ease-in-out infinite;
+}
+.float-poster:nth-child(1) { top: 5%; left: 5%; animation-delay: 0s; }
+.float-poster:nth-child(2) { top: 15%; right: 10%; animation-delay: -3s; width: 100px; }
+.float-poster:nth-child(3) { bottom: 20%; left: 12%; animation-delay: -7s; width: 90px; }
+.float-poster:nth-child(4) { top: 40%; right: 5%; animation-delay: -11s; width: 110px; }
+.float-poster:nth-child(5) { bottom: 10%; right: 20%; animation-delay: -15s; width: 95px; }
+.float-poster:nth-child(6) { top: 60%; left: 3%; animation-delay: -19s; width: 105px; }
+@keyframes posterFloat {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-20px) rotate(2deg); }
+  50% { transform: translateY(10px) rotate(-1deg); }
+  75% { transform: translateY(-15px) rotate(1.5deg); }
+}
+
+.setup-center {
+  position: relative;
+  z-index: 10;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+.setup-card {
+  width: min(520px, 95vw);
+  background: rgba(22, 27, 34, 0.85);
+  backdrop-filter: blur(40px) saturate(1.3);
+  border: 1px solid var(--border);
   border-radius: var(--radius-xl);
-  text-align: center; position: relative; overflow: hidden;
+  padding: 48px 44px;
+  text-align: center;
+  animation: cardIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: 0.2s;
 }
-.setup-card::before {
-  content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
-  background: radial-gradient(circle at 50% 80%, var(--accent-glow), transparent 60%); opacity: 0.4;
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(30px) scale(0.96); }
+  to { opacity: 1; transform: none; }
 }
-.setup-card > * { position: relative; }
+
+.setup-icon {
+  width: 64px; height: 64px;
+  margin: 0 auto 20px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-purple));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px;
+  box-shadow: 0 8px 30px rgba(88,166,255,0.3);
+  animation: iconPulse 3s ease-in-out infinite;
+}
+@keyframes iconPulse {
+  0%, 100% { box-shadow: 0 8px 30px rgba(88,166,255,0.3); }
+  50% { box-shadow: 0 8px 50px rgba(88,166,255,0.5); }
+}
+
 .setup-logo {
-  font-family: var(--font-display); font-size: 52px; letter-spacing: 6px;
-  background: linear-gradient(135deg, var(--accent), #a78bfa);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px;
+  font-family: var(--font-display);
+  font-size: 48px;
+  letter-spacing: 6px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 6px;
 }
-.setup-sub { color: var(--text-secondary); font-size: 15px; margin-bottom: 32px; font-weight: 300; }
+.setup-sub {
+  color: var(--text-secondary);
+  font-size: 16px;
+  margin-bottom: 36px;
+  font-weight: 300;
+}
+
+/* Steps indicator */
+.setup-steps {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 32px;
+}
+.step-item {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px;
+  color: var(--text-tertiary);
+  transition: color 0.3s;
+}
+.step-item.active { color: var(--accent); }
+.step-item.done { color: var(--accent-green); }
+.step-num {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700;
+  transition: all 0.3s;
+}
+.step-item.active .step-num {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+.step-item.done .step-num {
+  background: var(--accent-green);
+  color: white;
+  border-color: var(--accent-green);
+}
+.step-line {
+  width: 32px; height: 1px;
+  background: var(--border);
+}
+
+/* Input group */
+.input-group {
+  position: relative;
+  margin-bottom: 16px;
+  text-align: left;
+}
+.input-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.input-icon {
+  position: absolute;
+  left: 14px;
+  font-size: 16px;
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
 .setup-input {
-  width: 100%; padding: 14px 18px;
-  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-  border-radius: var(--radius-md); color: var(--text-primary);
-  font-size: 15px; font-family: var(--font-body); outline: none;
+  width: 100%;
+  padding: 12px 14px 12px 42px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 15px;
+  font-family: var(--font-body);
+  outline: none;
   transition: border-color 0.3s, box-shadow 0.3s;
 }
-.setup-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-.setup-input::placeholder { color: var(--text-tertiary); }
-.setup-btn {
-  width: 100%; margin-top: 16px; padding: 14px;
-  background: linear-gradient(135deg, var(--accent), #6366f1);
-  border: none; border-radius: var(--radius-md);
-  color: white; font-size: 16px; font-weight: 600;
-  font-family: var(--font-body); cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+.setup-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
 }
-.setup-btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-glow); }
+.setup-input::placeholder { color: var(--text-tertiary); }
+
+.setup-btn {
+  width: 100%;
+  margin-top: 8px;
+  padding: 12px;
+  background: var(--accent-green);
+  border: none;
+  border-radius: var(--radius-md);
+  color: white;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.setup-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
 .setup-btn:active { transform: scale(0.98); }
-.setup-hint { margin-top: 20px; font-size: 13px; color: var(--text-tertiary); line-height: 1.6; }
-.setup-hint a { color: var(--accent); text-decoration: none; }
-.setup-error { color: var(--accent-warm); font-size: 13px; margin-top: 10px; display: none; }
+.setup-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.setup-error {
+  color: var(--accent-warm);
+  font-size: 13px;
+  margin-top: 12px;
+  display: none;
+  text-align: left;
+  padding: 10px 14px;
+  background: rgba(255,123,114,0.08);
+  border: 1px solid rgba(255,123,114,0.2);
+  border-radius: var(--radius-sm);
+}
+
+.setup-divider {
+  display: flex; align-items: center; gap: 16px;
+  margin: 24px 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+.setup-divider::before, .setup-divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+
+.setup-guide {
+  text-align: left;
+  padding: 16px;
+  background: rgba(88,166,255,0.04);
+  border: 1px solid rgba(88,166,255,0.1);
+  border-radius: var(--radius-md);
+}
+.guide-title {
+  font-size: 13px; font-weight: 600; color: var(--accent);
+  margin-bottom: 10px;
+  display: flex; align-items: center; gap: 6px;
+}
+.guide-step {
+  font-size: 13px; color: var(--text-secondary); line-height: 1.8;
+  padding-left: 4px;
+}
+.guide-step a { color: var(--accent); text-decoration: none; }
+.guide-step a:hover { text-decoration: underline; }
+.guide-step code {
+  background: var(--bg-primary);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+}
+
+/* Live connection indicator */
+.setup-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.status-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+  animation: statusBlink 2s ease-in-out infinite;
+}
+.status-dot.connected { background: var(--accent-green); }
+@keyframes statusBlink {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
 
 /* ===== NAV ===== */
 nav {
@@ -106,18 +356,18 @@ nav {
   transition: background 0.4s, backdrop-filter 0.4s;
 }
 nav.scrolled {
-  background: rgba(8,8,10,0.82);
+  background: rgba(13,17,23,0.85);
   backdrop-filter: blur(30px) saturate(1.4);
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid var(--border);
 }
 .nav-brand {
-  font-family: var(--font-display); font-size: 28px; letter-spacing: 4px;
-  background: linear-gradient(135deg, var(--accent), #a78bfa);
+  font-family: var(--font-display); font-size: 26px; letter-spacing: 4px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-purple));
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   flex-shrink: 0; cursor: pointer;
 }
 .nav-tabs {
-  display: flex; gap: 4px; margin-left: 40px;
+  display: flex; gap: 2px; margin-left: 36px;
   background: rgba(255,255,255,0.04); border-radius: 10px; padding: 3px;
 }
 .nav-tab {
@@ -129,36 +379,45 @@ nav.scrolled {
 .nav-tab.active { background: rgba(255,255,255,0.1); color: var(--text-primary); }
 .nav-spacer { flex: 1; }
 .nav-search-btn {
-  width: 38px; height: 38px; border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04);
+  width: 36px; height: 36px; border-radius: 8px;
+  border: 1px solid var(--border); background: rgba(255,255,255,0.04);
   color: var(--text-secondary); cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  transition: all 0.25s; font-size: 18px;
+  transition: all 0.25s; font-size: 16px;
 }
-.nav-search-btn:hover { background: rgba(255,255,255,0.08); color: var(--text-primary); }
+.nav-search-btn:hover { background: rgba(255,255,255,0.08); color: var(--text-primary); border-color: rgba(255,255,255,0.15); }
+.nav-key-hint {
+  margin-left: 10px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
 
 /* ===== SEARCH OVERLAY ===== */
 .search-overlay {
   position: fixed; inset: 0; z-index: 2000;
-  background: rgba(8,8,10,0.92); backdrop-filter: blur(40px);
+  background: rgba(13,17,23,0.92); backdrop-filter: blur(40px);
   display: flex; flex-direction: column; padding: 0 40px;
   opacity: 0; visibility: hidden; transition: opacity 0.35s, visibility 0.35s;
 }
 .search-overlay.open { opacity: 1; visibility: visible; }
 .search-bar-wrap {
   display: flex; align-items: center; gap: 16px;
-  height: 80px; border-bottom: 1px solid rgba(255,255,255,0.06);
+  height: 80px; border-bottom: 1px solid var(--border);
 }
-.search-icon { font-size: 22px; color: var(--text-secondary); }
+.search-icon-svg { width: 20px; height: 20px; color: var(--text-secondary); }
 .search-input {
   flex: 1; background: none; border: none; color: var(--text-primary);
-  font-size: 22px; font-family: var(--font-body); font-weight: 300; outline: none;
+  font-size: 20px; font-family: var(--font-body); font-weight: 300; outline: none;
 }
 .search-input::placeholder { color: var(--text-tertiary); }
 .search-close {
-  background: rgba(255,255,255,0.06); border: none; color: var(--text-secondary);
-  font-size: 13px; padding: 6px 14px; border-radius: 6px; cursor: pointer;
-  font-family: var(--font-body); transition: all 0.2s;
+  background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--text-secondary);
+  font-size: 12px; padding: 4px 10px; border-radius: 6px; cursor: pointer;
+  font-family: monospace; transition: all 0.2s;
 }
 .search-close:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
 .search-results { flex: 1; overflow-y: auto; padding: 24px 0; }
@@ -169,9 +428,7 @@ nav.scrolled {
 
 /* ===== HERO ===== */
 .hero { position: relative; height: 85vh; min-height: 560px; overflow: hidden; }
-.hero-slide {
-  position: absolute; inset: 0; opacity: 0; transition: opacity 1s ease;
-}
+.hero-slide { position: absolute; inset: 0; opacity: 0; transition: opacity 1s ease; }
 .hero-slide.active { opacity: 1; }
 .hero-backdrop {
   width: 100%; height: 100%; object-fit: cover;
@@ -181,14 +438,15 @@ nav.scrolled {
 .hero-slide.active .hero-backdrop { transform: scale(1); }
 .hero-overlay { position: absolute; inset: 0; background: var(--gradient-hero); }
 .hero-side-fade { position: absolute; inset: 0; background: var(--gradient-side); }
-.hero-content {
-  position: absolute; bottom: 12%; left: 40px; max-width: 580px; z-index: 2;
-}
+.hero-content { position: absolute; bottom: 12%; left: 40px; max-width: 580px; z-index: 2; }
 .hero-badge {
-  display: inline-block; padding: 4px 12px; background: var(--accent);
-  border-radius: 4px; font-size: 11px; font-weight: 700;
-  letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 14px;
+  display: inline-block; padding: 4px 12px; border-radius: 4px;
+  font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase; margin-bottom: 14px;
+  border: 1px solid;
 }
+.hero-badge-movie { background: rgba(99,102,241,0.2); border-color: rgba(99,102,241,0.4); color: #a5b4fc; }
+.hero-badge-tv { background: rgba(16,185,129,0.2); border-color: rgba(16,185,129,0.4); color: #6ee7b7; }
 .hero-title {
   font-family: var(--font-display); font-size: clamp(40px, 6vw, 72px);
   letter-spacing: 2px; line-height: 1; margin-bottom: 14px;
@@ -201,23 +459,18 @@ nav.scrolled {
 .hero-meta .dot { width: 3px; height: 3px; background: var(--text-tertiary); border-radius: 50%; }
 .hero-rating { color: #fbbf24; font-weight: 600; }
 .hero-desc {
-  font-size: 15px; line-height: 1.6; color: rgba(255,255,255,0.7); font-weight: 300;
+  font-size: 15px; line-height: 1.6; color: rgba(255,255,255,0.65); font-weight: 300;
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
   overflow: hidden; margin-bottom: 24px;
 }
 .hero-actions { display: flex; gap: 12px; }
-.btn-play, .btn-info {
-  padding: 12px 28px; border-radius: var(--radius-md); font-size: 15px; font-weight: 600;
+.btn-detail {
+  padding: 10px 24px; border-radius: var(--radius-md); font-size: 14px; font-weight: 600;
   cursor: pointer; font-family: var(--font-body); transition: all 0.25s;
-  border: none; display: flex; align-items: center; gap: 8px;
+  border: 1px solid var(--border); display: flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,0.08); color: white; backdrop-filter: blur(10px);
 }
-.btn-play { background: white; color: #111; }
-.btn-play:hover { transform: scale(1.03); box-shadow: 0 0 30px rgba(255,255,255,0.2); }
-.btn-info {
-  background: rgba(255,255,255,0.12); color: white;
-  backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1);
-}
-.btn-info:hover { background: rgba(255,255,255,0.18); }
+.btn-detail:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.2); }
 .hero-dots {
   position: absolute; bottom: 4%; left: 50%; transform: translateX(-50%);
   display: flex; gap: 8px; z-index: 5;
@@ -226,24 +479,37 @@ nav.scrolled {
   width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.2);
   cursor: pointer; transition: all 0.3s; border: none;
 }
-.hero-dot.active { background: white; width: 24px; border-radius: 4px; }
+.hero-dot.active { background: var(--accent); width: 24px; border-radius: 4px; }
 
 /* ===== MAIN CONTENT ===== */
 main { position: relative; z-index: 2; margin-top: -60px; padding-bottom: 80px; }
-
 .section {
   margin-bottom: 48px; opacity: 0; transform: translateY(30px);
   transition: opacity 0.7s, transform 0.7s;
 }
 .section.visible { opacity: 1; transform: none; }
 .section-header {
-  display: flex; align-items: baseline; gap: 12px;
+  display: flex; align-items: center; gap: 12px;
   padding: 0 40px; margin-bottom: 18px;
 }
-.section-title { font-family: var(--font-display); font-size: 28px; letter-spacing: 2px; }
+.section-icon {
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.section-icon-fire { background: rgba(255,123,114,0.15); color: #ff7b72; }
+.section-icon-cal { background: rgba(88,166,255,0.15); color: #58a6ff; }
+.section-icon-star { background: rgba(251,191,36,0.15); color: #fbbf24; }
+.section-icon-play { background: rgba(63,185,80,0.15); color: #3fb950; }
+.section-icon-cn { background: rgba(255,123,114,0.15); color: #ff7b72; }
+.section-icon-jp { background: rgba(188,140,255,0.15); color: #bc8cff; }
+.section-icon-anime { background: rgba(244,63,94,0.15); color: #f43f5e; }
+.section-title { font-family: var(--font-display); font-size: 26px; letter-spacing: 2px; }
 
 .carousel {
-  display: flex; gap: var(--carousel-gap); padding: 0 40px;
+  display: flex; gap: 14px; padding: 0 40px;
   overflow-x: auto; scroll-snap-type: x proximity;
   -webkit-overflow-scrolling: touch; scrollbar-width: none; cursor: grab;
 }
@@ -266,28 +532,27 @@ main { position: relative; z-index: 2; margin-top: -60px; padding-bottom: 80px; 
 }
 .card:hover .card-poster img { transform: scale(1.06); }
 .card-poster .card-rating {
-  position: absolute; top: 10px; right: 10px;
+  position: absolute; top: 8px; right: 8px;
   background: rgba(0,0,0,0.65); backdrop-filter: blur(8px);
-  padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; color: #fbbf24;
+  padding: 2px 7px; border-radius: 6px; font-size: 11px; font-weight: 600; color: #fbbf24;
 }
 .card-poster .card-type-badge {
-  position: absolute; top: 10px; left: 10px; padding: 2px 8px; border-radius: 4px;
-  font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+  position: absolute; top: 8px; left: 8px; padding: 2px 7px; border-radius: 4px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
 }
-.badge-movie { background: #6366f1; }
-.badge-tv { background: #10b981; }
-.badge-anime { background: #f43f5e; }
+.badge-movie { background: rgba(99,102,241,0.85); }
+.badge-tv { background: rgba(16,185,129,0.85); }
+.badge-anime { background: rgba(244,63,94,0.85); }
 .card-info { padding: 10px 2px 0; }
 .card-title { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card-sub { font-size: 12px; color: var(--text-secondary); margin-top: 3px; }
-
 .card-wide { width: 340px; }
 .card-wide .card-poster { aspect-ratio: 16/9; }
 
 /* ===== DETAIL MODAL ===== */
 .modal-overlay {
   position: fixed; inset: 0; z-index: 3000;
-  background: rgba(0,0,0,0.75); backdrop-filter: blur(10px);
+  background: rgba(0,0,0,0.7); backdrop-filter: blur(10px);
   display: flex; align-items: flex-start; justify-content: center;
   padding: 40px; overflow-y: auto;
   opacity: 0; visibility: hidden; transition: opacity 0.35s, visibility 0.35s;
@@ -298,22 +563,19 @@ main { position: relative; z-index: 2; margin-top: -60px; padding-bottom: 80px; 
   border-radius: var(--radius-xl); overflow: hidden;
   transform: translateY(30px) scale(0.96);
   transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  border: 1px solid rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
 }
 .modal-overlay.open .modal { transform: none; }
 .modal-backdrop-wrap { position: relative; width: 100%; aspect-ratio: 16/9; overflow: hidden; }
-.modal-backdrop {
-  width: 100%; height: 100%; object-fit: cover;
-  image-rendering: -webkit-optimize-contrast;
-}
+.modal-backdrop { width: 100%; height: 100%; object-fit: cover; image-rendering: -webkit-optimize-contrast; }
 .modal-backdrop-fade {
   position: absolute; inset: 0;
   background: linear-gradient(180deg, transparent 30%, var(--bg-secondary) 100%);
 }
 .modal-close {
   position: absolute; top: 16px; right: 16px; width: 36px; height: 36px;
-  border-radius: 50%; background: rgba(0,0,0,0.5); backdrop-filter: blur(10px);
-  border: 1px solid rgba(255,255,255,0.1); color: white; font-size: 18px;
+  border-radius: 8px; background: rgba(0,0,0,0.5); backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.1); color: white; font-size: 16px;
   cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;
 }
 .modal-close:hover { background: rgba(255,255,255,0.15); }
@@ -327,21 +589,18 @@ main { position: relative; z-index: 2; margin-top: -60px; padding-bottom: 80px; 
 .modal-meta .sep { color: var(--text-tertiary); }
 .modal-genres { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
 .genre-tag {
-  padding: 5px 14px; border-radius: 20px;
-  border: 1px solid rgba(255,255,255,0.12);
+  padding: 4px 12px; border-radius: 20px;
+  border: 1px solid var(--border);
   font-size: 12px; color: var(--text-secondary); font-weight: 500;
 }
-.modal-overview { font-size: 15px; line-height: 1.7; color: rgba(255,255,255,0.7); font-weight: 300; margin-bottom: 28px; }
+.modal-overview { font-size: 15px; line-height: 1.7; color: rgba(255,255,255,0.65); font-weight: 300; margin-bottom: 28px; }
 .modal-section-title { font-family: var(--font-display); font-size: 22px; letter-spacing: 1.5px; margin-bottom: 14px; }
-.modal-cast {
-  display: flex; gap: 16px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none;
-}
+.modal-cast { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
 .modal-cast::-webkit-scrollbar { display: none; }
 .cast-card { flex-shrink: 0; text-align: center; width: 80px; }
 .cast-avatar {
   width: 64px; height: 64px; border-radius: 50%; object-fit: cover;
-  background: var(--bg-card); margin-bottom: 6px;
-  image-rendering: -webkit-optimize-contrast;
+  background: var(--bg-card); margin-bottom: 6px; image-rendering: -webkit-optimize-contrast;
 }
 .cast-name { font-size: 11px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cast-role { font-size: 10px; color: var(--text-tertiary); }
@@ -360,13 +619,14 @@ main { position: relative; z-index: 2; margin-top: -60px; padding-bottom: 80px; 
 
 footer {
   text-align: center; padding: 40px; color: var(--text-tertiary);
-  font-size: 13px; border-top: 1px solid rgba(255,255,255,0.04);
+  font-size: 13px; border-top: 1px solid var(--border);
 }
 
 @media (max-width: 768px) {
   nav { padding: 0 20px; }
-  .nav-tabs { margin-left: 16px; }
+  .nav-tabs { margin-left: 12px; }
   .nav-tab { padding: 6px 12px; font-size: 12px; }
+  .nav-key-hint { display: none; }
   .hero-content { left: 20px; max-width: 85%; }
   .hero-title { font-size: 36px; }
   .section-header, .carousel { padding-left: 20px; padding-right: 20px; }
@@ -375,6 +635,7 @@ footer {
   .modal-overlay { padding: 20px; }
   .modal-body { padding: 0 24px 24px; }
   .modal-title { font-size: 30px; }
+  .setup-card { padding: 32px 24px; }
 }
 @media (max-width: 480px) {
   .nav-tabs { display: none; }
@@ -385,18 +646,89 @@ footer {
 </head>
 <body>
 
-<!-- Setup Screen -->
+<!-- ===== SETUP SCREEN ===== -->
 <div class="setup-screen" id="setupScreen">
-  <div class="setup-card">
-    <div class="setup-logo">CINEVERSE</div>
-    <p class="setup-sub">全球影视浏览器 — 探索电影、剧集与动漫</p>
-    <input class="setup-input" id="apiKeyInput" type="text" placeholder="输入你的 TMDB API Key" autocomplete="off">
-    <button class="setup-btn" id="setupBtn">开始探索</button>
-    <p class="setup-error" id="setupError">API Key 无效，请检查后重试</p>
-    <p class="setup-hint">
-      前往 <a href="https://www.themoviedb.org/settings/api" target="_blank">themoviedb.org</a> 免费注册获取 API Key<br>
-      注册后在 Settings &rarr; API 中复制 API Key (v3 auth)
-    </p>
+  <div class="setup-grid-bg"></div>
+  <div class="setup-orbs">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+  <div class="setup-posters">
+    <div class="float-poster"></div>
+    <div class="float-poster"></div>
+    <div class="float-poster"></div>
+    <div class="float-poster"></div>
+    <div class="float-poster"></div>
+    <div class="float-poster"></div>
+  </div>
+
+  <div class="setup-center">
+    <div class="setup-card">
+      <div class="setup-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="23 7 16 12 23 17 23 7"></polygon>
+          <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+        </svg>
+      </div>
+      <div class="setup-logo">CINEVERSE</div>
+      <p class="setup-sub">Explore movies, TV shows &amp; anime worldwide</p>
+
+      <div class="setup-steps">
+        <div class="step-item active" id="step1">
+          <span class="step-num">1</span>
+          <span>Get Key</span>
+        </div>
+        <div class="step-line"></div>
+        <div class="step-item" id="step2">
+          <span class="step-num">2</span>
+          <span>Connect</span>
+        </div>
+        <div class="step-line"></div>
+        <div class="step-item" id="step3">
+          <span class="step-num">3</span>
+          <span>Explore</span>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label class="input-label">TMDB API Key</label>
+        <div class="input-wrap">
+          <span class="input-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+          </span>
+          <input class="setup-input" id="apiKeyInput" type="password" placeholder="Paste your API key here..." autocomplete="off">
+        </div>
+      </div>
+
+      <button class="setup-btn" id="setupBtn">
+        <span id="btnText">Connect to TMDB</span>
+      </button>
+
+      <div class="setup-error" id="setupError">API Key is invalid. Please check and try again.</div>
+
+      <div class="setup-divider">How to get a key</div>
+
+      <div class="setup-guide">
+        <div class="guide-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+          Quick Setup Guide
+        </div>
+        <div class="guide-step">
+          1. Visit <a href="https://www.themoviedb.org/signup" target="_blank">themoviedb.org</a> and create a free account<br>
+          2. Go to <a href="https://www.themoviedb.org/settings/api" target="_blank">Settings &rarr; API</a><br>
+          3. Copy the <code>API Key (v3 auth)</code> and paste above
+        </div>
+      </div>
+
+      <div class="setup-status">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Waiting for API key...</span>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -404,20 +736,23 @@ footer {
 <nav id="nav">
   <div class="nav-brand" id="navBrand">CINEVERSE</div>
   <div class="nav-tabs" id="navTabs">
-    <button class="nav-tab active" data-type="all">全部</button>
-    <button class="nav-tab" data-type="movie">电影</button>
-    <button class="nav-tab" data-type="tv">剧集</button>
-    <button class="nav-tab" data-type="anime">动漫</button>
+    <button class="nav-tab active" data-type="all">All</button>
+    <button class="nav-tab" data-type="movie">Movies</button>
+    <button class="nav-tab" data-type="tv">TV Shows</button>
+    <button class="nav-tab" data-type="anime">Anime</button>
   </div>
   <div class="nav-spacer"></div>
-  <button class="nav-search-btn" id="searchBtn" title="搜索 (Ctrl+K)">&#128269;</button>
+  <button class="nav-search-btn" id="searchBtn" title="Search">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+  </button>
+  <span class="nav-key-hint">Ctrl+K</span>
 </nav>
 
 <!-- Search Overlay -->
 <div class="search-overlay" id="searchOverlay">
   <div class="search-bar-wrap">
-    <span class="search-icon">&#128269;</span>
-    <input class="search-input" id="searchInput" type="text" placeholder="搜索电影、剧集、动漫…">
+    <svg class="search-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+    <input class="search-input" id="searchInput" type="text" placeholder="Search movies, TV shows, anime...">
     <button class="search-close" id="searchClose">ESC</button>
   </div>
   <div class="search-results" id="searchResults"></div>
@@ -437,86 +772,153 @@ footer {
     <div class="modal-backdrop-wrap">
       <img class="modal-backdrop" id="modalBackdrop" src="" alt="">
       <div class="modal-backdrop-fade"></div>
-      <button class="modal-close" id="modalClose">&#10005;</button>
+      <button class="modal-close" id="modalClose">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
     </div>
     <div class="modal-body" id="modalBody"></div>
   </div>
 </div>
 
-<footer>CineVerse — 数据来源 TMDB · 仅供浏览学习使用</footer>
+<footer>CineVerse &mdash; Powered by TMDB &middot; For browsing only</footer>
 
 <script>
 (function() {
   'use strict';
 
-  const IMG_BASE = 'https://image.tmdb.org/t/p/';
-  const API_BASE = 'https://api.themoviedb.org/3';
-  let API_KEY = localStorage.getItem('tmdb_api_key') || '';
-  let currentType = 'all';
-  let heroSlides = [];
-  let heroIndex = 0;
-  let heroTimer = null;
-  let genreMap = {};
-  let searchTimer = null;
+  var IMG_BASE = 'https://image.tmdb.org/t/p/';
+  var API_BASE = 'https://api.themoviedb.org/3';
+  var API_KEY = localStorage.getItem('tmdb_api_key') || '';
+  var currentType = 'all';
+  var heroSlides = [];
+  var heroIndex = 0;
+  var heroTimer = null;
+  var genreMap = {};
+  var searchTimer = null;
 
-  // ===== UTILS =====
+  // Section config: icon class + label
+  var SECTIONS = {
+    trending_movie: { icon: 'section-icon-fire', label: 'TRENDING MOVIES' },
+    upcoming:       { icon: 'section-icon-cal',  label: 'COMING SOON' },
+    cn_movie:       { icon: 'section-icon-cn',   label: 'CHINESE MOVIES' },
+    top_movie:      { icon: 'section-icon-star', label: 'TOP RATED MOVIES' },
+    now_playing:    { icon: 'section-icon-play', label: 'NOW PLAYING' },
+    trending_tv:    { icon: 'section-icon-fire', label: 'TRENDING TV SHOWS' },
+    cn_tv:          { icon: 'section-icon-cn',   label: 'CHINESE TV' },
+    jp_tv:          { icon: 'section-icon-jp',   label: 'JAPANESE DRAMA' },
+    top_tv:         { icon: 'section-icon-star', label: 'TOP RATED TV' },
+    airing:         { icon: 'section-icon-play', label: 'ON AIR TODAY' },
+    anime_pop:      { icon: 'section-icon-anime',label: 'POPULAR ANIME' },
+    anime_top:      { icon: 'section-icon-star', label: 'TOP RATED ANIME' },
+    cn_anime:       { icon: 'section-icon-cn',   label: 'CHINESE ANIMATION' },
+    anime_movie:    { icon: 'section-icon-anime',label: 'ANIME MOVIES' }
+  };
+
+  var SECTION_SYMBOLS = {
+    'section-icon-fire': '\u2736',
+    'section-icon-cal':  '\u25C8',
+    'section-icon-star': '\u2605',
+    'section-icon-play': '\u25B6',
+    'section-icon-cn':   'CN',
+    'section-icon-jp':   'JP',
+    'section-icon-anime':'\u25C6'
+  };
+
   function esc(str) {
     if (!str) return '';
-    const div = document.createElement('div');
+    var div = document.createElement('div');
     div.textContent = str;
     return div.textContent;
   }
 
   function el(tag, attrs, children) {
-    const node = document.createElement(tag);
+    var node = document.createElement(tag);
     if (attrs) {
-      Object.entries(attrs).forEach(([k, v]) => {
+      Object.keys(attrs).forEach(function(k) {
+        var v = attrs[k];
         if (k === 'className') node.className = v;
         else if (k.startsWith('on')) node.addEventListener(k.slice(2).toLowerCase(), v);
         else node.setAttribute(k, v);
       });
     }
     if (typeof children === 'string') node.textContent = children;
-    else if (Array.isArray(children)) children.forEach(c => { if (c) node.appendChild(c); });
+    else if (Array.isArray(children)) children.forEach(function(c) { if (c) node.appendChild(c); });
     else if (children instanceof Node) node.appendChild(children);
     return node;
   }
 
-  // Use highest quality images — original for backdrops, w780 for posters
   function posterURL(path) {
-    return path ? IMG_BASE + 'w780' + path : 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><rect fill="#222" width="200" height="300"/><text fill="#555" x="100" y="150" text-anchor="middle" font-size="14">No Image</text></svg>');
+    return path ? IMG_BASE + 'w780' + path : 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><rect fill="#161b22" width="200" height="300"/><text fill="#555" x="100" y="150" text-anchor="middle" font-size="14">No Image</text></svg>');
   }
   function backdropURL(path, size) {
     return path ? IMG_BASE + (size || 'original') + path : '';
   }
 
   // ===== SETUP =====
-  const setupScreen = document.getElementById('setupScreen');
-  const apiKeyInput = document.getElementById('apiKeyInput');
-  const setupBtn = document.getElementById('setupBtn');
-  const setupError = document.getElementById('setupError');
+  var setupScreen = document.getElementById('setupScreen');
+  var apiKeyInput = document.getElementById('apiKeyInput');
+  var setupBtn = document.getElementById('setupBtn');
+  var setupError = document.getElementById('setupError');
+  var statusDot = document.getElementById('statusDot');
+  var statusText = document.getElementById('statusText');
+  var step1 = document.getElementById('step1');
+  var step2 = document.getElementById('step2');
+  var step3 = document.getElementById('step3');
 
   if (API_KEY) {
     setupScreen.classList.add('hidden');
     init();
   } else {
-    apiKeyInput.focus();
+    setTimeout(function() { apiKeyInput.focus(); }, 500);
   }
 
+  // Real-time validation as user types
+  apiKeyInput.addEventListener('input', function() {
+    var val = apiKeyInput.value.trim();
+    setupError.style.display = 'none';
+    if (val.length > 10) {
+      step2.classList.add('active');
+      statusText.textContent = 'Ready to connect...';
+    } else {
+      step2.classList.remove('active');
+      statusText.textContent = 'Waiting for API key...';
+    }
+  });
+
   setupBtn.addEventListener('click', async function() {
-    const key = apiKeyInput.value.trim();
+    var key = apiKeyInput.value.trim();
     if (!key) return;
-    setupBtn.textContent = '验证中…';
+    setupBtn.disabled = true;
+    document.getElementById('btnText').textContent = 'Connecting...';
+    step2.classList.add('active');
+    statusDot.classList.remove('connected');
+    statusText.textContent = 'Verifying API key...';
+
     try {
-      const res = await fetch(API_BASE + '/configuration?api_key=' + encodeURIComponent(key));
+      var res = await fetch(API_BASE + '/configuration?api_key=' + encodeURIComponent(key));
       if (!res.ok) throw new Error();
       API_KEY = key;
       localStorage.setItem('tmdb_api_key', key);
-      setupScreen.classList.add('hidden');
-      init();
+
+      // Success animation
+      step2.classList.remove('active');
+      step2.classList.add('done');
+      step3.classList.add('active');
+      statusDot.classList.add('connected');
+      statusText.textContent = 'Connected! Loading content...';
+      document.getElementById('btnText').textContent = 'Connected!';
+      setupBtn.style.background = '#3fb950';
+
+      setTimeout(function() {
+        setupScreen.classList.add('hidden');
+        init();
+      }, 800);
     } catch(_e) {
       setupError.style.display = 'block';
-      setupBtn.textContent = '开始探索';
+      setupBtn.disabled = false;
+      document.getElementById('btnText').textContent = 'Connect to TMDB';
+      statusText.textContent = 'Connection failed';
+      step2.classList.remove('active');
     }
   });
 
@@ -524,18 +926,18 @@ footer {
 
   // ===== API =====
   async function tmdb(endpoint, params) {
-    const url = new URL(API_BASE + endpoint);
+    var url = new URL(API_BASE + endpoint);
     url.searchParams.set('api_key', API_KEY);
     url.searchParams.set('language', 'zh-CN');
-    if (params) Object.entries(params).forEach(function(kv) { url.searchParams.set(kv[0], kv[1]); });
-    const res = await fetch(url);
+    if (params) Object.keys(params).forEach(function(k) { url.searchParams.set(k, params[k]); });
+    var res = await fetch(url);
     if (!res.ok) throw new Error('TMDB Error: ' + res.status);
     return res.json();
   }
 
   // ===== INIT =====
   async function init() {
-    const results = await Promise.all([tmdb('/genre/movie/list'), tmdb('/genre/tv/list')]);
+    var results = await Promise.all([tmdb('/genre/movie/list'), tmdb('/genre/tv/list')]);
     results[0].genres.concat(results[1].genres).forEach(function(g) { genreMap[g.id] = g.name; });
     loadContent();
     setupNav();
@@ -559,28 +961,28 @@ footer {
     var base = [];
     if (currentType === 'all' || currentType === 'movie') {
       base.push(
-        { id: 'trending_movie', title: '🔥 热门电影', endpoint: '/trending/movie/week' },
-        { id: 'upcoming', title: '📅 即将上映', endpoint: '/movie/upcoming', wide: true },
-        { id: 'cn_movie', title: '🇨🇳 华语电影', endpoint: '/discover/movie', params: { with_origin_country: 'CN', sort_by: 'popularity.desc' } },
-        { id: 'top_movie', title: '⭐ 最高评分电影', endpoint: '/movie/top_rated' },
-        { id: 'now_playing', title: '🎬 正在热映', endpoint: '/movie/now_playing' }
+        { id: 'trending_movie', title: 'TRENDING MOVIES', endpoint: '/trending/movie/week' },
+        { id: 'upcoming', title: 'COMING SOON', endpoint: '/movie/upcoming', wide: true },
+        { id: 'cn_movie', title: 'CHINESE MOVIES', endpoint: '/discover/movie', params: { with_origin_country: 'CN', sort_by: 'popularity.desc' } },
+        { id: 'top_movie', title: 'TOP RATED MOVIES', endpoint: '/movie/top_rated' },
+        { id: 'now_playing', title: 'NOW PLAYING', endpoint: '/movie/now_playing' }
       );
     }
     if (currentType === 'all' || currentType === 'tv') {
       base.push(
-        { id: 'trending_tv', title: '📺 热门剧集', endpoint: '/trending/tv/week' },
-        { id: 'cn_tv', title: '🇨🇳 华语剧集', endpoint: '/discover/tv', params: { with_origin_country: 'CN', sort_by: 'popularity.desc' } },
-        { id: 'jp_tv', title: '🇯🇵 日剧', endpoint: '/discover/tv', params: { with_origin_country: 'JP', sort_by: 'popularity.desc' } },
-        { id: 'top_tv', title: '⭐ 最高评分剧集', endpoint: '/tv/top_rated' },
-        { id: 'airing', title: '📡 正在播出', endpoint: '/tv/airing_today' }
+        { id: 'trending_tv', title: 'TRENDING TV SHOWS', endpoint: '/trending/tv/week' },
+        { id: 'cn_tv', title: 'CHINESE TV', endpoint: '/discover/tv', params: { with_origin_country: 'CN', sort_by: 'popularity.desc' } },
+        { id: 'jp_tv', title: 'JAPANESE DRAMA', endpoint: '/discover/tv', params: { with_origin_country: 'JP', sort_by: 'popularity.desc' } },
+        { id: 'top_tv', title: 'TOP RATED TV', endpoint: '/tv/top_rated' },
+        { id: 'airing', title: 'ON AIR TODAY', endpoint: '/tv/airing_today' }
       );
     }
     if (currentType === 'all' || currentType === 'anime') {
       base.push(
-        { id: 'anime_pop', title: '🎌 热门动漫', endpoint: '/discover/tv', params: { with_genres: '16', with_origin_country: 'JP', sort_by: 'popularity.desc' } },
-        { id: 'anime_top', title: '⭐ 高分动漫', endpoint: '/discover/tv', params: { with_genres: '16', with_origin_country: 'JP', sort_by: 'vote_average.desc', 'vote_count.gte': '100' } },
-        { id: 'cn_anime', title: '🇨🇳 国产动画', endpoint: '/discover/tv', params: { with_genres: '16', with_origin_country: 'CN', sort_by: 'popularity.desc' } },
-        { id: 'anime_movie', title: '🎬 动画电影', endpoint: '/discover/movie', params: { with_genres: '16', sort_by: 'popularity.desc' } }
+        { id: 'anime_pop', title: 'POPULAR ANIME', endpoint: '/discover/tv', params: { with_genres: '16', with_origin_country: 'JP', sort_by: 'popularity.desc' } },
+        { id: 'anime_top', title: 'TOP RATED ANIME', endpoint: '/discover/tv', params: { with_genres: '16', with_origin_country: 'JP', sort_by: 'vote_average.desc', 'vote_count.gte': '100' } },
+        { id: 'cn_anime', title: 'CHINESE ANIMATION', endpoint: '/discover/tv', params: { with_genres: '16', with_origin_country: 'CN', sort_by: 'popularity.desc' } },
+        { id: 'anime_movie', title: 'ANIME MOVIES', endpoint: '/discover/movie', params: { with_genres: '16', sort_by: 'popularity.desc' } }
       );
     }
     return base;
@@ -594,10 +996,9 @@ footer {
       else if (currentType === 'movie') data = await tmdb('/trending/movie/week');
       else if (currentType === 'tv') data = await tmdb('/trending/tv/week');
       else data = await tmdb('/trending/all/week');
-
       heroSlides = data.results.filter(function(m) { return m.backdrop_path; }).slice(0, 6);
       renderHero();
-    } catch(e) { console.error('Hero load error:', e); }
+    } catch(e) { console.error('Hero error:', e); }
   }
 
   function renderHero() {
@@ -615,50 +1016,37 @@ footer {
       var genreNames = (item.genre_ids || []).slice(0, 3).map(function(id) { return genreMap[id] || ''; }).filter(Boolean);
 
       var slide = el('div', { className: 'hero-slide' + (i === 0 ? ' active' : '') });
-
-      var img = el('img', { className: 'hero-backdrop', src: backdropURL(item.backdrop_path, 'original'), alt: title, loading: i === 0 ? 'eager' : 'lazy' });
-      slide.appendChild(img);
+      slide.appendChild(el('img', { className: 'hero-backdrop', src: backdropURL(item.backdrop_path, 'original'), alt: title, loading: i === 0 ? 'eager' : 'lazy' }));
       slide.appendChild(el('div', { className: 'hero-overlay' }));
       slide.appendChild(el('div', { className: 'hero-side-fade' }));
 
       var content = el('div', { className: 'hero-content' });
-      var badgeText = mediaType === 'movie' ? '电影' : mediaType === 'tv' ? '剧集' : '热门';
-      content.appendChild(el('span', { className: 'hero-badge' }, badgeText));
-
-      var h1 = el('h1', { className: 'hero-title' }, title);
-      content.appendChild(h1);
+      var badgeClass = mediaType === 'movie' ? 'hero-badge-movie' : 'hero-badge-tv';
+      var badgeText = mediaType === 'movie' ? 'MOVIE' : 'TV SHOW';
+      content.appendChild(el('span', { className: 'hero-badge ' + badgeClass }, badgeText));
+      content.appendChild(el('h1', { className: 'hero-title' }, title));
 
       var meta = el('div', { className: 'hero-meta' });
-      if (rating) {
-        meta.appendChild(el('span', { className: 'hero-rating' }, '\u2605 ' + rating));
-        meta.appendChild(el('span', { className: 'dot' }));
-      }
+      if (rating) { meta.appendChild(el('span', { className: 'hero-rating' }, '\u2605 ' + rating)); meta.appendChild(el('span', { className: 'dot' })); }
       if (year) meta.appendChild(el('span', null, year));
-      if (genreNames.length) {
-        meta.appendChild(el('span', { className: 'dot' }));
-        meta.appendChild(el('span', null, genreNames.join(' / ')));
-      }
+      if (genreNames.length) { meta.appendChild(el('span', { className: 'dot' })); meta.appendChild(el('span', null, genreNames.join(' / '))); }
       content.appendChild(meta);
 
-      if (item.overview) {
-        content.appendChild(el('p', { className: 'hero-desc' }, esc(item.overview)));
-      }
+      if (item.overview) content.appendChild(el('p', { className: 'hero-desc' }, esc(item.overview)));
 
       var actions = el('div', { className: 'hero-actions' });
-      var detailBtn = el('button', {
-        className: 'btn-info',
+      actions.appendChild(el('button', {
+        className: 'btn-detail',
         onClick: (function(id, mt) { return function() { openDetail(id, mt); }; })(item.id, mediaType)
-      }, '\u2139\uFE0F 详情');
-      actions.appendChild(detailBtn);
+      }, 'View Details'));
       content.appendChild(actions);
       slide.appendChild(content);
       hero.insertBefore(slide, dots);
 
-      var dot = el('button', {
+      dots.appendChild(el('button', {
         className: 'hero-dot' + (i === 0 ? ' active' : ''),
         onClick: (function(idx) { return function() { goHero(idx); }; })(i)
-      });
-      dots.appendChild(dot);
+      }));
     });
 
     clearInterval(heroTimer);
@@ -673,17 +1061,19 @@ footer {
 
   // ===== SECTIONS =====
   function createSectionEl(title, id) {
+    var cfg = SECTIONS[id] || { icon: 'section-icon-fire', label: title };
     var sec = el('section', { className: 'section', id: 'section-' + id });
     var header = el('div', { className: 'section-header' });
-    header.appendChild(el('h2', { className: 'section-title' }, title));
+    var icon = el('div', { className: 'section-icon ' + cfg.icon }, SECTION_SYMBOLS[cfg.icon] || '\u25CF');
+    header.appendChild(icon);
+    header.appendChild(el('h2', { className: 'section-title' }, cfg.label));
     sec.appendChild(header);
 
     var carousel = el('div', { className: 'carousel', id: 'carousel-' + id });
     for (var k = 0; k < 8; k++) {
-      var placeholder = el('div', { className: 'card' });
-      var ph = el('div', { className: 'card-poster skeleton', style: 'aspect-ratio:2/3' });
-      placeholder.appendChild(ph);
-      carousel.appendChild(placeholder);
+      var ph = el('div', { className: 'card' });
+      ph.appendChild(el('div', { className: 'card-poster skeleton', style: 'aspect-ratio:2/3' }));
+      carousel.appendChild(ph);
     }
     sec.appendChild(carousel);
     return sec;
@@ -694,9 +1084,7 @@ footer {
       var data = await tmdb(sec.endpoint, sec.params || {});
       var carousel = secEl.querySelector('.carousel');
       carousel.textContent = '';
-      data.results.forEach(function(item) {
-        carousel.appendChild(createCard(item, sec.wide));
-      });
+      data.results.forEach(function(item) { carousel.appendChild(createCard(item, sec.wide)); });
       setupDragScroll(carousel);
     } catch(e) { console.error('Section ' + sec.id + ' error:', e); }
   }
@@ -716,21 +1104,18 @@ footer {
 
     var poster = el('div', { className: 'card-poster' });
     poster.appendChild(el('img', { src: imgSrc, alt: title, loading: 'lazy' }));
-
     if (rating > 0) poster.appendChild(el('span', { className: 'card-rating' }, '\u2605 ' + rating));
 
     var isAnime = item.genre_ids && item.genre_ids.includes(16);
-    if (isAnime) poster.appendChild(el('span', { className: 'card-type-badge badge-anime' }, '动漫'));
-    else if (mediaType === 'movie') poster.appendChild(el('span', { className: 'card-type-badge badge-movie' }, '电影'));
-    else if (mediaType === 'tv') poster.appendChild(el('span', { className: 'card-type-badge badge-tv' }, '剧集'));
+    if (isAnime) poster.appendChild(el('span', { className: 'card-type-badge badge-anime' }, 'ANIME'));
+    else if (mediaType === 'movie') poster.appendChild(el('span', { className: 'card-type-badge badge-movie' }, 'MOVIE'));
+    else if (mediaType === 'tv') poster.appendChild(el('span', { className: 'card-type-badge badge-tv' }, 'TV'));
 
     card.appendChild(poster);
-
     var info = el('div', { className: 'card-info' });
     info.appendChild(el('div', { className: 'card-title' }, title));
     info.appendChild(el('div', { className: 'card-sub' }, year));
     card.appendChild(info);
-
     return card;
   }
 
@@ -739,7 +1124,6 @@ footer {
     var overlay = document.getElementById('modalOverlay');
     var body = document.getElementById('modalBody');
     var backdrop = document.getElementById('modalBackdrop');
-
     overlay.classList.add('open');
     document.body.style.overflow = 'hidden';
     body.textContent = '';
@@ -752,86 +1136,76 @@ footer {
     ]).then(function(results) {
       var detail = results[0];
       var credits = results[1];
-
       backdrop.src = backdropURL(detail.backdrop_path, 'original');
-
       body.textContent = '';
 
       var title = esc(detail.title || detail.name);
       var date = detail.release_date || detail.first_air_date || '';
       var year = date ? date.split('-')[0] : '';
-      var runtime = detail.runtime ? detail.runtime + ' 分钟' : detail.number_of_seasons ? detail.number_of_seasons + ' 季' : '';
+      var runtime = detail.runtime ? detail.runtime + ' min' : detail.number_of_seasons ? detail.number_of_seasons + ' seasons' : '';
       var rating = detail.vote_average ? detail.vote_average.toFixed(1) : '';
       var genres = (detail.genres || []).map(function(g) { return g.name; });
       var cast = (credits.cast || []).slice(0, 12);
       var statusMap = {
-        'Released': '已上映', 'Post Production': '后期制作', 'In Production': '制作中',
-        'Planned': '计划中', 'Canceled': '已取消', 'Rumored': '传闻',
-        'Returning Series': '连载中', 'Ended': '已完结', 'Pilot': '试播'
+        'Released': 'Released', 'Post Production': 'Post Production', 'In Production': 'In Production',
+        'Planned': 'Planned', 'Canceled': 'Canceled', 'Rumored': 'Rumored',
+        'Returning Series': 'Ongoing', 'Ended': 'Ended', 'Pilot': 'Pilot'
       };
-      var statusText = statusMap[detail.status] || detail.status || '';
+      var statusTxt = statusMap[detail.status] || detail.status || '';
 
       body.appendChild(el('h2', { className: 'modal-title' }, title));
 
       var meta = el('div', { className: 'modal-meta' });
-      if (rating > 0) { meta.appendChild(el('span', { className: 'rating' }, '\u2605 ' + rating)); meta.appendChild(el('span', { className: 'sep' }, ' · ')); }
+      if (rating > 0) { meta.appendChild(el('span', { className: 'rating' }, '\u2605 ' + rating)); meta.appendChild(el('span', { className: 'sep' }, ' \u00B7 ')); }
       if (year) meta.appendChild(el('span', null, year));
-      if (runtime) { meta.appendChild(el('span', { className: 'sep' }, ' · ')); meta.appendChild(el('span', null, runtime)); }
-      if (statusText) { meta.appendChild(el('span', { className: 'sep' }, ' · ')); meta.appendChild(el('span', null, statusText)); }
-      if (detail.original_language) { meta.appendChild(el('span', { className: 'sep' }, ' · ')); meta.appendChild(el('span', null, detail.original_language.toUpperCase())); }
+      if (runtime) { meta.appendChild(el('span', { className: 'sep' }, ' \u00B7 ')); meta.appendChild(el('span', null, runtime)); }
+      if (statusTxt) { meta.appendChild(el('span', { className: 'sep' }, ' \u00B7 ')); meta.appendChild(el('span', null, statusTxt)); }
+      if (detail.original_language) { meta.appendChild(el('span', { className: 'sep' }, ' \u00B7 ')); meta.appendChild(el('span', null, detail.original_language.toUpperCase())); }
       body.appendChild(meta);
 
       if (genres.length) {
-        var genresDiv = el('div', { className: 'modal-genres' });
-        genres.forEach(function(g) { genresDiv.appendChild(el('span', { className: 'genre-tag' }, g)); });
-        body.appendChild(genresDiv);
+        var gd = el('div', { className: 'modal-genres' });
+        genres.forEach(function(g) { gd.appendChild(el('span', { className: 'genre-tag' }, g)); });
+        body.appendChild(gd);
       }
 
-      body.appendChild(el('p', { className: 'modal-overview' }, esc(detail.overview) || '暂无简介'));
+      body.appendChild(el('p', { className: 'modal-overview' }, esc(detail.overview) || 'No overview available'));
 
       if (detail.tagline) {
-        var tagline = el('p', { style: 'color:var(--text-tertiary);font-style:italic;margin-bottom:24px;font-size:14px' });
-        tagline.textContent = '"' + detail.tagline + '"';
-        body.appendChild(tagline);
+        var tl = el('p', { style: 'color:var(--text-tertiary);font-style:italic;margin-bottom:24px;font-size:14px' });
+        tl.textContent = '"' + detail.tagline + '"';
+        body.appendChild(tl);
       }
 
       if (cast.length) {
-        body.appendChild(el('h3', { className: 'modal-section-title' }, '演员阵容'));
-        var castDiv = el('div', { className: 'modal-cast' });
+        body.appendChild(el('h3', { className: 'modal-section-title' }, 'CAST'));
+        var cd = el('div', { className: 'modal-cast' });
         cast.forEach(function(c) {
-          var card = el('div', { className: 'cast-card' });
-          card.appendChild(el('img', { className: 'cast-avatar', src: posterURL(c.profile_path), alt: esc(c.name), loading: 'lazy' }));
-          card.appendChild(el('div', { className: 'cast-name' }, esc(c.name)));
-          card.appendChild(el('div', { className: 'cast-role' }, esc(c.character || '')));
-          castDiv.appendChild(card);
+          var cc = el('div', { className: 'cast-card' });
+          cc.appendChild(el('img', { className: 'cast-avatar', src: posterURL(c.profile_path), alt: esc(c.name), loading: 'lazy' }));
+          cc.appendChild(el('div', { className: 'cast-name' }, esc(c.name)));
+          cc.appendChild(el('div', { className: 'cast-role' }, esc(c.character || '')));
+          cd.appendChild(cc);
         });
-        body.appendChild(castDiv);
+        body.appendChild(cd);
       }
     }).catch(function(e) {
       body.textContent = '';
-      body.appendChild(el('p', { style: 'text-align:center;color:var(--text-secondary);padding:40px' }, '加载失败，请稍后重试'));
+      body.appendChild(el('p', { style: 'text-align:center;color:var(--text-secondary);padding:40px' }, 'Failed to load. Please try again.'));
       console.error(e);
     });
   }
 
-  document.getElementById('modalOverlay').addEventListener('click', function(e) {
-    if (e.target === e.currentTarget) closeModal();
-  });
+  document.getElementById('modalOverlay').addEventListener('click', function(e) { if (e.target === e.currentTarget) closeModal(); });
   document.getElementById('modalClose').addEventListener('click', closeModal);
-
-  function closeModal() {
-    document.getElementById('modalOverlay').classList.remove('open');
-    document.body.style.overflow = '';
-  }
+  function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); document.body.style.overflow = ''; }
 
   // ===== NAV =====
   function setupNav() {
     window.addEventListener('scroll', function() {
       document.getElementById('nav').classList.toggle('scrolled', window.scrollY > 50);
     }, { passive: true });
-
     document.getElementById('navBrand').addEventListener('click', function() { window.scrollTo({ top: 0 }); });
-
     document.querySelectorAll('.nav-tab').forEach(function(tab) {
       tab.addEventListener('click', function() {
         document.querySelectorAll('.nav-tab').forEach(function(t) { t.classList.remove('active'); });
@@ -848,32 +1222,15 @@ footer {
     var overlay = document.getElementById('searchOverlay');
     var input = document.getElementById('searchInput');
     var resultsEl = document.getElementById('searchResults');
-
     resultsEl.textContent = '';
-    resultsEl.appendChild(el('div', { className: 'search-empty' }, '输入关键词搜索全球影视内容'));
+    resultsEl.appendChild(el('div', { className: 'search-empty' }, 'Search for movies, TV shows, and anime'));
 
-    document.getElementById('searchBtn').addEventListener('click', function() {
-      overlay.classList.add('open');
-      input.focus();
-    });
-
-    document.getElementById('searchClose').addEventListener('click', function() {
-      overlay.classList.remove('open');
-      input.value = '';
-    });
-
+    document.getElementById('searchBtn').addEventListener('click', function() { overlay.classList.add('open'); input.focus(); });
+    document.getElementById('searchClose').addEventListener('click', function() { overlay.classList.remove('open'); input.value = ''; });
     document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape' && overlay.classList.contains('open')) {
-        overlay.classList.remove('open');
-        input.value = '';
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        overlay.classList.add('open');
-        input.focus();
-      }
+      if (e.key === 'Escape' && overlay.classList.contains('open')) { overlay.classList.remove('open'); input.value = ''; }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); overlay.classList.add('open'); input.focus(); }
     });
-
     input.addEventListener('input', function() {
       clearTimeout(searchTimer);
       searchTimer = setTimeout(function() { doSearch(input.value.trim()); }, 350);
@@ -882,44 +1239,28 @@ footer {
 
   async function doSearch(query) {
     var container = document.getElementById('searchResults');
-    if (!query) {
-      container.textContent = '';
-      container.appendChild(el('div', { className: 'search-empty' }, '输入关键词搜索全球影视内容'));
-      return;
-    }
+    if (!query) { container.textContent = ''; container.appendChild(el('div', { className: 'search-empty' }, 'Search for movies, TV shows, and anime')); return; }
     container.textContent = '';
     container.appendChild(el('div', { className: 'spinner' }));
-
     try {
       var data = await tmdb('/search/multi', { query: query });
       var results = data.results.filter(function(r) { return r.media_type === 'movie' || r.media_type === 'tv'; });
-
       container.textContent = '';
-      if (!results.length) {
-        container.appendChild(el('div', { className: 'search-empty' }, '未找到 "' + esc(query) + '" 的相关结果'));
-        return;
-      }
-
+      if (!results.length) { container.appendChild(el('div', { className: 'search-empty' }, 'No results for "' + esc(query) + '"')); return; }
       var grid = el('div', { className: 'search-results-grid' });
       results.forEach(function(item) { grid.appendChild(createCard(item)); });
       container.appendChild(grid);
-    } catch(_e) {
-      container.textContent = '';
-      container.appendChild(el('div', { className: 'search-empty' }, '搜索出错，请稍后重试'));
-    }
+    } catch(_e) { container.textContent = ''; container.appendChild(el('div', { className: 'search-empty' }, 'Search error. Please try again.')); }
   }
 
   // ===== DRAG SCROLL =====
   function setupDragScroll(carousel) {
     var isDown = false, startX = 0, scrollLeft = 0;
-    carousel.addEventListener('mousedown', function(e) {
-      isDown = true; startX = e.pageX - carousel.offsetLeft; scrollLeft = carousel.scrollLeft;
-    });
+    carousel.addEventListener('mousedown', function(e) { isDown = true; startX = e.pageX - carousel.offsetLeft; scrollLeft = carousel.scrollLeft; });
     carousel.addEventListener('mouseleave', function() { isDown = false; });
     carousel.addEventListener('mouseup', function() { isDown = false; });
     carousel.addEventListener('mousemove', function(e) {
-      if (!isDown) return;
-      e.preventDefault();
+      if (!isDown) return; e.preventDefault();
       carousel.scrollLeft = scrollLeft - (e.pageX - carousel.offsetLeft - startX) * 1.5;
     });
   }
@@ -929,7 +1270,6 @@ footer {
     var observer = new IntersectionObserver(function(entries) {
       entries.forEach(function(entry) { if (entry.isIntersecting) entry.target.classList.add('visible'); });
     }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
-
     new MutationObserver(function() {
       document.querySelectorAll('.section:not(.visible)').forEach(function(s) { observer.observe(s); });
     }).observe(document.getElementById('mainContent'), { childList: true });
