@@ -61,32 +61,44 @@ def _parse_tmdb_list(html, media_type='movie'):
 
 def scrape_tmdb_movies(category='popular'):
     url_map = {
-        'popular': 'https://www.themoviedb.org/movie',
-        'now_playing': 'https://www.themoviedb.org/movie/now-playing',
-        'upcoming': 'https://www.themoviedb.org/movie/upcoming',
-        'top_rated': 'https://www.themoviedb.org/movie/top-rated',
+        'popular': 'https://www.themoviedb.org/movie?language=zh-CN',
+        'now_playing': 'https://www.themoviedb.org/movie/now-playing?language=zh-CN',
+        'upcoming': 'https://www.themoviedb.org/movie/upcoming?language=zh-CN',
+        'top_rated': 'https://www.themoviedb.org/movie/top-rated?language=zh-CN',
     }
     return _parse_tmdb_list(fetch(url_map.get(category, url_map['popular'])), 'movie')
 
 
 def scrape_tmdb_tv(category='popular'):
     url_map = {
-        'popular': 'https://www.themoviedb.org/tv',
-        'airing_today': 'https://www.themoviedb.org/tv/airing-today',
-        'on_the_air': 'https://www.themoviedb.org/tv/on-the-air',
-        'top_rated': 'https://www.themoviedb.org/tv/top-rated',
+        'popular': 'https://www.themoviedb.org/tv?language=zh-CN',
+        'airing_today': 'https://www.themoviedb.org/tv/airing-today?language=zh-CN',
+        'on_the_air': 'https://www.themoviedb.org/tv/on-the-air?language=zh-CN',
+        'top_rated': 'https://www.themoviedb.org/tv/top-rated?language=zh-CN',
     }
     return _parse_tmdb_list(fetch(url_map.get(category, url_map['popular'])), 'tv')
 
 
 def scrape_tmdb_trending(media='all'):
+    """Scrape TMDB trending page — global hottest content today."""
     if media == 'movie':
-        return scrape_tmdb_movies('popular')
+        url = 'https://www.themoviedb.org/trending/movie/week?language=zh-CN'
+        return _parse_tmdb_list(fetch(url), 'movie')
     elif media == 'tv':
-        return scrape_tmdb_tv('popular')
+        url = 'https://www.themoviedb.org/trending/tv/week?language=zh-CN'
+        return _parse_tmdb_list(fetch(url), 'tv')
     else:
-        movies = scrape_tmdb_movies('popular')[:10]
-        tv = scrape_tmdb_tv('popular')[:10]
+        # Mix trending movies and TV for the hero banner
+        try:
+            url_m = 'https://www.themoviedb.org/trending/movie/week?language=zh-CN'
+            movies = _parse_tmdb_list(fetch(url_m), 'movie')[:8]
+        except Exception:
+            movies = []
+        try:
+            url_t = 'https://www.themoviedb.org/trending/tv/week?language=zh-CN'
+            tv = _parse_tmdb_list(fetch(url_t), 'tv')[:8]
+        except Exception:
+            tv = []
         combined = []
         for i in range(max(len(movies), len(tv))):
             if i < len(movies):
@@ -97,39 +109,70 @@ def scrape_tmdb_trending(media='all'):
 
 
 def scrape_tmdb_regional(media_type, country):
-    url = f'https://www.themoviedb.org/{media_type}?with_origin_country={country}'
+    url = f'https://www.themoviedb.org/{media_type}?with_origin_country={country}&language=zh-CN'
     return _parse_tmdb_list(fetch(url), media_type)
 
 
+def _extract_tmdb_title(html):
+    """Extract title from TMDB page using multiple strategies."""
+    # Strategy 1: <h2><a>Title</a>
+    m = re.search(r'<h2>\s*<a[^>]*>(.*?)</a>', html)
+    if m and m.group(1).strip():
+        return m.group(1).strip()
+    # Strategy 2: class="title"...<a>Title</a>
+    m = re.search(r'class="title".*?<a[^>]*>(.*?)</a>', html, re.DOTALL)
+    if m and m.group(1).strip():
+        return m.group(1).strip()
+    # Strategy 3: <title>Title (Year) — TMDB</title>
+    m = re.search(r'<title>\s*(.*?)\s*[\(（]', html)
+    if m and m.group(1).strip():
+        return m.group(1).strip()
+    # Strategy 4: <title>Title — TMDB</title>
+    m = re.search(r'<title>\s*(.*?)\s*[—\-–]', html)
+    if m and m.group(1).strip():
+        return m.group(1).strip()
+    # Strategy 5: og:title meta
+    m = re.search(r'og:title["\s]+content="([^"]*)"', html)
+    if m and m.group(1).strip():
+        t = m.group(1).strip()
+        # Remove trailing "(Year)" or "— TMDB"
+        t = re.sub(r'\s*[\(（].*$', '', t)
+        return t
+    return ''
+
+
 def scrape_tmdb_detail(media_type, mid):
-    # Fetch Chinese version for Chinese title
+    # Fetch both Chinese and English pages
     url_cn = f'https://www.themoviedb.org/{media_type}/{mid}?language=zh-CN'
     url_en = f'https://www.themoviedb.org/{media_type}/{mid}'
+
+    html_cn = None
+    html_en = None
+    title_cn = ''
+    title_en = ''
+
     try:
         html_cn = fetch(url_cn)
-        cn_m = re.search(r'<h2>\s*<a[^>]*>(.*?)</a>', html_cn)
-        if not cn_m:
-            cn_m = re.search(r'class="title".*?<a[^>]*>(.*?)</a>', html_cn, re.DOTALL)
+        title_cn = _extract_tmdb_title(html_cn)
     except Exception:
-        html_cn = None
-        cn_m = None
+        pass
 
-    html = html_cn if html_cn else fetch(url_en)
-    # Also fetch English page for original title
     try:
-        html_en = fetch(url_en) if html_cn else html
+        html_en = fetch(url_en)
+        title_en = _extract_tmdb_title(html_en)
     except Exception:
-        html_en = html
+        pass
 
+    html = html_cn or html_en or ''
     detail = {'id': int(mid), 'media_type': media_type}
 
-    # Chinese title (for 采集API search)
-    detail['title_cn'] = cn_m.group(1).strip() if cn_m else ''
-
-    title_m = re.search(r'<h2>\s*<a[^>]*>(.*?)</a>', html_en)
-    if not title_m:
-        title_m = re.search(r'class="title".*?<a[^>]*>(.*?)</a>', html_en, re.DOTALL)
-    detail['title'] = title_m.group(1).strip() if title_m else (detail['title_cn'] or '')
+    # For TV shows, title_cn from zh-CN might just be "第X季" — need to fix
+    # Use English title as display, Chinese title for 采集API search
+    if title_cn and re.match(r'^第\s*\d+\s*季$', title_cn):
+        # zh-CN returned only season label, use English title instead
+        title_cn = title_en
+    detail['title_cn'] = title_cn
+    detail['title'] = title_en or title_cn
 
     ov = re.search(r'class="overview".*?<p>(.*?)</p>', html, re.DOTALL)
     detail['overview'] = ov.group(1).strip() if ov else ''
@@ -174,7 +217,7 @@ def scrape_tmdb_detail(media_type, mid):
 
 def scrape_tmdb_search(query):
     encoded = urllib.parse.quote(query)
-    url = f'https://www.themoviedb.org/search?query={encoded}'
+    url = f'https://www.themoviedb.org/search?query={encoded}&language=zh-CN'
     html = fetch(url)
     items = []
     movie_ids = re.findall(r'href="/(movie|tv)/(\d+)[^"]*"\s*(?:title="([^"]*)")?', html)
