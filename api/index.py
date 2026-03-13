@@ -102,14 +102,34 @@ def scrape_tmdb_regional(media_type, country):
 
 
 def scrape_tmdb_detail(media_type, mid):
-    url = f'https://www.themoviedb.org/{media_type}/{mid}'
-    html = fetch(url)
+    # Fetch Chinese version for Chinese title
+    url_cn = f'https://www.themoviedb.org/{media_type}/{mid}?language=zh-CN'
+    url_en = f'https://www.themoviedb.org/{media_type}/{mid}'
+    try:
+        html_cn = fetch(url_cn)
+        cn_m = re.search(r'<h2>\s*<a[^>]*>(.*?)</a>', html_cn)
+        if not cn_m:
+            cn_m = re.search(r'class="title".*?<a[^>]*>(.*?)</a>', html_cn, re.DOTALL)
+    except Exception:
+        html_cn = None
+        cn_m = None
+
+    html = html_cn if html_cn else fetch(url_en)
+    # Also fetch English page for original title
+    try:
+        html_en = fetch(url_en) if html_cn else html
+    except Exception:
+        html_en = html
+
     detail = {'id': int(mid), 'media_type': media_type}
 
-    title_m = re.search(r'<h2>\s*<a[^>]*>(.*?)</a>', html)
+    # Chinese title (for 采集API search)
+    detail['title_cn'] = cn_m.group(1).strip() if cn_m else ''
+
+    title_m = re.search(r'<h2>\s*<a[^>]*>(.*?)</a>', html_en)
     if not title_m:
-        title_m = re.search(r'class="title".*?<a[^>]*>(.*?)</a>', html, re.DOTALL)
-    detail['title'] = title_m.group(1).strip() if title_m else ''
+        title_m = re.search(r'class="title".*?<a[^>]*>(.*?)</a>', html_en, re.DOTALL)
+    detail['title'] = title_m.group(1).strip() if title_m else (detail['title_cn'] or '')
 
     ov = re.search(r'class="overview".*?<p>(.*?)</p>', html, re.DOTALL)
     detail['overview'] = ov.group(1).strip() if ov else ''
@@ -249,38 +269,29 @@ VIDEO_SOURCES = [
 ]
 
 
-def _test_m3u8(url):
-    """Quick test if m3u8 URL is alive."""
-    try:
-        req = urllib.request.Request(url, headers=HEADERS)
-        req.method = 'HEAD'
-        with urllib.request.urlopen(req, timeout=4) as resp:
-            return resp.status == 200
-    except Exception:
-        try:
-            req = urllib.request.Request(url, headers=HEADERS)
-            with urllib.request.urlopen(req, timeout=4) as resp:
-                return len(resp.read(100)) > 0
-        except Exception:
-            return False
-
-
 def video_search(query):
-    """Search across video sources, test m3u8, auto-fallback."""
+    """Search across video sources, skip m3u8 validation to avoid timeout."""
     all_results = []
     for src in VIDEO_SOURCES:
         try:
-            url = src['api'] + '?ac=videolist&wd=' + urllib.parse.quote(query)
+            # Use ac=detail for full play URLs (videolist may omit them)
+            url = src['api'] + '?ac=detail&wd=' + urllib.parse.quote(query)
             data = fetch(url, as_json=True)
             for item in data.get('list', [])[:3]:
                 play_urls = item.get('vod_play_url', '')
                 episodes = []
                 if play_urls:
-                    first_group = play_urls.split('$$$')[0]
-                    for ep in first_group.split('#'):
-                        parts = ep.split('$', 1)
-                        if len(parts) == 2 and parts[1].strip():
-                            episodes.append({'name': parts[0], 'url': parts[1]})
+                    # Take first m3u8 group only
+                    for group in play_urls.split('$$$'):
+                        if 'm3u8' in group or not episodes:
+                            for ep in group.split('#'):
+                                parts = ep.split('$', 1)
+                                if len(parts) == 2 and parts[1].strip():
+                                    ep_url = parts[1].strip()
+                                    if ep_url.startswith('http'):
+                                        episodes.append({'name': parts[0], 'url': ep_url})
+                            if episodes:
+                                break
                 if episodes:
                     hits = 0
                     try:
@@ -303,19 +314,9 @@ def video_search(query):
         except Exception:
             continue
 
-    # Test first episode m3u8 for each result, put working ones first
-    verified = []
-    unverified = []
-    for r in all_results:
-        if r['episodes']:
-            test_url = r['episodes'][0].get('url', '')
-            if _test_m3u8(test_url):
-                verified.append(r)
-            else:
-                unverified.append(r)
-
-    verified.sort(key=lambda x: x.get('hits', 0), reverse=True)
-    return verified + unverified
+    # Sort by hits (popularity), no m3u8 validation — let frontend handle failures
+    all_results.sort(key=lambda x: x.get('hits', 0), reverse=True)
+    return all_results
 
 
 def video_detail(source_key, vid):

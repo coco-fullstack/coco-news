@@ -678,7 +678,8 @@ footer {
       body.textContent = '';
 
       var title = esc(d.title || d.title_en || item.title || '');
-      body.appendChild(el('h2', { className: 'modal-title' }, title));
+      var titleCn = esc(d.title_cn || '');
+      body.appendChild(el('h2', { className: 'modal-title' }, titleCn || title));
 
       var meta = el('div', { className: 'modal-meta' });
       if (d.rating > 0) { meta.appendChild(el('span', { className: 'rating' }, d.rating + ' 分')); meta.appendChild(el('span', { className: 'sep' }, ' \u00B7 ')); }
@@ -699,7 +700,7 @@ footer {
       var playActions = el('div', { style: 'display:flex;gap:10px;margin-bottom:20px' });
       playActions.appendChild(el('button', {
         className: 'play-btn-modal',
-        onClick: (function(t) { return function() { searchAndPlay(t); }; })(title)
+        onClick: (function(t) { return function() { searchAndPlay(t); }; })(titleCn || title)
       }, [
         el('svg', { width: '14', height: '14', viewBox: '0 0 24 24', fill: 'currentColor' }),
         document.createTextNode('立即播放')
