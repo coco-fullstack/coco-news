@@ -368,23 +368,78 @@ footer {
 }
 
 @media (max-width: 768px) {
-  nav { padding: 0 16px; }
-  .nav-tabs { margin-left: 12px; }
+  nav { padding: 0 12px; height: 50px; }
+  :root { --nav-h: 50px; }
+  .nav-brand { font-size: 18px; }
+  .nav-tabs { margin-left: 10px; }
   .nav-tab { padding: 5px 12px; font-size: 12px; }
-  .hero { height: 320px; }
-  .hero-content { left: 20px; bottom: 30px; max-width: 80%; }
-  .hero-title { font-size: 22px; }
-  .section-header, .carousel { padding-left: 16px; padding-right: 16px; }
-  .card { width: 120px; }
-  .card-wide { width: 240px; }
-  .modal-overlay { padding: 20px 12px; }
-  .modal-body { padding: 0 20px 20px; }
+  .nav-search-btn { width: 32px; height: 32px; }
+  .hero { height: 280px; border-radius: 0; }
+  .hero-content { left: 16px; bottom: 20px; max-width: 85%; }
+  .hero-title { font-size: 20px; }
+  .hero-desc { font-size: 12px; -webkit-line-clamp: 2; margin-bottom: 12px; }
+  .hero-badge { font-size: 10px; padding: 2px 8px; margin-bottom: 8px; }
+  .hero-meta { font-size: 11px; gap: 6px; margin-bottom: 6px; }
+  .hero-actions { gap: 8px; }
+  .btn-detail { padding: 7px 18px; font-size: 12px; }
+  .section-header, .carousel { padding-left: 14px; padding-right: 14px; }
+  .section-header { margin-bottom: 10px; }
+  .section-title { font-size: 16px; }
+  .section { margin-bottom: 24px; }
+  .carousel { gap: 10px; }
+  .card { width: 115px; }
+  .card-title { font-size: 12px; }
+  .card-sub { font-size: 10px; }
+  .card-wide { width: 220px; }
+  .search-overlay { padding: 0 16px; }
+  .search-bar-wrap { height: 56px; gap: 10px; }
+  .search-input { font-size: 16px; }
+  .search-results-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 12px; }
+  .modal-overlay { padding: 0; align-items: flex-end; }
+  .modal { width: 100%; max-height: 95vh; border-radius: 16px 16px 0 0; overflow-y: auto; }
+  .modal-backdrop-wrap { aspect-ratio: 16/10; }
+  .modal-body { padding: 0 16px 24px; margin-top: -20px; }
   .modal-title { font-size: 20px; }
+  .modal-meta { font-size: 12px; }
+  .modal-overview { font-size: 13px; line-height: 1.7; }
+  .modal-section-title { font-size: 15px; }
+  .cast-card { width: 60px; }
+  .cast-avatar { width: 44px; height: 44px; }
+  .cast-name { font-size: 10px; }
+  .play-btn-modal { padding: 10px 24px; font-size: 13px; width: 100%; justify-content: center; }
+  .player-top { padding: 10px 14px; }
+  .player-title { font-size: 13px; }
+  .player-bottom { max-height: 160px; }
+  .ep-list { padding: 10px 14px; gap: 6px; }
+  .ep-btn { padding: 5px 12px; font-size: 11px; }
+  .source-info { padding: 4px 14px 0; font-size: 10px; }
+  .player-video-wrap video { max-height: 45vh; }
+  footer { padding: 20px 14px; font-size: 11px; }
 }
 @media (max-width: 480px) {
   .nav-tabs { display: none; }
-  .card { width: 110px; }
-  .card-wide { width: 220px; }
+  .hero { height: 240px; }
+  .hero-content { left: 14px; bottom: 16px; max-width: 90%; }
+  .hero-title { font-size: 18px; }
+  .hero-desc { display: none; }
+  .btn-detail { padding: 6px 16px; font-size: 11px; }
+  .card { width: 100px; }
+  .card-poster .card-rating { font-size: 10px; padding: 1px 4px; top: 4px; right: 4px; }
+  .card-poster .card-type-badge { font-size: 9px; padding: 1px 4px; top: 4px; left: 4px; }
+  .card-wide { width: 200px; }
+  .search-results-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .modal-backdrop-wrap { aspect-ratio: 16/12; }
+  .genre-tag { padding: 2px 8px; font-size: 11px; }
+  .modal-cast { gap: 10px; }
+  .player-video-wrap video { max-height: 35vh; }
+  .ep-btn { padding: 4px 10px; font-size: 10px; }
+}
+/* Safe area for notched phones */
+@supports (padding: env(safe-area-inset-top)) {
+  nav { padding-top: env(safe-area-inset-top); height: calc(var(--nav-h) + env(safe-area-inset-top)); }
+  .player-top { padding-top: calc(10px + env(safe-area-inset-top)); }
+  .player-bottom { padding-bottom: env(safe-area-inset-bottom); }
+  .modal-overlay { padding-bottom: env(safe-area-inset-bottom); }
 }
 </style>
 </head>
