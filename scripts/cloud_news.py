@@ -463,6 +463,36 @@ def fetch_coin_liquidations() -> dict:
     return result
 
 
+# ── 机构持仓 + 大额动向 (CoinGecko Public Treasury) ──────────────
+
+def fetch_institutional_holdings() -> dict:
+    """获取 BTC/ETH 机构持仓数据（公开上市公司）"""
+    import time as _time
+    result = {}
+    for coin in ["bitcoin", "ethereum"]:
+        url = f"{COINGECKO}/companies/public_treasury/{coin}"
+        data = fetch_json(url)
+        if not data or "companies" not in data:
+            continue
+        sym = "BTC" if coin == "bitcoin" else "ETH"
+        companies = []
+        for c in data["companies"][:10]:
+            companies.append({
+                "name": c.get("name", ""),
+                "symbol": c.get("symbol", ""),
+                "holdings": c.get("total_holdings", 0),
+                "value_usd": c.get("total_current_value_usd", 0),
+                "pct_supply": c.get("percentage_of_total_supply", 0),
+            })
+        result[sym] = {
+            "total_holdings": data.get("total_holdings", 0),
+            "total_value_usd": data.get("total_value_usd", 0),
+            "top_companies": companies,
+        }
+        _time.sleep(1)
+    return result
+
+
 # ── Top 200 涨幅筛选 vs BTC (CoinGecko) ─────────────────────────
 
 def _fetch_binance_symbols() -> set:
@@ -1148,6 +1178,26 @@ def build_daily_html(data: dict) -> str:
                 h += f'<span class="v">{_mc(exp["notional_usd"])} ({exp["oi_coins"]:,.0f}枚) {tag}</span></div>'
         h += '</div>'
 
+    # ═══ 机构持仓 · 大额动向 ═══
+    holdings = data.get("institutional", {})
+    if holdings:
+        h += '<div class="s"><p class="st">机构持仓 · 大额动向</p>'
+        for sym in ["BTC", "ETH"]:
+            if sym not in holdings:
+                continue
+            hd = holdings[sym]
+            h += f'<div class="r"><span class="l">{sym} 机构总持仓</span><span class="v">{_mc(hd["total_value_usd"])}</span></div>'
+            for comp in hd["top_companies"][:5]:
+                name = comp["name"]
+                if len(name) > 18:
+                    name = name[:16] + ".."
+                val = comp["value_usd"]
+                pct = comp["pct_supply"]
+                h += f'<div class="r"><span class="l" style="padding-left:12px">{name}</span>'
+                h += f'<span class="v">{_mc(val)} ({pct:.2f}%)</span></div>'
+            h += '<div class="dv"></div>'
+        h += '</div>'
+
     # ═══ 三、资金 & 宏观（合并：稳定币+市值+国债+汇率+TVL）═══
     h += '<div class="s"><p class="st">资金 & 宏观</p>'
 
@@ -1450,6 +1500,7 @@ def run_daily():
         "options_expiry": _safe_fetch(fetch_options_expiry, {}),
         "coin_liquidations": _safe_fetch(fetch_coin_liquidations, {}),
         "screening": _safe_fetch(fetch_top200_vs_btc, {}),
+        "institutional": _safe_fetch(fetch_institutional_holdings, {}),
     }
 
     # 趋势评分
@@ -1576,6 +1627,7 @@ def run_weekly():
     screening = _safe_fetch(fetch_top200_vs_btc, {})
     options = _safe_fetch(fetch_options_expiry, {})
     coin_liq = _safe_fetch(fetch_coin_liquidations, {})
+    institutional = _safe_fetch(fetch_institutional_holdings, {})
 
     # 构建周报 HTML
     now = datetime.now(CST)
@@ -1631,6 +1683,23 @@ def run_weekly():
             long_r = cl.get("long_ratio", 50)
             h += f'<div class="r"><span class="l">{coin} 未平仓</span><span class="v">{_mc(oi_val)} {_c(oi_chg)}</span></div>'
             h += f'<div class="r"><span class="l">{coin} 多空</span><span class="v">买卖比 {bsr:.3f} · 多{long_r:.0f}%/空{100-long_r:.0f}%</span></div>'
+            h += '<div class="dv"></div>'
+        h += '</div>'
+
+    # 机构持仓
+    if institutional:
+        h += '<div class="s"><p class="st">机构持仓 · 大额动向</p>'
+        for sym in ["BTC", "ETH"]:
+            if sym not in institutional:
+                continue
+            hd = institutional[sym]
+            h += f'<div class="r"><span class="l">{sym} 机构总持仓</span><span class="v">{_mc(hd["total_value_usd"])}</span></div>'
+            for comp in hd["top_companies"][:5]:
+                name = comp["name"]
+                if len(name) > 18:
+                    name = name[:16] + ".."
+                h += f'<div class="r"><span class="l" style="padding-left:12px">{name}</span>'
+                h += f'<span class="v">{_mc(comp["value_usd"])} ({comp["pct_supply"]:.2f}%)</span></div>'
             h += '<div class="dv"></div>'
         h += '</div>'
 
