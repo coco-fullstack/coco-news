@@ -240,6 +240,87 @@ def get_anime_detail(mal_id):
     }
 
 
+# ===== VIDEO SOURCES (采集API) =====
+
+VIDEO_SOURCES = [
+    {'name': '暴风资源', 'key': 'bfzy', 'api': 'https://bfzyapi.com/api.php/provide/vod/'},
+    {'name': '红牛资源', 'key': 'hnzy', 'api': 'https://www.hongniuzy2.com/api.php/provide/vod/from/hnm3u8/'},
+    {'name': '光速资源', 'key': 'gszy', 'api': 'https://api.guangsuapi.com/api.php/provide/vod/from/gsm3u8/'},
+]
+
+
+def video_search(query):
+    """Search across video sources for playable content."""
+    results = []
+    for src in VIDEO_SOURCES:
+        try:
+            url = src['api'] + '?ac=videolist&wd=' + urllib.parse.quote(query)
+            data = fetch(url, as_json=True)
+            for item in data.get('list', [])[:10]:
+                play_urls = item.get('vod_play_url', '')
+                episodes = []
+                if play_urls:
+                    # Parse episode list: "第1集$url#第2集$url" or "HD$url"
+                    for group in play_urls.split('$$$'):
+                        for ep in group.split('#'):
+                            parts = ep.split('$', 1)
+                            if len(parts) == 2 and parts[1].strip():
+                                episodes.append({'name': parts[0], 'url': parts[1]})
+                results.append({
+                    'id': item.get('vod_id'),
+                    'title': item.get('vod_name', ''),
+                    'type': item.get('type_name', ''),
+                    'pic': item.get('vod_pic', ''),
+                    'remarks': item.get('vod_remarks', ''),
+                    'year': item.get('vod_year', ''),
+                    'area': item.get('vod_area', ''),
+                    'source': src['key'],
+                    'source_name': src['name'],
+                    'episodes': episodes,
+                })
+            if results:
+                break  # Use first source that returns results
+        except Exception:
+            continue
+    return results
+
+
+def video_detail(source_key, vid):
+    """Get video detail with play URLs from a specific source."""
+    src = next((s for s in VIDEO_SOURCES if s['key'] == source_key), VIDEO_SOURCES[0])
+    try:
+        url = src['api'] + '?ac=detail&ids=' + str(vid)
+        data = fetch(url, as_json=True)
+        if not data.get('list'):
+            return {'error': 'not found'}
+        item = data['list'][0]
+        play_urls = item.get('vod_play_url', '')
+        episodes = []
+        if play_urls:
+            for group in play_urls.split('$$$'):
+                for ep in group.split('#'):
+                    parts = ep.split('$', 1)
+                    if len(parts) == 2 and parts[1].strip():
+                        episodes.append({'name': parts[0], 'url': parts[1]})
+        return {
+            'id': item.get('vod_id'),
+            'title': item.get('vod_name', ''),
+            'type': item.get('type_name', ''),
+            'pic': item.get('vod_pic', ''),
+            'desc': item.get('vod_content', '').replace('<p>', '').replace('</p>', ''),
+            'year': item.get('vod_year', ''),
+            'area': item.get('vod_area', ''),
+            'director': item.get('vod_director', ''),
+            'actor': item.get('vod_actor', ''),
+            'remarks': item.get('vod_remarks', ''),
+            'source': src['key'],
+            'source_name': src['name'],
+            'episodes': episodes,
+        }
+    except Exception as e:
+        return {'error': str(e)}
+
+
 # ===== ROUTER =====
 
 def route(path, params):
@@ -306,6 +387,20 @@ def route(path, params):
         except Exception:
             pass
         return results
+
+    # Video search & play
+    if path == 'video/search':
+        q = params.get('q', '')
+        if not q:
+            return []
+        return video_search(q)
+
+    if path == 'video/detail':
+        source = params.get('source', 'bfzy')
+        vid = params.get('id', '')
+        if not vid:
+            return {'error': 'missing id'}
+        return video_detail(source, vid)
 
     return {'error': 'not found'}
 

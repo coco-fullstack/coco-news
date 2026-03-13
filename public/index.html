@@ -5,6 +5,7 @@
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CineVerse</title>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -342,6 +343,63 @@ main { position: relative; z-index: 2; margin-top: -40px; padding-bottom: 80px; 
   color: var(--text-primary); letter-spacing: 1px;
 }
 
+/* === PLAYER === */
+.player-overlay {
+  position: fixed; inset: 0; z-index: 4000;
+  background: #000; display: flex; flex-direction: column;
+  opacity: 0; visibility: hidden; transition: opacity 0.4s, visibility 0.4s;
+}
+.player-overlay.open { opacity: 1; visibility: visible; }
+.player-top {
+  display: flex; align-items: center; padding: 12px 20px;
+  background: rgba(0,0,0,0.8); z-index: 2;
+}
+.player-title { flex: 1; font-size: 14px; font-weight: 500; color: white; }
+.player-close-btn {
+  background: none; border: none; color: rgba(255,255,255,0.6);
+  font-size: 24px; cursor: pointer; padding: 4px 8px; transition: color 0.2s;
+}
+.player-close-btn:hover { color: white; }
+.player-video-wrap {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  background: #000; position: relative;
+}
+.player-video-wrap video {
+  width: 100%; height: 100%; max-height: 100vh; background: #000;
+}
+.player-bottom {
+  background: var(--bg-elevated); border-top: 1px solid var(--border);
+  max-height: 200px; overflow-y: auto;
+}
+.ep-list {
+  display: flex; flex-wrap: wrap; gap: 8px; padding: 16px 20px;
+}
+.ep-btn {
+  padding: 6px 16px; border-radius: 6px; font-size: 12px;
+  font-family: var(--font-body); cursor: pointer; transition: all 0.2s;
+  border: 1px solid var(--border); background: var(--bg-card);
+  color: var(--text-secondary); white-space: nowrap;
+}
+.ep-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.ep-btn.active { background: white; color: black; border-color: white; }
+.player-loading {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 12px;
+  color: var(--text-secondary); font-size: 13px;
+}
+.player-error {
+  color: var(--text-secondary); text-align: center; padding: 40px;
+  font-size: 14px;
+}
+.play-btn-modal {
+  padding: 10px 28px; border-radius: 30px; font-size: 13px; font-weight: 500;
+  cursor: pointer; font-family: var(--font-body); transition: all 0.3s;
+  border: none; display: flex; align-items: center; gap: 8px;
+  background: white; color: black; letter-spacing: 0.3px;
+}
+.play-btn-modal:hover { background: rgba(255,255,255,0.9); transform: scale(1.03); }
+.source-info { padding: 4px 20px 0; font-size: 11px; color: var(--text-tertiary); }
+
 footer {
   text-align: center; padding: 48px; color: var(--text-tertiary);
   font-size: 12px; font-weight: 300; letter-spacing: 0.5px;
@@ -415,6 +473,21 @@ footer {
       <button class="modal-close" id="modalClose">&times;</button>
     </div>
     <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<!-- Player -->
+<div class="player-overlay" id="playerOverlay">
+  <div class="player-top">
+    <div class="player-title" id="playerTitle"></div>
+    <button class="player-close-btn" id="playerClose">&times;</button>
+  </div>
+  <div class="player-video-wrap" id="playerVideoWrap">
+    <video id="playerVideo" controls playsinline></video>
+  </div>
+  <div class="player-bottom">
+    <div class="source-info" id="sourceInfo"></div>
+    <div class="ep-list" id="epList"></div>
   </div>
 </div>
 
@@ -659,6 +732,22 @@ footer {
         body.appendChild(gd);
       }
 
+      // Play button
+      var playActions = el('div', { style: 'display:flex;gap:10px;margin-bottom:28px' });
+      playActions.appendChild(el('button', {
+        className: 'play-btn-modal',
+        onClick: (function(t) { return function() { searchAndPlay(t); }; })(title)
+      }, [
+        el('svg', { width: '16', height: '16', viewBox: '0 0 24 24', fill: 'currentColor' }),
+        document.createTextNode('播放')
+      ]));
+      // Add play icon to SVG
+      var playSvg = playActions.querySelector('svg');
+      var polyNode = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      polyNode.setAttribute('points', '5,3 19,12 5,21');
+      playSvg.appendChild(polyNode);
+      body.appendChild(playActions);
+
       body.appendChild(el('p', { className: 'modal-overview' }, esc(d.overview) || '暂无简介'));
 
       if (d.cast && d.cast.length) {
@@ -752,6 +841,107 @@ footer {
       document.querySelectorAll('.section:not(.visible)').forEach(function(s) { obs.observe(s); });
     }).observe(document.getElementById('mainContent'), { childList: true });
   }
+
+  // ===== PLAYER =====
+  var hlsInstance = null;
+  var currentEpisodes = [];
+
+  function searchAndPlay(title) {
+    var overlay = document.getElementById('playerOverlay');
+    var videoWrap = document.getElementById('playerVideoWrap');
+    var epList = document.getElementById('epList');
+    var srcInfo = document.getElementById('sourceInfo');
+    document.getElementById('playerTitle').textContent = title;
+    overlay.classList.add('open');
+    epList.textContent = '';
+    srcInfo.textContent = '搜索中...';
+
+    // Show loading
+    var loadDiv = el('div', { className: 'player-loading', id: 'playerLoading' });
+    loadDiv.appendChild(el('div', { className: 'spinner' }));
+    loadDiv.appendChild(el('span', null, '正在搜索资源...'));
+    videoWrap.appendChild(loadDiv);
+
+    api('/api/video/search?q=' + encodeURIComponent(title)).then(function(results) {
+      var ld = document.getElementById('playerLoading');
+      if (ld) ld.remove();
+
+      if (!results || !results.length) {
+        srcInfo.textContent = '未找到播放资源';
+        return;
+      }
+
+      // Use first result
+      var video = results[0];
+      currentEpisodes = video.episodes || [];
+      srcInfo.textContent = '来源: ' + (video.source_name || '未知') + ' | ' + (video.remarks || '');
+
+      if (!currentEpisodes.length) {
+        srcInfo.textContent = '该资源暂无可播放内容';
+        return;
+      }
+
+      // Build episode buttons
+      currentEpisodes.forEach(function(ep, idx) {
+        epList.appendChild(el('button', {
+          className: 'ep-btn' + (idx === 0 ? ' active' : ''),
+          onClick: (function(e, i) { return function() { playEpisode(e.url, i); }; })(ep, idx)
+        }, ep.name));
+      });
+
+      // Auto play first episode
+      playEpisode(currentEpisodes[0].url, 0);
+    }).catch(function(e) {
+      var ld = document.getElementById('playerLoading');
+      if (ld) ld.remove();
+      srcInfo.textContent = '搜索失败: ' + e.message;
+    });
+  }
+
+  function playEpisode(url, idx) {
+    var video = document.getElementById('playerVideo');
+    var epBtns = document.querySelectorAll('.ep-btn');
+    epBtns.forEach(function(b, i) { b.classList.toggle('active', i === idx); });
+
+    // Destroy previous HLS instance
+    if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
+
+    if (!url) return;
+
+    if (url.includes('.m3u8')) {
+      if (Hls.isSupported()) {
+        hlsInstance = new Hls();
+        hlsInstance.loadSource(url);
+        hlsInstance.attachMedia(video);
+        hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() { video.play(); });
+        hlsInstance.on(Hls.Events.ERROR, function(evt, data) {
+          if (data.fatal) console.error('HLS error:', data);
+        });
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = url;
+        video.addEventListener('loadedmetadata', function() { video.play(); }, { once: true });
+      }
+    } else {
+      video.src = url;
+      video.play();
+    }
+  }
+
+  function closePlayer() {
+    var overlay = document.getElementById('playerOverlay');
+    var video = document.getElementById('playerVideo');
+    overlay.classList.remove('open');
+    video.pause();
+    video.removeAttribute('src');
+    if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
+    var ld = document.getElementById('playerLoading');
+    if (ld) ld.remove();
+  }
+
+  document.getElementById('playerClose').addEventListener('click', closePlayer);
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && document.getElementById('playerOverlay').classList.contains('open')) closePlayer();
+  });
 
   init();
 })();
