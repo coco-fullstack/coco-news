@@ -61,32 +61,39 @@ def _parse_tmdb_list(html, media_type='movie'):
 
 def scrape_tmdb_movies(category='popular'):
     url_map = {
-        'popular': 'https://www.themoviedb.org/movie',
-        'now_playing': 'https://www.themoviedb.org/movie/now-playing',
-        'upcoming': 'https://www.themoviedb.org/movie/upcoming',
-        'top_rated': 'https://www.themoviedb.org/movie/top-rated',
+        'popular': 'https://www.themoviedb.org/movie?language=zh-CN',
+        'now_playing': 'https://www.themoviedb.org/movie/now-playing?language=zh-CN',
+        'upcoming': 'https://www.themoviedb.org/movie/upcoming?language=zh-CN',
+        'top_rated': 'https://www.themoviedb.org/movie/top-rated?language=zh-CN',
     }
     return _parse_tmdb_list(fetch(url_map.get(category, url_map['popular'])), 'movie')
 
 
 def scrape_tmdb_tv(category='popular'):
     url_map = {
-        'popular': 'https://www.themoviedb.org/tv',
-        'airing_today': 'https://www.themoviedb.org/tv/airing-today',
-        'on_the_air': 'https://www.themoviedb.org/tv/on-the-air',
-        'top_rated': 'https://www.themoviedb.org/tv/top-rated',
+        'popular': 'https://www.themoviedb.org/tv?language=zh-CN',
+        'airing_today': 'https://www.themoviedb.org/tv/airing-today?language=zh-CN',
+        'on_the_air': 'https://www.themoviedb.org/tv/on-the-air?language=zh-CN',
+        'top_rated': 'https://www.themoviedb.org/tv/top-rated?language=zh-CN',
     }
     return _parse_tmdb_list(fetch(url_map.get(category, url_map['popular'])), 'tv')
 
 
 def scrape_tmdb_trending(media='all'):
+    """Scrape TMDB trending — global hottest content this week."""
     if media == 'movie':
-        return scrape_tmdb_movies('popular')
+        return _parse_tmdb_list(fetch('https://www.themoviedb.org/trending/movie/week?language=zh-CN'), 'movie')
     elif media == 'tv':
-        return scrape_tmdb_tv('popular')
+        return _parse_tmdb_list(fetch('https://www.themoviedb.org/trending/tv/week?language=zh-CN'), 'tv')
     else:
-        movies = scrape_tmdb_movies('popular')[:10]
-        tv = scrape_tmdb_tv('popular')[:10]
+        try:
+            movies = _parse_tmdb_list(fetch('https://www.themoviedb.org/trending/movie/week?language=zh-CN'), 'movie')[:8]
+        except Exception:
+            movies = []
+        try:
+            tv = _parse_tmdb_list(fetch('https://www.themoviedb.org/trending/tv/week?language=zh-CN'), 'tv')[:8]
+        except Exception:
+            tv = []
         combined = []
         for i in range(max(len(movies), len(tv))):
             if i < len(movies):
@@ -97,39 +104,58 @@ def scrape_tmdb_trending(media='all'):
 
 
 def scrape_tmdb_regional(media_type, country):
-    url = f'https://www.themoviedb.org/{media_type}?with_origin_country={country}'
+    url = f'https://www.themoviedb.org/{media_type}?with_origin_country={country}&language=zh-CN'
     return _parse_tmdb_list(fetch(url), media_type)
 
 
+def _is_season_label(text):
+    """Check if text is just a season label like '第 2 季', 'Season 2'."""
+    t = text.strip()
+    return bool(re.match(r'^(第\s*[\d一二三四五六七八九十]+\s*季|Season\s*\d+)$', t, re.IGNORECASE))
+
+
+def _extract_tmdb_title(html):
+    """Extract title from TMDB page — skip season-only labels."""
+    # Strategy 1: <title>Title (Year) — TMDB</title>  (most reliable)
+    m = re.search(r'<title>\s*(.*?)\s*[\(（]', html)
+    if m and m.group(1).strip() and not _is_season_label(m.group(1).strip()):
+        return m.group(1).strip()
+    # Strategy 2: <title>Title &#8212; TMDB</title>
+    m = re.search(r'<title>\s*(.*?)\s*&#8212;', html)
+    if m and m.group(1).strip() and not _is_season_label(m.group(1).strip()):
+        return m.group(1).strip()
+    # Strategy 3: schema.org "name"
+    m = re.search(r'"name"\s*:\s*"([^"]+)"', html)
+    if m and m.group(1).strip() and not _is_season_label(m.group(1).strip()):
+        return m.group(1).strip()
+    # Strategy 4: <h2><a>Title</a>
+    m = re.search(r'<h2>\s*<a[^>]*>(.*?)</a>', html)
+    if m and m.group(1).strip() and not _is_season_label(m.group(1).strip()):
+        return m.group(1).strip()
+    return ''
+
+
 def scrape_tmdb_detail(media_type, mid):
-    # Fetch Chinese version for Chinese title
     url_cn = f'https://www.themoviedb.org/{media_type}/{mid}?language=zh-CN'
     url_en = f'https://www.themoviedb.org/{media_type}/{mid}'
+
+    html_cn = html_en = None
+    title_cn = title_en = ''
     try:
         html_cn = fetch(url_cn)
-        cn_m = re.search(r'<h2>\s*<a[^>]*>(.*?)</a>', html_cn)
-        if not cn_m:
-            cn_m = re.search(r'class="title".*?<a[^>]*>(.*?)</a>', html_cn, re.DOTALL)
+        title_cn = _extract_tmdb_title(html_cn)
     except Exception:
-        html_cn = None
-        cn_m = None
-
-    html = html_cn if html_cn else fetch(url_en)
-    # Also fetch English page for original title
+        pass
     try:
-        html_en = fetch(url_en) if html_cn else html
+        html_en = fetch(url_en)
+        title_en = _extract_tmdb_title(html_en)
     except Exception:
-        html_en = html
+        pass
 
+    html = html_cn or html_en or ''
     detail = {'id': int(mid), 'media_type': media_type}
-
-    # Chinese title (for 采集API search)
-    detail['title_cn'] = cn_m.group(1).strip() if cn_m else ''
-
-    title_m = re.search(r'<h2>\s*<a[^>]*>(.*?)</a>', html_en)
-    if not title_m:
-        title_m = re.search(r'class="title".*?<a[^>]*>(.*?)</a>', html_en, re.DOTALL)
-    detail['title'] = title_m.group(1).strip() if title_m else (detail['title_cn'] or '')
+    detail['title_cn'] = title_cn or title_en
+    detail['title'] = title_en or title_cn
 
     ov = re.search(r'class="overview".*?<p>(.*?)</p>', html, re.DOTALL)
     detail['overview'] = ov.group(1).strip() if ov else ''
@@ -174,7 +200,7 @@ def scrape_tmdb_detail(media_type, mid):
 
 def scrape_tmdb_search(query):
     encoded = urllib.parse.quote(query)
-    url = f'https://www.themoviedb.org/search?query={encoded}'
+    url = f'https://www.themoviedb.org/search?query={encoded}&language=zh-CN'
     html = fetch(url)
     items = []
     movie_ids = re.findall(r'href="/(movie|tv)/(\d+)[^"]*"\s*(?:title="([^"]*)")?', html)
@@ -274,12 +300,18 @@ VIDEO_SOURCES = [
 _HD_KEYWORDS = ['1080', 'hd', '超清', '蓝光', '4k', 'uhd', 'ffm3u8', 'feifan']
 
 
-def _normalize_query(query):
-    """Normalize search query: strip season numbers like '2' → search base title."""
+_CN_NUM = {'一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10}
+
+def _extract_season(query):
+    """Extract base title and season number: '剑来2' → ('剑来', 2)."""
     q = query.strip()
-    # Remove trailing Arabic numerals or common season markers
-    q = re.sub(r'\s*[第]?[0-9一二三四五六七八九十]+[季部]?\s*$', '', q)
-    return q if q else query.strip()
+    m = re.search(r'\s*[第]?([0-9一二三四五六七八九十]+)[季部]?\s*$', q)
+    if m:
+        num_str = m.group(1)
+        base = q[:m.start()]
+        season = _CN_NUM.get(num_str, 0) or int(num_str) if num_str.isdigit() else 0
+        return (base if base else q, season)
+    return (q, 0)
 
 
 def _pick_best_episodes(play_urls, play_from=''):
@@ -314,64 +346,127 @@ def _pick_best_episodes(play_urls, play_from=''):
     return best_eps
 
 
-def video_search(query):
-    """Search across video sources, skip m3u8 validation to avoid timeout."""
-    search_query = _normalize_query(query)
-    all_results = []
-    for src in VIDEO_SOURCES:
-        try:
-            sep = '&' if '?' in src['api'] else '?'
-            url = src['api'] + sep + 'ac=detail&wd=' + urllib.parse.quote(search_query)
-            data = fetch(url, as_json=True)
-            for item in data.get('list', [])[:3]:
-                play_urls = item.get('vod_play_url', '')
-                play_from = item.get('vod_play_from', '')
-                episodes = _pick_best_episodes(play_urls, play_from)
-                if episodes:
-                    hits = 0
-                    try:
-                        hits = int(item.get('vod_hits', 0) or item.get('vod_hits_day', 0) or 0)
-                    except (ValueError, TypeError):
-                        pass
-                    all_results.append({
-                        'id': item.get('vod_id'),
-                        'title': item.get('vod_name', ''),
-                        'type': item.get('type_name', ''),
-                        'pic': item.get('vod_pic', ''),
-                        'remarks': item.get('vod_remarks', ''),
-                        'year': item.get('vod_year', ''),
-                        'area': item.get('vod_area', ''),
-                        'hits': hits,
-                        'source': src['key'],
-                        'source_name': src['name'],
-                        'quality': src.get('quality', ''),
-                        'episodes': episodes,
-                    })
-        except Exception:
-            continue
+def _fetch_source_results(src, search_query):
+    """Fetch results from a single video source."""
+    try:
+        sep = '&' if '?' in src['api'] else '?'
+        url = src['api'] + sep + 'ac=detail&wd=' + urllib.parse.quote(search_query)
+        data = fetch(url, as_json=True)
+        results = []
+        for item in data.get('list', [])[:5]:
+            play_urls = item.get('vod_play_url', '')
+            play_from = item.get('vod_play_from', '')
+            episodes = _pick_best_episodes(play_urls, play_from)
+            if episodes:
+                hits = 0
+                try:
+                    hits = int(item.get('vod_hits', 0) or item.get('vod_hits_day', 0) or 0)
+                except (ValueError, TypeError):
+                    pass
+                results.append({
+                    'id': item.get('vod_id'),
+                    'title': item.get('vod_name', ''),
+                    'type': item.get('type_name', ''),
+                    'pic': item.get('vod_pic', ''),
+                    'remarks': item.get('vod_remarks', ''),
+                    'year': item.get('vod_year', ''),
+                    'area': item.get('vod_area', ''),
+                    'hits': hits,
+                    'source': src['key'],
+                    'source_name': src['name'],
+                    'quality': src.get('quality', ''),
+                    'episodes': episodes,
+                })
+        return results
+    except Exception:
+        return []
 
-    # Filter: only keep results whose title contains the search query (or vice versa)
-    filtered = []
-    for r in all_results:
-        t = r['title']
-        if search_query in t or t in search_query or any(w in t for w in search_query if len(w) > 1):
-            filtered.append(r)
-    # If filtering removed everything, keep all results
+
+def _title_match_score(title, original_query, base_query, target_season):
+    """Score title match precision. Higher = better match."""
+    t = title.strip()
+    oq = original_query.strip()
+    bq = base_query.strip()
+    score = 0
+    cn_reverse = {v: k for k, v in _CN_NUM.items()}
+
+    # Exact match
+    if t == oq:
+        return 100
+
+    # Season matching
+    if target_season:
+        # Check for correct season in title
+        patterns = [rf'第{target_season}季', rf'第{target_season}部']
+        if target_season in cn_reverse:
+            cn = cn_reverse[target_season]
+            patterns += [rf'第{cn}季', rf'第{cn}部']
+        if any(re.search(p, t) for p in patterns):
+            score += 60  # Correct season
+        elif t == bq:
+            score += (-20 if target_season > 1 else 40)  # No season marker = season 1
+        else:
+            # Check for wrong season
+            if re.search(r'第[^季部]*[季部]', t) and not any(re.search(p, t) for p in patterns):
+                score -= 30  # Wrong season
+    else:
+        if t == bq:
+            score += 60
+
+    # Title relevance
+    if oq in t:
+        score += 30
+    elif bq in t:
+        score += 15
+    if len(t) > len(bq) + 6:
+        score -= 10  # Penalize very long titles (likely unrelated)
+    if bq not in t and t not in bq:
+        score -= 50  # Completely irrelevant
+
+    return score
+
+
+def video_search(query):
+    """Search video sources with precise title matching and season detection."""
+    original_query = query.strip()
+    base_query, target_season = _extract_season(original_query)
+    quality_rank = {'1080P': 4, 'HD': 3, 'SD': 1}
+
+    all_results = []
+
+    # Step 1: Search with original query
+    for src in VIDEO_SOURCES:
+        all_results.extend(_fetch_source_results(src, original_query))
+
+    # Step 2: If original != base, also search with base query
+    if base_query != original_query:
+        existing = {r['title'] for r in all_results}
+        for src in VIDEO_SOURCES:
+            for r in _fetch_source_results(src, base_query):
+                if r['title'] not in existing:
+                    all_results.append(r)
+                    existing.add(r['title'])
+
+    # Step 3: Filter irrelevant
+    filtered = [r for r in all_results if base_query in r['title'] or r['title'] in base_query]
     if not filtered:
         filtered = all_results
 
-    # Deduplicate by title — keep highest quality source per unique title
-    seen_titles = {}
-    quality_rank = {'1080P': 4, 'HD': 3, 'SD': 1}
+    # Step 4: Deduplicate by title — keep highest quality per title
+    seen = {}
     for r in filtered:
         t = r['title']
         q = quality_rank.get(r.get('quality', ''), 2)
-        if t not in seen_titles or q > seen_titles[t][1]:
-            seen_titles[t] = (r, q)
-    deduped = [v[0] for v in seen_titles.values()]
+        if t not in seen or q > seen[t][1]:
+            seen[t] = (r, q)
+    deduped = [v[0] for v in seen.values()]
 
-    # Sort: quality first, then hits
-    deduped.sort(key=lambda x: (quality_rank.get(x.get('quality', ''), 2), x.get('hits', 0)), reverse=True)
+    # Step 5: Sort by match score, then quality, then hits
+    deduped.sort(key=lambda x: (
+        _title_match_score(x['title'], original_query, base_query, target_season),
+        quality_rank.get(x.get('quality', ''), 2),
+        x.get('hits', 0)
+    ), reverse=True)
     return deduped
 
 
