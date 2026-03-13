@@ -88,7 +88,7 @@ PUSHPLUS_TOKENS = os.environ.get("PUSHPLUS_TOKENS", "").split(",")
 SMTP_USER = os.environ.get("SMTP_USER", "")
 SMTP_PASS = os.environ.get("SMTP_PASS", "")
 EMAIL_TO = os.environ.get("EMAIL_TO", "")
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -325,9 +325,9 @@ def _fetch_liquidations_binance() -> dict:
 # ── AI 新闻摘要 (Claude API) ────────────────────────────────────
 
 def generate_ai_summary(news: list[dict], prices: dict, fng: dict) -> str:
-    """用 Claude API 把新闻浓缩成 3 句话的今日要点"""
-    if not ANTHROPIC_API_KEY:
-        print("[SKIP] ANTHROPIC_API_KEY 未配置，跳过 AI 摘要")
+    """用 Groq (Llama 3) 把新闻浓缩成 3 句话的今日要点"""
+    if not GROQ_API_KEY:
+        print("[SKIP] GROQ_API_KEY 未配置，跳过 AI 摘要")
         return ""
 
     # 构建新闻标题列表
@@ -356,18 +356,18 @@ ETH: {_p(eth.get('price', 0))} ({'+' if eth.get('change', 0) >= 0 else ''}{eth.g
 {titles_text}"""
 
     payload = json.dumps({
-        "model": "claude-haiku-4-5-20251001",
+        "model": "llama-3.3-70b-versatile",
         "max_tokens": 300,
+        "temperature": 0.3,
         "messages": [{"role": "user", "content": prompt}],
     }).encode("utf-8")
 
     req = Request(
-        "https://api.anthropic.com/v1/messages",
+        "https://api.groq.com/openai/v1/chat/completions",
         data=payload,
         headers={
             "Content-Type": "application/json",
-            "x-api-key": ANTHROPIC_API_KEY,
-            "anthropic-version": "2023-06-01",
+            "Authorization": f"Bearer {GROQ_API_KEY}",
         },
         method="POST",
     )
@@ -375,7 +375,7 @@ ETH: {_p(eth.get('price', 0))} ({'+' if eth.get('change', 0) >= 0 else ''}{eth.g
     try:
         with urlopen(req, timeout=30) as resp:
             result = json.loads(resp.read().decode())
-            text = result.get("content", [{}])[0].get("text", "")
+            text = result["choices"][0]["message"]["content"]
             print(f"[OK] AI 摘要生成完成 ({len(text)} 字)")
             return text
     except Exception as e:
