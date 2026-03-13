@@ -46,6 +46,7 @@ jobs:
             echo "No snapshot to commit"
           else
             git commit -m "data: $(date -u -d '+8 hours' +%Y-%m-%d) market snapshot"
+            git pull --rebase || true
             git push
           fi
 
