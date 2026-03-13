@@ -266,6 +266,11 @@ def video_search(query):
                         if len(parts) == 2 and parts[1].strip():
                             episodes.append({'name': parts[0], 'url': parts[1]})
                 if episodes:  # Only add if has playable episodes
+                    hits = 0
+                    try:
+                        hits = int(item.get('vod_hits', 0) or item.get('vod_hits_day', 0) or 0)
+                    except (ValueError, TypeError):
+                        pass
                     results.append({
                         'id': item.get('vod_id'),
                         'title': item.get('vod_name', ''),
@@ -274,6 +279,7 @@ def video_search(query):
                         'remarks': item.get('vod_remarks', ''),
                         'year': item.get('vod_year', ''),
                         'area': item.get('vod_area', ''),
+                        'hits': hits,
                         'source': src['key'],
                         'source_name': src['name'],
                         'episodes': episodes,
@@ -282,6 +288,8 @@ def video_search(query):
                 break
         except Exception:
             continue
+    # Sort by popularity (hits) descending
+    results.sort(key=lambda x: x.get('hits', 0), reverse=True)
     return results
 
 
