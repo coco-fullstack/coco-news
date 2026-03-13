@@ -269,29 +269,42 @@ VIDEO_SOURCES = [
 ]
 
 
+def _normalize_query(query):
+    """Normalize search query: strip season numbers like '2' → search base title."""
+    q = query.strip()
+    # Remove trailing Arabic numerals or common season markers
+    q = re.sub(r'\s*[第]?[0-9一二三四五六七八九十]+[季部]?\s*$', '', q)
+    return q if q else query.strip()
+
+
 def video_search(query):
     """Search across video sources, skip m3u8 validation to avoid timeout."""
+    search_query = _normalize_query(query)
     all_results = []
     for src in VIDEO_SOURCES:
         try:
             # Use ac=detail for full play URLs (videolist may omit them)
-            url = src['api'] + '?ac=detail&wd=' + urllib.parse.quote(query)
+            url = src['api'] + '?ac=detail&wd=' + urllib.parse.quote(search_query)
             data = fetch(url, as_json=True)
-            for item in data.get('list', [])[:3]:
+            for item in data.get('list', [])[:5]:
                 play_urls = item.get('vod_play_url', '')
                 episodes = []
                 if play_urls:
-                    # Take first m3u8 group only
+                    # Prefer m3u8 group, fallback to first group
                     for group in play_urls.split('$$$'):
-                        if 'm3u8' in group or not episodes:
-                            for ep in group.split('#'):
-                                parts = ep.split('$', 1)
-                                if len(parts) == 2 and parts[1].strip():
-                                    ep_url = parts[1].strip()
-                                    if ep_url.startswith('http'):
-                                        episodes.append({'name': parts[0], 'url': ep_url})
-                            if episodes:
+                        grp_eps = []
+                        for ep in group.split('#'):
+                            parts = ep.split('$', 1)
+                            if len(parts) == 2 and parts[1].strip():
+                                ep_url = parts[1].strip()
+                                if ep_url.startswith('http'):
+                                    grp_eps.append({'name': parts[0], 'url': ep_url})
+                        if grp_eps:
+                            if 'm3u8' in group:
+                                episodes = grp_eps
                                 break
+                            elif not episodes:
+                                episodes = grp_eps
                 if episodes:
                     hits = 0
                     try:
