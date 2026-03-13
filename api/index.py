@@ -358,55 +358,111 @@ def _pick_best_episodes(play_urls, play_from=''):
     return best_eps
 
 
-def video_search(query):
-    """Search across video sources, skip m3u8 validation to avoid timeout."""
-    base_query, target_season = _extract_season(query)
-    search_query = base_query
-    all_results = []
-    for src in VIDEO_SOURCES:
-        try:
-            sep = '&' if '?' in src['api'] else '?'
-            url = src['api'] + sep + 'ac=detail&wd=' + urllib.parse.quote(search_query)
-            data = fetch(url, as_json=True)
-            for item in data.get('list', [])[:3]:
-                play_urls = item.get('vod_play_url', '')
-                play_from = item.get('vod_play_from', '')
-                episodes = _pick_best_episodes(play_urls, play_from)
-                if episodes:
-                    hits = 0
-                    try:
-                        hits = int(item.get('vod_hits', 0) or item.get('vod_hits_day', 0) or 0)
-                    except (ValueError, TypeError):
-                        pass
-                    all_results.append({
-                        'id': item.get('vod_id'),
-                        'title': item.get('vod_name', ''),
-                        'type': item.get('type_name', ''),
-                        'pic': item.get('vod_pic', ''),
-                        'remarks': item.get('vod_remarks', ''),
-                        'year': item.get('vod_year', ''),
-                        'area': item.get('vod_area', ''),
-                        'hits': hits,
-                        'source': src['key'],
-                        'source_name': src['name'],
-                        'quality': src.get('quality', ''),
-                        'episodes': episodes,
-                    })
-        except Exception:
-            continue
+def _title_match_score(title, original_query, base_query, target_season):
+    """Score how well a result title matches the user's query. Higher = better."""
+    t = title.strip()
+    oq = original_query.strip()
+    bq = base_query.strip()
+    score = 0
 
-    # Filter: only keep results whose title contains the search query (or vice versa)
-    filtered = []
-    for r in all_results:
-        t = r['title']
-        if search_query in t or t in search_query:
-            filtered.append(r)
+    # Exact match is the best
+    if t == oq:
+        return 100
+
+    # Title matches base query + correct season indicator
+    if target_season:
+        season_score = _title_season_score(t, bq, target_season)
+        if season_score > 0:
+            score += 50 + season_score
+        elif season_score < 0:
+            score -= 30  # Wrong season, heavily penalize
+        # Title is exactly the base (no season) = probably season 1
+        if t == bq:
+            score += -20 if target_season > 1 else 40
+    else:
+        # No season specified — exact base match is best
+        if t == bq:
+            score += 60
+
+    # Title contains the full original query
+    if oq in t:
+        score += 30
+    elif bq in t:
+        score += 15
+    # Penalize titles much longer than query (likely unrelated, e.g. "美女总裁的保镖会剑来")
+    if len(t) > len(bq) + 6:
+        score -= 10
+    # Title doesn't contain base query at all = irrelevant
+    if bq not in t and t not in bq:
+        score -= 50
+
+    return score
+
+
+def _fetch_source_results(src, search_query):
+    """Fetch results from a single video source."""
+    try:
+        sep = '&' if '?' in src['api'] else '?'
+        url = src['api'] + sep + 'ac=detail&wd=' + urllib.parse.quote(search_query)
+        data = fetch(url, as_json=True)
+        results = []
+        for item in data.get('list', [])[:5]:
+            play_urls = item.get('vod_play_url', '')
+            play_from = item.get('vod_play_from', '')
+            episodes = _pick_best_episodes(play_urls, play_from)
+            if episodes:
+                hits = 0
+                try:
+                    hits = int(item.get('vod_hits', 0) or item.get('vod_hits_day', 0) or 0)
+                except (ValueError, TypeError):
+                    pass
+                results.append({
+                    'id': item.get('vod_id'),
+                    'title': item.get('vod_name', ''),
+                    'type': item.get('type_name', ''),
+                    'pic': item.get('vod_pic', ''),
+                    'remarks': item.get('vod_remarks', ''),
+                    'year': item.get('vod_year', ''),
+                    'area': item.get('vod_area', ''),
+                    'hits': hits,
+                    'source': src['key'],
+                    'source_name': src['name'],
+                    'quality': src.get('quality', ''),
+                    'episodes': episodes,
+                })
+        return results
+    except Exception:
+        return []
+
+
+def video_search(query):
+    """Search video sources with precise title matching."""
+    original_query = query.strip()
+    base_query, target_season = _extract_season(original_query)
+    quality_rank = {'1080P': 4, 'HD': 3, 'SD': 1}
+
+    all_results = []
+
+    # Step 1: Try exact original query first (e.g. "剑来2" or "流浪地球2")
+    for src in VIDEO_SOURCES:
+        all_results.extend(_fetch_source_results(src, original_query))
+
+    # Step 2: If original != base, also search with base query (e.g. "剑来")
+    if base_query != original_query:
+        existing_titles = {r['title'] for r in all_results}
+        for src in VIDEO_SOURCES:
+            for r in _fetch_source_results(src, base_query):
+                if r['title'] not in existing_titles:
+                    all_results.append(r)
+                    existing_titles.add(r['title'])
+
+    # Step 3: Filter out clearly irrelevant results
+    filtered = [r for r in all_results if base_query in r['title'] or r['title'] in base_query]
     if not filtered:
         filtered = all_results
 
-    # Deduplicate by title — keep highest quality source per unique title
+    # Step 4: Deduplicate by title — keep highest quality per title
     seen_titles = {}
-    quality_rank = {'1080P': 4, 'HD': 3, 'SD': 1}
     for r in filtered:
         t = r['title']
         q = quality_rank.get(r.get('quality', ''), 2)
@@ -414,12 +470,13 @@ def video_search(query):
             seen_titles[t] = (r, q)
     deduped = [v[0] for v in seen_titles.values()]
 
-    # Sort: season match first, then quality, then hits
+    # Step 5: Sort by title match precision, then quality, then hits
     deduped.sort(key=lambda x: (
-        _title_season_score(x['title'], base_query, target_season),
+        _title_match_score(x['title'], original_query, base_query, target_season),
         quality_rank.get(x.get('quality', ''), 2),
         x.get('hits', 0)
     ), reverse=True)
+
     return deduped
 
 
