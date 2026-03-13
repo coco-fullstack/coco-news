@@ -22,7 +22,7 @@ JIKAN_BASE = 'https://api.jikan.moe/v4'
 
 def fetch(url, as_json=False):
     req = urllib.request.Request(url, headers=HEADERS)
-    with urllib.request.urlopen(req, timeout=9) as resp:
+    with urllib.request.urlopen(req, timeout=15) as resp:
         data = resp.read().decode('utf-8')
         return json.loads(data) if as_json else data
 
@@ -245,7 +245,6 @@ def get_anime_detail(mal_id):
 VIDEO_SOURCES = [
     {'name': '暴风资源', 'key': 'bfzy', 'api': 'https://bfzyapi.com/api.php/provide/vod/'},
     {'name': '红牛资源', 'key': 'hnzy', 'api': 'https://www.hongniuzy2.com/api.php/provide/vod/from/hnm3u8/'},
-    {'name': '光速资源', 'key': 'gszy', 'api': 'https://api.guangsuapi.com/api.php/provide/vod/from/gsm3u8/'},
 ]
 
 
@@ -256,30 +255,31 @@ def video_search(query):
         try:
             url = src['api'] + '?ac=videolist&wd=' + urllib.parse.quote(query)
             data = fetch(url, as_json=True)
-            for item in data.get('list', [])[:10]:
+            for item in data.get('list', [])[:5]:
                 play_urls = item.get('vod_play_url', '')
                 episodes = []
                 if play_urls:
-                    # Parse episode list: "第1集$url#第2集$url" or "HD$url"
-                    for group in play_urls.split('$$$'):
-                        for ep in group.split('#'):
-                            parts = ep.split('$', 1)
-                            if len(parts) == 2 and parts[1].strip():
-                                episodes.append({'name': parts[0], 'url': parts[1]})
-                results.append({
-                    'id': item.get('vod_id'),
-                    'title': item.get('vod_name', ''),
-                    'type': item.get('type_name', ''),
-                    'pic': item.get('vod_pic', ''),
-                    'remarks': item.get('vod_remarks', ''),
-                    'year': item.get('vod_year', ''),
-                    'area': item.get('vod_area', ''),
-                    'source': src['key'],
-                    'source_name': src['name'],
-                    'episodes': episodes,
-                })
+                    # Use first source group only (before $$$)
+                    first_group = play_urls.split('$$$')[0]
+                    for ep in first_group.split('#'):
+                        parts = ep.split('$', 1)
+                        if len(parts) == 2 and parts[1].strip():
+                            episodes.append({'name': parts[0], 'url': parts[1]})
+                if episodes:  # Only add if has playable episodes
+                    results.append({
+                        'id': item.get('vod_id'),
+                        'title': item.get('vod_name', ''),
+                        'type': item.get('type_name', ''),
+                        'pic': item.get('vod_pic', ''),
+                        'remarks': item.get('vod_remarks', ''),
+                        'year': item.get('vod_year', ''),
+                        'area': item.get('vod_area', ''),
+                        'source': src['key'],
+                        'source_name': src['name'],
+                        'episodes': episodes,
+                    })
             if results:
-                break  # Use first source that returns results
+                break
         except Exception:
             continue
     return results
