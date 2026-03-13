@@ -801,184 +801,176 @@ def build_daily_html(data: dict) -> str:
     btc_rsi = data["btc_rsi"]
     eth_rsi = data["eth_rsi"]
     news = data["news"]
+    ls = data.get("long_short", {})
+    gas = data.get("gas_fee", {})
+    defi = data.get("defi_tvl", {})
+    liq = data.get("liquidations", {})
 
     h = f'<!DOCTYPE html><html><head><meta charset="utf-8">{STYLE}</head><body><div class="c">'
 
-    # Header + 趋势评分
+    # ═══ Header: BTC/ETH 核心指标 + 趋势评分 ═══
     score = data.get("trend_score", 50)
-    label, label_cls = trend_label(score)
-    h += f'<div class="hd"><p class="sub">DAILY BRIEFING</p><h1>Market Digest</h1>'
-    h += f'<p class="t">{d} · {t} CST &nbsp;&nbsp; Trend Score: {score}/100 · {label}</p></div>'
+    slabel, _ = trend_label(score)
+    btc = prices.get("BTC", {})
+    eth = prices.get("ETH", {})
+    fng_val = fng.get("value", 0)
+    # 恐贪标签
+    if fng_val <= 25:
+        fng_tag = "Extreme Fear"
+    elif fng_val <= 45:
+        fng_tag = "Fear"
+    elif fng_val <= 55:
+        fng_tag = "Neutral"
+    elif fng_val <= 75:
+        fng_tag = "Greed"
+    else:
+        fng_tag = "Extreme Greed"
 
-    # ── 一、资金面 ──
-    h += '<div class="s"><p class="st">资金面</p>'
-    for sym in ["USDT", "USDC"]:
-        if sym in stables:
-            sc = stables[sym]
-            arrow = "↑" if sc["mcap_change_pct"] > 0 else "↓" if sc["mcap_change_pct"] < 0 else "—"
-            h += f'<div class="r"><span class="l">{sym} 市值</span><span class="v">{_mc(sc["mcap"])} {arrow} {_c(sc["mcap_change_pct"])}</span></div>'
-    if gd:
-        h += f'<div class="r"><span class="l">加密总市值</span><span class="v">{_mc(gd.get("total_market_cap", 0))}</span></div>'
-        h += f'<div class="r"><span class="l">BTC 市占率</span><span class="v">{gd.get("btc_dominance", 0):.1f}%</span></div>'
-        h += f'<div class="r"><span class="l">24h 交易量</span><span class="v">{_mc(gd.get("total_volume", 0))}</span></div>'
-    h += '</div>'
+    h += f"""<div class="hd">
+      <p class="sub">DAILY BRIEFING</p>
+      <h1>Market Digest</h1>
+      <p class="t">{d} · {t} CST</p>
+      <table style="width:100%;margin-top:16px;color:rgba(255,255,255,0.95);font-size:13px;border-collapse:collapse">
+        <tr>
+          <td style="padding:6px 0"><b>BTC</b></td>
+          <td style="text-align:right">{_p(btc.get('price', 0))}</td>
+          <td style="text-align:right;width:70px;opacity:0.8">{'+' if btc.get('change', 0) >= 0 else ''}{btc.get('change', 0):.1f}%</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0"><b>ETH</b></td>
+          <td style="text-align:right">{_p(eth.get('price', 0))}</td>
+          <td style="text-align:right;opacity:0.8">{'+' if eth.get('change', 0) >= 0 else ''}{eth.get('change', 0):.1f}%</td>
+        </tr>
+        <tr><td colspan="3" style="padding:8px 0 4px;border-top:1px solid rgba(255,255,255,0.15)">
+          <span style="opacity:0.7">Trend</span> <b>{score}</b>/100 · {slabel}
+          &nbsp;&nbsp;
+          <span style="opacity:0.7">F&G</span> <b>{fng_val}</b> · {fng_tag}
+        </td></tr>
+      </table>
+    </div>"""
 
-    # ── 二、宏观环境 ──
-    h += '<div class="s"><p class="st">宏观环境</p>'
-    if "US10Y" in yields:
-        y = yields["US10Y"]
-        h += f'<div class="r"><span class="l">US 10Y 国债</span><span class="v">{y["value"]:.2f}% {_arrow(y["value"], y.get("prev"))}</span></div>'
-    if "JP10Y" in yields:
-        y = yields["JP10Y"]
-        h += f'<div class="r"><span class="l">JP 10Y 国债</span><span class="v">{y["value"]:.2f}% {_arrow(y["value"], y.get("prev"))}</span></div>'
-    for pair in ["USD/JPY", "USD/CNY"]:
-        if pair in forex:
-            h += f'<div class="r"><span class="l">{pair}</span><span class="v">{forex[pair]:.2f}</span></div>'
-    h += '</div>'
-
-    # ── 三、情绪 & 衍生品 ──
-    h += '<div class="s"><p class="st">情绪 & 衍生品</p>'
-    if fng:
-        val = fng["value"]
-        if val <= 25:
-            tag = _ftag("极度恐惧", "r")
-        elif val <= 45:
-            tag = _ftag("恐惧", "y")
-        elif val <= 55:
-            tag = _ftag("中性", "g")
-        elif val <= 75:
-            tag = _ftag("贪婪", "y")
-        else:
-            tag = _ftag("极度贪婪", "r")
-        h += f'<div class="r"><span class="l">恐慌贪婪指数</span><span class="v">{val} {tag}</span></div>'
-
-    for label, rsi in [("BTC RSI (14d)", btc_rsi), ("ETH RSI (14d)", eth_rsi)]:
-        if rsi is not None:
-            tag = ""
-            if rsi >= RSI_OVERBOUGHT:
-                tag = _ftag("超买", "r")
-            elif rsi <= RSI_OVERSOLD:
-                tag = _ftag("超卖", "b")
-            h += f'<div class="r"><span class="l">{label}</span><span class="v">{rsi:.0f} {tag}</span></div>'
-
-    if funding:
-        h += '<div class="dv"></div>'
-        for sym, rate in funding.items():
-            tag = ""
-            if rate > FUNDING_HOT:
-                tag = _ftag("过热", "r")
-            elif rate < FUNDING_COLD:
-                tag = _ftag("过冷", "b")
-            else:
-                tag = _ftag("中性", "g")
-            h += f'<div class="r"><span class="l">{sym} 资金费率</span><span class="v">{rate:.4f}% {tag}</span></div>'
-    # 多空持仓比
-    ls = data.get("long_short", {})
-    if ls:
-        h += '<div class="dv"></div>'
-        for sym in ["BTC", "ETH", "SOL"]:
-            if sym in ls:
-                lp = ls[sym]["long_pct"]
-                tag_cls = "r" if lp > 65 else "g" if lp < 35 else "b"
-                tag_text = "多头拥挤" if lp > 65 else "空头拥挤" if lp < 35 else "均衡"
-                h += f'<div class="r"><span class="l">{sym} 多空比</span><span class="v">L {lp:.0f}% / S {100-lp:.0f}% {_ftag(tag_text, tag_cls)}</span></div>'
-    h += '</div>'
-
-    # ── 四、链上 & DeFi ──
-    gas = data.get("gas_fee", {})
-    defi = data.get("defi_tvl", {})
-    if gas or defi:
-        h += '<div class="s"><p class="st">链上 & DeFi</p>'
-        if gas and gas.get("standard"):
-            gas_tag = _ftag("拥堵", "r") if gas["fast"] > 50 else _ftag("正常", "g") if gas["standard"] < 20 else ""
-            h += f'<div class="r"><span class="l">ETH Gas</span><span class="v">{gas["low"]} / {gas["standard"]} / {gas["fast"]} Gwei {gas_tag}</span></div>'
-        if defi and defi.get("total_tvl"):
-            tvl_change = _c(defi["change_pct"])
-            h += f'<div class="r"><span class="l">DeFi TVL</span><span class="v">{_mc(defi["total_tvl"])} {tvl_change}</span></div>'
-            # Top 协议
-            for p in defi.get("protocols", [])[:3]:
-                pchange = _c(p["change_1d"])
-                h += f'<div class="r"><span class="l" style="padding-left:12px;color:#8e8e93">{p["name"]}</span><span class="v">{_mc(p["tvl"])} {pchange}</span></div>'
-        h += '</div>'
-
-    # ── 五、清算数据 ──
-    liq = data.get("liquidations", {})
-    if liq and liq.get("total_24h", 0) > 0:
-        h += '<div class="s"><p class="st">清算数据 (24h)</p>'
-        total = liq["total_24h"]
-        longs = liq.get("long_24h", 0)
-        shorts = liq.get("short_24h", 0)
-        long_pct = liq.get("long_ratio", 50)
-        # 判断严重程度
-        if total >= LIQUIDATION_ALERT:
-            tag = _ftag("大规模清算", "r")
-        elif total >= 100_000_000:
-            tag = _ftag("较高", "y")
-        else:
-            tag = _ftag("正常", "g")
-        h += f'<div class="r"><span class="l">总清算额</span><span class="v">{_mc(total)} {tag}</span></div>'
-        h += f'<div class="r"><span class="l">多头清算</span><span class="v">{_mc(longs)}</span></div>'
-        h += f'<div class="r"><span class="l">空头清算</span><span class="v">{_mc(shorts)}</span></div>'
-        # 多空比可视化
-        bar_w = max(5, min(95, long_pct))
-        bar_color = "linear-gradient(90deg,#ff453a,#ff6b6b)" if long_pct > 60 else "linear-gradient(90deg,#30d158,#4cd964)" if long_pct < 40 else "linear-gradient(90deg,#667eea,#764ba2)"
-        h += f'<div style="margin-top:10px;height:8px;background:rgba(0,0,0,0.04);border-radius:4px;overflow:hidden">'
-        h += f'<div style="width:{bar_w}%;height:100%;background:{bar_color};border-radius:4px;transition:width .3s"></div></div>'
-        h += f'<div class="r"><span class="l" style="font-size:11px;color:#8e8e93">Long {long_pct:.0f}%</span><span class="v" style="font-size:11px;color:#8e8e93">Short {100-long_pct:.0f}%</span></div>'
-        if liq.get("source") == "binance_sample":
-            h += '<p style="font-size:10px;color:#c7c7cc;margin-top:4px;letter-spacing:.3px">* Binance sample estimate</p>'
-        h += '</div>'
-
-    # ── 六、行情一览 ──
-    h += '<div class="s"><p class="st">行情一览</p>'
-    sorted_prices = sorted(prices.items(), key=lambda x: abs(x[1]["change"]), reverse=True)
-    for sym, d_ in sorted_prices:
-        h += f'<div class="r"><span class="l">{sym}</span><span class="v">{_p(d_["price"])} {_c(d_["change"])}</span></div>'
-    h += '</div>'
-
-    # ── 六、涨跌榜 ──
-    by_change = sorted(prices.items(), key=lambda x: x[1]["change"], reverse=True)
-    gainers = [(s, d_) for s, d_ in by_change[:3] if d_["change"] > 0]
-    losers = [(s, d_) for s, d_ in by_change[-3:] if d_["change"] < 0]
-    if gainers or losers:
-        h += '<div class="s"><p class="st">涨跌榜</p>'
-        if gainers:
-            tags = " ".join(_ftag(f'{s} +{d_["change"]:.1f}%', "g") for s, d_ in gainers)
-            h += f'<p style="margin:2px 0;font-size:12px;">领涨 {tags}</p>'
-        if losers:
-            tags = " ".join(_ftag(f'{s} {d_["change"]:.1f}%', "r") for s, d_ in losers)
-            h += f'<p style="margin:2px 0;font-size:12px;">领跌 {tags}</p>'
-        h += '</div>'
-
-    # ── 七、AI 今日要点 ──
+    # ═══ 一、AI 今日要点（最重要，放最前面）═══
     ai_summary = data.get("ai_summary", "")
     if ai_summary:
         h += '<div class="s"><p class="st">AI 今日要点</p>'
         h += f'<div class="sb">{ai_summary.replace(chr(10), "<br>")}</div>'
         h += '</div>'
 
-    # ── 八、新闻速览 ──
+    # ═══ 二、风险仪表盘（合并：衍生品+清算+多空+Gas）═══
+    h += '<div class="s"><p class="st">风险仪表盘</p>'
+
+    # 资金费率（只显示 BTC 主要的）
+    if funding:
+        for sym in ["BTC", "ETH", "SOL"]:
+            if sym in funding:
+                rate = funding[sym]
+                tag = _ftag("过热", "r") if rate > FUNDING_HOT else _ftag("过冷", "b") if rate < FUNDING_COLD else _ftag("中性", "g")
+                h += f'<div class="r"><span class="l">{sym} 费率</span><span class="v">{rate:.4f}% {tag}</span></div>'
+
+    # RSI
+    for rlabel, rsi in [("BTC RSI", btc_rsi), ("ETH RSI", eth_rsi)]:
+        if rsi is not None:
+            tag = _ftag("超买", "r") if rsi >= RSI_OVERBOUGHT else _ftag("超卖", "b") if rsi <= RSI_OVERSOLD else ""
+            h += f'<div class="r"><span class="l">{rlabel}</span><span class="v">{rsi:.0f} {tag}</span></div>'
+
+    # 多空比（合并显示）
+    if ls:
+        h += '<div class="dv"></div>'
+        for sym in ["BTC", "ETH"]:
+            if sym in ls:
+                lp = ls[sym]["long_pct"]
+                tag = _ftag("多头拥挤", "r") if lp > 65 else _ftag("空头拥挤", "g") if lp < 35 else ""
+                h += f'<div class="r"><span class="l">{sym} 多空</span><span class="v">L {lp:.0f}% / S {100-lp:.0f}% {tag}</span></div>'
+
+    # 清算（合并到这里，只显示关键数据）
+    if liq and liq.get("total_24h", 0) > 0:
+        h += '<div class="dv"></div>'
+        total = liq["total_24h"]
+        long_pct = liq.get("long_ratio", 50)
+        tag = _ftag("警告", "r") if total >= LIQUIDATION_ALERT else _ftag("偏高", "y") if total >= 100_000_000 else ""
+        side = f"多{long_pct:.0f}%/空{100-long_pct:.0f}%"
+        h += f'<div class="r"><span class="l">24h 清算</span><span class="v">{_mc(total)} ({side}) {tag}</span></div>'
+
+    # Gas
+    if gas and gas.get("standard"):
+        tag = _ftag("拥堵", "r") if gas["fast"] > 50 else ""
+        h += f'<div class="r"><span class="l">ETH Gas</span><span class="v">{gas["standard"]} Gwei {tag}</span></div>'
+
+    h += '</div>'
+
+    # ═══ 三、资金 & 宏观（合并：稳定币+市值+国债+汇率+TVL）═══
+    h += '<div class="s"><p class="st">资金 & 宏观</p>'
+
+    # 稳定币（只显示有变动的）
+    for sym in ["USDT", "USDC"]:
+        if sym in stables:
+            sc = stables[sym]
+            h += f'<div class="r"><span class="l">{sym} 市值</span><span class="v">{_mc(sc["mcap"])} {_c(sc["mcap_change_pct"])}</span></div>'
+
+    if gd:
+        h += f'<div class="r"><span class="l">总市值</span><span class="v">{_mc(gd.get("total_market_cap", 0))}</span></div>'
+        h += f'<div class="r"><span class="l">BTC 市占</span><span class="v">{gd.get("btc_dominance", 0):.1f}%</span></div>'
+
+    # DeFi TVL
+    if defi and defi.get("total_tvl"):
+        h += f'<div class="r"><span class="l">DeFi TVL</span><span class="v">{_mc(defi["total_tvl"])} {_c(defi["change_pct"])}</span></div>'
+
+    h += '<div class="dv"></div>'
+
+    # 宏观指标
+    if "US10Y" in yields:
+        y = yields["US10Y"]
+        h += f'<div class="r"><span class="l">US 10Y</span><span class="v">{y["value"]:.2f}% {_arrow(y["value"], y.get("prev"))}</span></div>'
+    if "JP10Y" in yields:
+        y = yields["JP10Y"]
+        h += f'<div class="r"><span class="l">JP 10Y</span><span class="v">{y["value"]:.2f}% {_arrow(y["value"], y.get("prev"))}</span></div>'
+    for pair in ["USD/JPY", "USD/CNY"]:
+        if pair in forex:
+            h += f'<div class="r"><span class="l">{pair}</span><span class="v">{forex[pair]:.2f}</span></div>'
+    h += '</div>'
+
+    # ═══ 四、行情 + 涨跌榜（合并）═══
+    h += '<div class="s"><p class="st">行情一览</p>'
+
+    # 涨跌榜标签先行
+    by_change = sorted(prices.items(), key=lambda x: x[1]["change"], reverse=True)
+    gainers = [(s, d_) for s, d_ in by_change[:3] if d_["change"] > 0]
+    losers = [(s, d_) for s, d_ in by_change[-3:] if d_["change"] < 0]
+    if gainers:
+        tags = " ".join(_ftag(f'{s} +{d_["change"]:.1f}%', "g") for s, d_ in gainers)
+        h += f'<p style="margin:0 0 8px;font-size:12px">Top {tags}</p>'
+    if losers:
+        tags = " ".join(_ftag(f'{s} {d_["change"]:.1f}%', "r") for s, d_ in losers)
+        h += f'<p style="margin:0 0 8px;font-size:12px">Bottom {tags}</p>'
+
+    # 价格表（去掉 BTC/ETH，Header 已展示）
+    h += '<div class="dv"></div>'
+    sorted_prices = sorted(prices.items(), key=lambda x: abs(x[1]["change"]), reverse=True)
+    for sym, d_ in sorted_prices:
+        if sym in ("BTC", "ETH"):
+            continue
+        h += f'<div class="r"><span class="l">{sym}</span><span class="v">{_p(d_["price"])} {_c(d_["change"])}</span></div>'
+    h += '</div>'
+
+    # ═══ 五、新闻 + 决策参考（合并）═══
+    h += '<div class="s"><p class="st">新闻 & 研判</p>'
+
+    # 决策参考放前面（最重要）
+    summary = _generate_summary(data)
+    h += f'<div class="sb">{summary}</div>'
+
+    # 新闻列表
     if news:
-        h += '<div class="s"><p class="st">新闻速览</p>'
-        for item in news[:MAX_NEWS]:
+        for item in news[:6]:
             title = item.get("title_cn", item["title"])
             link = item.get("link", "")
-            summary = item.get("summary_cn", "")
             urgent_tag = _ftag("重要", "r") if item.get("urgent") else ""
             h += '<div class="ni">'
             if link:
                 h += f'<a href="{link}">{title}</a>{urgent_tag}'
             else:
                 h += f'{title}{urgent_tag}'
-            if summary:
-                h += f'<br><span class="sm">{summary}</span>'
             h += '</div>'
-        h += '</div>'
-
-    # ── 九、决策参考 ──
-    h += '<div class="s"><p class="st">决策参考</p>'
-    summary = _generate_summary(data)
-    h += f'<div class="sb">{summary}</div>'
     h += '</div>'
 
     # Footer
