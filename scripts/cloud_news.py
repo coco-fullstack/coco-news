@@ -466,21 +466,21 @@ def fetch_coin_liquidations() -> dict:
 # ── Top 200 涨幅筛选 vs BTC (CoinGecko) ─────────────────────────
 
 def fetch_top200_vs_btc() -> dict:
-    """市值前200币种，筛选各时间维度跑赢BTC的全部币种
-    维度：周(7d)、月(30d)、年(1y)
+    """市值前300币种，筛选各时间维度跑赢BTC的全部币种
+    分为前200和200名后，维度：周(7d)、月(30d)、年(1y)
     """
     import time as _time
     all_coins = []
-    for page in [1, 2]:
+    for page in [1, 2, 3]:
         url = (
             f"{COINGECKO}/coins/markets?vs_currency=usd"
-            f"&order=market_cap_desc&per_page=125&page={page}"
+            f"&order=market_cap_desc&per_page=100&page={page}"
             f"&price_change_percentage=7d,30d,1y&sparkline=false"
         )
         data = fetch_json(url)
         if data:
             all_coins.extend(data)
-        _time.sleep(1.5)
+        _time.sleep(2)
 
     if not all_coins:
         return {}
@@ -503,7 +503,7 @@ def fetch_top200_vs_btc() -> dict:
         "total_coins": 0,
     }
 
-    coins = [c for c in all_coins if c.get("id") not in stable_ids][:200]
+    coins = [c for c in all_coins if c.get("id") not in stable_ids][:300]
     result["total_coins"] = len(coins)
 
     for coin in coins:
@@ -801,7 +801,13 @@ def parse_feed(xml_text: str) -> list[dict]:
 
 
 def fetch_news() -> list[dict]:
-    """抓取 RSS 新闻，过滤币圈相关，翻译标题"""
+    """抓取 RSS 新闻，过滤币圈相关，翻译标题，标记来源"""
+    source_map = {
+        "cointelegraph": "CoinTelegraph",
+        "coindesk": "CoinDesk",
+        "theblock": "The Block",
+        "36kr": "36Kr",
+    }
     all_items = []
     for feed_url in RSS_FEEDS:
         print(f"[INFO] 抓取: {feed_url}")
@@ -811,6 +817,9 @@ def fetch_news() -> list[dict]:
             print(f"[ERROR] 失败: {e}")
             continue
         items = parse_feed(xml_text)
+        source = next((v for k, v in source_map.items() if k in feed_url.lower()), feed_url.split("/")[2])
+        for item in items:
+            item["source"] = source
         print(f"[INFO] {len(items)} 条")
         all_items.extend(items)
 
@@ -841,82 +850,82 @@ STYLE = """<style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{
   font-family:-apple-system,'SF Pro Display','Helvetica Neue','PingFang SC',sans-serif;
-  background:#0a0a0a;
-  color:#f5f5f7;padding:24px 16px;
+  background:linear-gradient(170deg,#faf9f6 0%,#f5f0e8 100%);
+  color:#1d1d1f;padding:24px 16px;
   -webkit-font-smoothing:antialiased
 }
 .c{
   max-width:560px;margin:0 auto;
-  background:rgba(28,28,30,0.72);
+  background:rgba(255,255,255,0.65);
   backdrop-filter:blur(40px) saturate(180%);
   -webkit-backdrop-filter:blur(40px) saturate(180%);
   border-radius:24px;overflow:hidden;
-  border:1px solid rgba(255,255,255,0.08);
-  box-shadow:0 8px 32px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.05)
+  border:1px solid rgba(255,255,255,0.7);
+  box-shadow:0 8px 40px rgba(0,0,0,0.06),0 1px 3px rgba(0,0,0,0.04)
 }
 .hd{
   padding:36px 32px 20px;
-  background:rgba(255,255,255,0.03);
-  border-bottom:1px solid rgba(255,255,255,0.06);
-  color:#f5f5f7
+  background:rgba(255,252,245,0.5);
+  border-bottom:1px solid rgba(0,0,0,0.04);
+  color:#1d1d1f
 }
-.hd h1{font-size:22px;font-weight:700;letter-spacing:-.5px;margin-bottom:4px;color:#fff}
-.hd .sub{font-size:11px;opacity:0.5;font-weight:400;letter-spacing:1.5px;text-transform:uppercase}
-.hd .t{font-size:12px;opacity:0.6;margin-top:8px;font-variant-numeric:tabular-nums}
-.s{padding:24px 32px;border-top:1px solid rgba(255,255,255,0.04)}
+.hd h1{font-size:22px;font-weight:700;letter-spacing:-.5px;margin-bottom:4px;color:#1a1a1a}
+.hd .sub{font-size:11px;color:#999;font-weight:400;letter-spacing:1.5px;text-transform:uppercase}
+.hd .t{font-size:12px;color:#888;margin-top:8px;font-variant-numeric:tabular-nums}
+.s{padding:24px 32px;border-top:1px solid rgba(0,0,0,0.04)}
 .st{
-  font-size:10px;font-weight:600;color:rgba(255,255,255,0.4);
+  font-size:10px;font-weight:600;color:#b0a898;
   text-transform:uppercase;letter-spacing:1.5px;
   margin-bottom:14px;
   display:flex;align-items:center;gap:6px
 }
 .st::before{
   content:'';display:inline-block;width:3px;height:12px;
-  border-radius:2px;background:rgba(255,255,255,0.25)
+  border-radius:2px;background:linear-gradient(180deg,#c9b99a,#a89880)
 }
 .r{
   display:flex;justify-content:space-between;align-items:center;
   padding:8px 0;font-size:13px;line-height:1.4
 }
-.r .l{color:rgba(255,255,255,0.55);font-weight:400}
-.r .v{font-weight:600;font-variant-numeric:tabular-nums;text-align:right;letter-spacing:-.2px;color:#f5f5f7}
-.up{color:#34c759}.dn{color:#ff453a}.nt{color:rgba(255,255,255,0.3)}
+.r .l{color:#6e6e73;font-weight:400}
+.r .v{font-weight:600;font-variant-numeric:tabular-nums;text-align:right;letter-spacing:-.2px;color:#1d1d1f}
+.up{color:#34a853}.dn{color:#ea4335}.nt{color:#b0b0b0}
 .tg{
   display:inline-block;font-size:9px;font-weight:600;
   padding:3px 8px;border-radius:6px;margin-left:6px;
   letter-spacing:.3px;text-transform:uppercase
 }
-.tg-r{background:rgba(255,69,58,0.12);color:#ff453a}
-.tg-b{background:rgba(100,160,255,0.1);color:#64a0ff}
-.tg-g{background:rgba(52,199,89,0.1);color:#34c759}
-.tg-y{background:rgba(255,214,10,0.1);color:#ffd60a}
-.dv{height:1px;background:rgba(255,255,255,0.04);margin:6px 0}
+.tg-r{background:rgba(234,67,53,0.07);color:#ea4335}
+.tg-b{background:rgba(66,133,244,0.07);color:#4285f4}
+.tg-g{background:rgba(52,168,83,0.07);color:#34a853}
+.tg-y{background:rgba(205,170,110,0.1);color:#b8960c}
+.dv{height:1px;background:rgba(0,0,0,0.04);margin:6px 0}
 .ab{
   margin:8px 0;padding:14px 16px;border-radius:14px;
   font-size:12px;line-height:1.6
 }
-.ab-d{background:rgba(255,69,58,0.06);border:1px solid rgba(255,69,58,0.15)}
-.ab-i{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08)}
+.ab-d{background:rgba(234,67,53,0.04);border:1px solid rgba(234,67,53,0.1)}
+.ab-i{background:rgba(201,185,154,0.08);border:1px solid rgba(201,185,154,0.15)}
 .sb{
-  background:rgba(255,255,255,0.03);
-  border:1px solid rgba(255,255,255,0.06);
+  background:rgba(250,248,242,0.6);
+  border:1px solid rgba(201,185,154,0.15);
   border-radius:14px;padding:16px 18px;margin-top:10px;
-  font-size:12px;line-height:1.8;color:rgba(255,255,255,0.7)
+  font-size:12px;line-height:1.8;color:#48484a
 }
 .ni{
   padding:12px 16px;margin:8px 0;font-size:12px;line-height:1.6;
-  background:rgba(255,255,255,0.02);border-radius:12px;
-  border-left:3px solid rgba(255,255,255,0.12)
+  background:rgba(250,248,242,0.5);border-radius:12px;
+  border-left:3px solid rgba(201,185,154,0.4)
 }
-.ni a{color:rgba(255,255,255,0.85);text-decoration:none;font-weight:500}
-.ni a:hover{text-decoration:underline;color:#fff}
-.ni .sm{color:rgba(255,255,255,0.35);font-size:11px;margin-top:2px;display:block}
+.ni a{color:#1d1d1f;text-decoration:none;font-weight:500}
+.ni a:hover{text-decoration:underline}
+.ni .sm{color:#999;font-size:11px;margin-top:2px;display:block}
 .ft{
   padding:20px 32px;text-align:center;
-  font-size:10px;color:rgba(255,255,255,0.2);letter-spacing:.3px;
-  border-top:1px solid rgba(255,255,255,0.03)
+  font-size:10px;color:#c7c2b8;letter-spacing:.3px;
+  border-top:1px solid rgba(0,0,0,0.03)
 }
-.ft span{color:rgba(255,255,255,0.4);font-weight:600}
+.ft span{color:#b0a898;font-weight:600}
 </style>"""
 
 
@@ -1012,7 +1021,7 @@ def build_daily_html(data: dict) -> str:
       <p class="sub">DAILY BRIEFING</p>
       <h1>Market Digest</h1>
       <p class="t">{d} · {t} CST</p>
-      <table style="width:100%;margin-top:16px;color:rgba(255,255,255,0.95);font-size:13px;border-collapse:collapse">
+      <table style="width:100%;margin-top:16px;color:#1d1d1f;font-size:13px;border-collapse:collapse">
         <tr>
           <td style="padding:6px 0"><b>BTC</b></td>
           <td style="text-align:right">{_p(btc.get('price', 0))}</td>
@@ -1023,7 +1032,7 @@ def build_daily_html(data: dict) -> str:
           <td style="text-align:right">{_p(eth.get('price', 0))}</td>
           <td style="text-align:right;opacity:0.8">{'+' if eth.get('change', 0) >= 0 else ''}{eth.get('change', 0):.1f}%</td>
         </tr>
-        <tr><td colspan="3" style="padding:8px 0 4px;border-top:1px solid rgba(255,255,255,0.15)">
+        <tr><td colspan="3" style="padding:8px 0 4px;border-top:1px solid rgba(0,0,0,0.06)">
           <span style="opacity:0.7">Trend</span> <b>{score}</b>/100 · {slabel}
           &nbsp;&nbsp;
           <span style="opacity:0.7">F&G</span> <b>{fng_val}</b> · {fng_tag}
@@ -1177,20 +1186,33 @@ def build_daily_html(data: dict) -> str:
         h += '<div class="s"><p class="st">涨幅筛选 · 跑赢BTC</p>'
 
         bench = screening.get("btc_benchmark", {})
-        h += f'<div class="ab ab-i">BTC基准: 周 {bench.get("7d",0):+.1f}% · 月 {bench.get("30d",0):+.1f}% · 年 {bench.get("1y",0):+.1f}% &nbsp;(市值前{screening.get("total_coins", 200)})</div>'
+        h += f'<div class="ab ab-i">BTC基准: 周 {bench.get("7d",0):+.1f}% · 月 {bench.get("30d",0):+.1f}% · 年 {bench.get("1y",0):+.1f}%</div>'
 
         period_labels = {"7d": "周涨幅", "30d": "月涨幅", "1y": "年涨幅"}
         for period, label in period_labels.items():
             ops = screening["outperformers"].get(period, [])
             if not ops:
                 continue
+            # 分为前200和200之后
+            top200 = [c for c in ops if c["rank"] <= 200]
+            after200 = [c for c in ops if c["rank"] > 200]
+
             h += '<div class="dv"></div>'
-            h += f'<p style="font-size:11px;color:#8e8e93;margin:8px 0 4px">{label} 跑赢BTC ({len(ops)}个)</p>'
-            for coin in ops[:10]:
+            h += f'<p style="font-size:11px;color:#b0a898;margin:8px 0 4px;font-weight:600">{label} · 前200 ({len(top200)}个)</p>'
+            for coin in top200[:3]:
                 h += f'<div class="r"><span class="l">#{coin["rank"]} {coin["symbol"]}</span>'
-                h += f'<span class="v">{coin["change"]:+.1f}% <span style="font-size:10px;color:#34c759">+{coin["vs_btc"]:.1f}%</span></span></div>'
-            if len(ops) > 10:
-                h += f'<p style="font-size:10px;color:#c7c7cc;text-align:center">...及其余 {len(ops)-10} 个币种</p>'
+                h += f'<span class="v">{coin["change"]:+.1f}% <span style="font-size:10px;color:#34a853">+{coin["vs_btc"]:.1f}%</span></span></div>'
+            if len(top200) > 3:
+                h += f'<p style="font-size:10px;color:#c7c7cc;text-align:center">...及其余 {len(top200)-3} 个</p>'
+
+            if after200:
+                h += '<div class="dv"></div>'
+                h += f'<p style="font-size:11px;color:#b0a898;margin:8px 0 4px;font-weight:600">{label} · 200名后 ({len(after200)}个)</p>'
+                for coin in after200[:3]:
+                    h += f'<div class="r"><span class="l">#{coin["rank"]} {coin["symbol"]}</span>'
+                    h += f'<span class="v">{coin["change"]:+.1f}% <span style="font-size:10px;color:#34a853">+{coin["vs_btc"]:.1f}%</span></span></div>'
+                if len(after200) > 3:
+                    h += f'<p style="font-size:10px;color:#c7c7cc;text-align:center">...及其余 {len(after200)-3} 个</p>'
 
         h += '</div>'
 
@@ -1206,12 +1228,15 @@ def build_daily_html(data: dict) -> str:
         for item in news[:6]:
             title = item.get("title_cn", item["title"])
             link = item.get("link", "")
+            source = item.get("source", "")
             urgent_tag = _ftag("重要", "r") if item.get("urgent") else ""
             h += '<div class="ni">'
             if link:
                 h += f'<a href="{link}">{title}</a>{urgent_tag}'
             else:
                 h += f'{title}{urgent_tag}'
+            if source:
+                h += f'<span class="sm">{source}</span>'
             h += '</div>'
     h += '</div>'
 
@@ -1304,7 +1329,7 @@ def build_alert_html(alerts: list[dict]) -> str:
     ts = now.strftime("%Y-%m-%d %H:%M")
 
     h = f'<!DOCTYPE html><html><head><meta charset="utf-8">{STYLE}</head><body><div class="c">'
-    h += f'<div class="hd" style="border-left:3px solid #ff453a"><p class="sub">TRIGGER ALERT</p><h1>Alert</h1><p class="t">{ts} CST</p></div>'
+    h += f'<div class="hd" style="border-left:3px solid #ea4335"><p class="sub">TRIGGER ALERT</p><h1>Alert</h1><p class="t">{ts} CST</p></div>'
 
     for section in alerts:
         h += f'<div class="s"><p class="st">{section["title"]}</p>'
@@ -1600,7 +1625,7 @@ def run_weekly():
             h += f'<p style="font-size:11px;color:#8e8e93;margin:8px 0 4px;font-weight:600">{label} 跑赢BTC ({len(ops)}个)</p>'
             for coin in ops[:20]:  # 周报展示 top 20
                 h += f'<div class="r"><span class="l">#{coin["rank"]} {coin["symbol"]}</span>'
-                h += f'<span class="v">{coin["change"]:+.1f}% <span style="font-size:10px;color:#34c759">+{coin["vs_btc"]:.1f}%</span></span></div>'
+                h += f'<span class="v">{coin["change"]:+.1f}% <span style="font-size:10px;color:#34a853">+{coin["vs_btc"]:.1f}%</span></span></div>'
             if len(ops) > 20:
                 h += f'<p style="font-size:10px;color:#c7c7cc;text-align:center">...及其余 {len(ops)-20} 个币种</p>'
 
