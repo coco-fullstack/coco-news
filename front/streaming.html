@@ -379,10 +379,10 @@ footer {
 <nav id="nav">
   <div class="nav-brand" id="navBrand">CineVerse</div>
   <div class="nav-tabs">
-    <button class="nav-tab active" data-type="all">All</button>
-    <button class="nav-tab" data-type="movie">Movies</button>
-    <button class="nav-tab" data-type="tv">TV Shows</button>
-    <button class="nav-tab" data-type="anime">Anime</button>
+    <button class="nav-tab active" data-type="all">全部</button>
+    <button class="nav-tab" data-type="movie">电影</button>
+    <button class="nav-tab" data-type="tv">电视剧</button>
+    <button class="nav-tab" data-type="anime">动漫</button>
   </div>
   <div class="nav-spacer"></div>
   <button class="nav-search-btn" id="searchBtn" title="Search (Ctrl+K)">
@@ -394,7 +394,7 @@ footer {
 <div class="search-overlay" id="searchOverlay">
   <div class="search-bar-wrap">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-tertiary);flex-shrink:0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input class="search-input" id="searchInput" type="text" placeholder="Search movies, TV shows, anime...">
+    <input class="search-input" id="searchInput" type="text" placeholder="搜索电影、电视剧、动漫...">
     <button class="search-close" id="searchClose">ESC</button>
   </div>
   <div class="search-results" id="searchResults"></div>
@@ -418,7 +418,7 @@ footer {
   </div>
 </div>
 
-<footer>CineVerse &mdash; Data from public sources</footer>
+<footer>CineVerse &mdash; 数据来源于公开资源</footer>
 
 <script>
 (function() {
@@ -448,7 +448,7 @@ footer {
   }
 
   function noPosterSVG() {
-    return 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><rect fill="#0a0a0a" width="200" height="300"/><text fill="#333" x="100" y="150" text-anchor="middle" font-size="14">No Image</text></svg>');
+    return 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><rect fill="#0a0a0a" width="200" height="300"/><text fill="#333" x="100" y="150" text-anchor="middle" font-size="14">暂无图片</text></svg>');
   }
 
   async function api(path) {
@@ -458,21 +458,21 @@ footer {
   }
 
   var SECTION_CFG = {
-    trending_movie: { label: 'Trending Movies', api: '/api/trending/movie' },
-    upcoming:       { label: 'Coming Soon',     api: '/api/movies/upcoming', wide: true },
-    cn_movie:       { label: 'Chinese Cinema',  api: '/api/regional?type=movie&country=CN' },
-    top_movie:      { label: 'Top Rated',       api: '/api/movies/top_rated' },
-    now_playing:    { label: 'Now Playing',      api: '/api/movies/now_playing' },
-    trending_tv:    { label: 'Trending TV',      api: '/api/trending/tv' },
-    cn_tv:          { label: 'Chinese Drama',    api: '/api/regional?type=tv&country=CN' },
-    jp_tv:          { label: 'Japanese Drama',   api: '/api/regional?type=tv&country=JP' },
-    top_tv:         { label: 'Top Rated TV',     api: '/api/tv/top_rated' },
-    airing:         { label: 'On Air Today',     api: '/api/tv/airing' },
-    anime_pop:      { label: 'Popular Anime',    api: '/api/anime/popular' },
-    anime_top:      { label: 'Top Rated Anime',  api: '/api/anime/top_rated' },
-    anime_airing:   { label: 'Airing Now',       api: '/api/anime/airing' },
-    anime_upcoming: { label: 'Upcoming Anime',   api: '/api/anime/upcoming' },
-    anime_movie:    { label: 'Anime Films',      api: '/api/anime/movies' },
+    trending_movie: { label: '热门电影',   api: '/api/trending/movie' },
+    upcoming:       { label: '即将上映',   api: '/api/movies/upcoming', wide: true },
+    cn_movie:       { label: '华语电影',   api: '/api/regional?type=movie&country=CN' },
+    top_movie:      { label: '高分电影',   api: '/api/movies/top_rated' },
+    now_playing:    { label: '正在热映',   api: '/api/movies/now_playing' },
+    trending_tv:    { label: '热门剧集',   api: '/api/trending/tv' },
+    cn_tv:          { label: '国产剧',     api: '/api/regional?type=tv&country=CN' },
+    jp_tv:          { label: '日剧',       api: '/api/regional?type=tv&country=JP' },
+    top_tv:         { label: '高分剧集',   api: '/api/tv/top_rated' },
+    airing:         { label: '今日播出',   api: '/api/tv/airing' },
+    anime_pop:      { label: '热门动漫',   api: '/api/anime/popular' },
+    anime_top:      { label: '高分动漫',   api: '/api/anime/top_rated' },
+    anime_airing:   { label: '连载中',     api: '/api/anime/airing' },
+    anime_upcoming: { label: '即将播出',   api: '/api/anime/upcoming' },
+    anime_movie:    { label: '动漫电影',   api: '/api/anime/movies' },
   };
 
   async function init() {
@@ -535,7 +535,7 @@ footer {
       slide.appendChild(el('div', { className: 'hero-side-fade' }));
 
       var content = el('div', { className: 'hero-content' });
-      var badgeLbl = { movie: 'FILM', tv: 'SERIES', anime: 'ANIME' };
+      var badgeLbl = { movie: '电影', tv: '剧集', anime: '动漫' };
       content.appendChild(el('span', { className: 'hero-badge' }, badgeLbl[mtype] || 'FILM'));
       content.appendChild(el('h1', { className: 'hero-title' }, title));
 
@@ -551,7 +551,7 @@ footer {
       actions.appendChild(el('button', {
         className: 'btn-detail',
         onClick: (function(it) { return function() { openDetail(it); }; })(item)
-      }, 'More Info'));
+      }, '了解更多'));
       content.appendChild(actions);
       slide.appendChild(content);
       hero.insertBefore(slide, dots);
@@ -612,8 +612,8 @@ footer {
     if (item.rating > 0) posterDiv.appendChild(el('span', { className: 'card-rating' }, item.rating + ''));
 
     var badgeClass = { movie: 'badge-movie', tv: 'badge-tv', anime: 'badge-anime' };
-    var badgeLabel = { movie: 'FILM', tv: 'TV', anime: 'ANIME' };
-    posterDiv.appendChild(el('span', { className: 'card-type-badge ' + (badgeClass[mtype] || 'badge-movie') }, badgeLabel[mtype] || 'FILM'));
+    var badgeLabel = { movie: '电影', tv: '剧集', anime: '动漫' };
+    posterDiv.appendChild(el('span', { className: 'card-type-badge ' + (badgeClass[mtype] || 'badge-movie') }, badgeLabel[mtype] || '电影'));
 
     card.appendChild(posterDiv);
     var info = el('div', { className: 'card-info' });
@@ -650,7 +650,7 @@ footer {
       if (d.runtime) { meta.appendChild(el('span', { className: 'sep' }, ' \u00B7 ')); meta.appendChild(el('span', null, d.runtime)); }
       if (d.status) { meta.appendChild(el('span', { className: 'sep' }, ' \u00B7 ')); meta.appendChild(el('span', null, d.status)); }
       if (d.language) { meta.appendChild(el('span', { className: 'sep' }, ' \u00B7 ')); meta.appendChild(el('span', null, d.language)); }
-      if (d.episodes) { meta.appendChild(el('span', { className: 'sep' }, ' \u00B7 ')); meta.appendChild(el('span', null, d.episodes + ' eps')); }
+      if (d.episodes) { meta.appendChild(el('span', { className: 'sep' }, ' \u00B7 ')); meta.appendChild(el('span', null, d.episodes + ' 集')); }
       body.appendChild(meta);
 
       if (d.genres && d.genres.length) {
@@ -659,10 +659,10 @@ footer {
         body.appendChild(gd);
       }
 
-      body.appendChild(el('p', { className: 'modal-overview' }, esc(d.overview) || 'No overview available'));
+      body.appendChild(el('p', { className: 'modal-overview' }, esc(d.overview) || '暂无简介'));
 
       if (d.cast && d.cast.length) {
-        body.appendChild(el('h3', { className: 'modal-section-title' }, 'Cast'));
+        body.appendChild(el('h3', { className: 'modal-section-title' }, '演员'));
         var cd = el('div', { className: 'modal-cast' });
         d.cast.forEach(function(c) {
           var cc = el('div', { className: 'cast-card' });
@@ -677,7 +677,7 @@ footer {
       body.textContent = '';
       body.appendChild(el('h2', { className: 'modal-title' }, esc(item.title || '')));
       if (item.overview) body.appendChild(el('p', { className: 'modal-overview' }, esc(item.overview)));
-      else body.appendChild(el('p', { style: 'color:var(--text-secondary);padding:20px 0' }, 'Detail loading failed.'));
+      else body.appendChild(el('p', { style: 'color:var(--text-secondary);padding:20px 0' }, '加载失败'));
       console.error(e);
     });
   }
@@ -709,7 +709,7 @@ footer {
     var input = document.getElementById('searchInput');
     var results = document.getElementById('searchResults');
     results.textContent = '';
-    results.appendChild(el('div', { className: 'search-empty' }, 'Search movies, TV shows, and anime'));
+    results.appendChild(el('div', { className: 'search-empty' }, '搜索电影、电视剧、动漫'));
     document.getElementById('searchBtn').addEventListener('click', function() { overlay.classList.add('open'); input.focus(); });
     document.getElementById('searchClose').addEventListener('click', function() { overlay.classList.remove('open'); input.value = ''; });
     document.addEventListener('keydown', function(e) {
@@ -724,16 +724,16 @@ footer {
 
   async function doSearch(q) {
     var c = document.getElementById('searchResults');
-    if (!q) { c.textContent = ''; c.appendChild(el('div', { className: 'search-empty' }, 'Search movies, TV shows, and anime')); return; }
+    if (!q) { c.textContent = ''; c.appendChild(el('div', { className: 'search-empty' }, '搜索电影、电视剧、动漫')); return; }
     c.textContent = ''; c.appendChild(el('div', { className: 'spinner' }));
     try {
       var data = await api('/api/search?q=' + encodeURIComponent(q));
       c.textContent = '';
-      if (!data.length) { c.appendChild(el('div', { className: 'search-empty' }, 'No results for "' + esc(q) + '"')); return; }
+      if (!data.length) { c.appendChild(el('div', { className: 'search-empty' }, '没有找到 "' + esc(q) + '" 的结果')); return; }
       var grid = el('div', { className: 'search-results-grid' });
       data.forEach(function(item) { grid.appendChild(createCard(item)); });
       c.appendChild(grid);
-    } catch(e) { c.textContent = ''; c.appendChild(el('div', { className: 'search-empty' }, 'Search error.')); }
+    } catch(e) { c.textContent = ''; c.appendChild(el('div', { className: 'search-empty' }, '搜索出错')); }
   }
 
   function setupDragScroll(el) {
