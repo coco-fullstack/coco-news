@@ -1,31 +1,53 @@
-name: Daily News Push
+name: Market Push
 
 on:
   schedule:
-    # 每日简报：UTC 00:00 = 北京时间 08:00
+    # 每日晨报：UTC 00:00 = 北京时间 08:00
     - cron: "0 0 * * *"
+    # 即时预警：每 4 小时检查一次
+    - cron: "0 */4 * * *"
+
   workflow_dispatch:
     inputs:
       mode:
-        description: "运行模式: daily 或 urgent"
+        description: "运行模式: daily 或 alert"
         default: "daily"
 
 jobs:
-  daily-news:
+  # ── 每日晨报 (08:00 CST) ──────────────────────────────────────
+  daily-digest:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *')
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
-      - name: Run cloud_news.py
+      - name: Daily Digest
         env:
           PUSHPLUS_TOKENS: ${{ secrets.PUSHPLUS_TOKENS }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
-        run: python scripts/cloud_news.py ${{ github.event.inputs.mode || 'daily' }}
+          RUN_MODE: ${{ github.event.inputs.mode || 'daily' }}
+        run: python scripts/cloud_news.py "$RUN_MODE"
+
+  # ── 即时预警 (每 4 小时) ───────────────────────────────────────
+  trigger-alert:
+    if: >
+      github.event_name == 'schedule' && github.event.schedule == '0 */4 * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Trigger Alert
+        env:
+          PUSHPLUS_TOKENS: ${{ secrets.PUSHPLUS_TOKENS }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        run: python scripts/cloud_news.py alert
