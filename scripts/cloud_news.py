@@ -465,11 +465,28 @@ def fetch_coin_liquidations() -> dict:
 
 # ── Top 200 涨幅筛选 vs BTC (CoinGecko) ─────────────────────────
 
+def _fetch_binance_symbols() -> set:
+    """获取 Binance 现货上市的所有币种符号"""
+    data = fetch_json("https://api.binance.com/api/v3/exchangeInfo")
+    if not data or "symbols" not in data:
+        return set()
+    symbols = set()
+    for s in data["symbols"]:
+        if s.get("quoteAsset") == "USDT" and s.get("status") == "TRADING":
+            symbols.add(s["baseAsset"].upper())
+    print(f"[INFO] Binance 上市币种: {len(symbols)}")
+    return symbols
+
+
 def fetch_top200_vs_btc() -> dict:
-    """市值前300币种，筛选各时间维度跑赢BTC的全部币种
+    """市值前300币种，筛选 Binance 上市 + 各时间维度跑赢BTC
     分为前200和200名后，维度：周(7d)、月(30d)、年(1y)
     """
     import time as _time
+
+    # 获取 Binance 上市列表
+    binance_coins = _fetch_binance_symbols()
+
     all_coins = []
     for page in [1, 2, 3]:
         url = (
@@ -501,6 +518,7 @@ def fetch_top200_vs_btc() -> dict:
         "btc_benchmark": {"7d": btc_7d, "30d": btc_30d, "1y": btc_1y},
         "outperformers": {"7d": [], "30d": [], "1y": []},
         "total_coins": 0,
+        "binance_count": len(binance_coins),
     }
 
     coins = [c for c in all_coins if c.get("id") not in stable_ids][:300]
@@ -513,6 +531,9 @@ def fetch_top200_vs_btc() -> dict:
         name = coin.get("name", "")
         rank = coin.get("market_cap_rank", 0)
 
+        # 标记是否 Binance 上市
+        on_binance = sym in binance_coins if binance_coins else True
+
         c7d = coin.get("price_change_percentage_7d_in_currency") or 0
         c30d = coin.get("price_change_percentage_30d_in_currency") or 0
         c1y = coin.get("price_change_percentage_1y_in_currency") or 0
@@ -521,6 +542,7 @@ def fetch_top200_vs_btc() -> dict:
             "symbol": sym, "name": name, "rank": rank,
             "price": coin.get("current_price", 0),
             "mcap": coin.get("market_cap", 0),
+            "binance": on_binance,
         }
 
         if c7d > btc_7d:
@@ -1180,22 +1202,25 @@ def build_daily_html(data: dict) -> str:
         h += f'<div class="r"><span class="l">{sym}</span><span class="v">{_p(d_["price"])} {_c(d_["change"])}</span></div>'
     h += '</div>'
 
-    # ═══ 五、涨幅筛选 · 跑赢BTC ═══
+    # ═══ 五、涨幅筛选 · 跑赢BTC (Binance) ═══
     screening = data.get("screening", {})
     if screening and screening.get("outperformers"):
+        bn_count = screening.get("binance_count", 0)
         h += '<div class="s"><p class="st">涨幅筛选 · 跑赢BTC</p>'
 
         bench = screening.get("btc_benchmark", {})
-        h += f'<div class="ab ab-i">BTC基准: 周 {bench.get("7d",0):+.1f}% · 月 {bench.get("30d",0):+.1f}% · 年 {bench.get("1y",0):+.1f}%</div>'
+        bn_label = f" · Binance {bn_count}币" if bn_count else ""
+        h += f'<div class="ab ab-i">BTC基准: 周 {bench.get("7d",0):+.1f}% · 月 {bench.get("30d",0):+.1f}% · 年 {bench.get("1y",0):+.1f}%{bn_label}</div>'
 
         period_labels = {"7d": "周涨幅", "30d": "月涨幅", "1y": "年涨幅"}
         for period, label in period_labels.items():
             ops = screening["outperformers"].get(period, [])
             if not ops:
                 continue
-            # 分为前200和200之后
-            top200 = [c for c in ops if c["rank"] <= 200]
-            after200 = [c for c in ops if c["rank"] > 200]
+            # 只看 Binance 上市的，分前200和200后
+            bn_ops = [c for c in ops if c.get("binance", True)]
+            top200 = [c for c in bn_ops if c["rank"] <= 200]
+            after200 = [c for c in bn_ops if c["rank"] > 200]
 
             h += '<div class="dv"></div>'
             h += f'<p style="font-size:11px;color:#b0a898;margin:8px 0 4px;font-weight:600">{label} · 前200 ({len(top200)}个)</p>'
