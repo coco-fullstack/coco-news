@@ -5,6 +5,7 @@
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CoCo - 影视聚合</title>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -445,7 +446,7 @@ footer {
     <button class="player-close-btn" id="playerClose">&times;</button>
   </div>
   <div class="player-video-wrap" id="playerVideoWrap">
-    <iframe id="playerFrame" allowfullscreen style="width:100%;height:100%;border:none;background:#000"></iframe>
+    <video id="playerVideo" controls playsinline autoplay style="width:100%;height:100%;background:#000"></video>
   </div>
   <div class="player-bottom">
     <div class="source-info" id="sourceInfo"></div>
@@ -801,8 +802,8 @@ footer {
   }
 
   // ===== PLAYER =====
+  var hlsInstance = null;
   var currentEpisodes = [];
-  var PLAYER_API = 'https://jx.xmflv.com/?url=';
 
   function searchAndPlay(title) {
     var overlay = document.getElementById('playerOverlay');
@@ -813,7 +814,6 @@ footer {
     overlay.classList.add('open');
     epList.textContent = '';
     srcInfo.textContent = '搜索中...';
-    document.getElementById('playerFrame').src = '';
 
     var loadDiv = el('div', { className: 'player-loading', id: 'playerLoading' });
     loadDiv.appendChild(el('div', { className: 'spinner' }));
@@ -854,18 +854,56 @@ footer {
   }
 
   function playEpisode(url, idx) {
-    var frame = document.getElementById('playerFrame');
+    var videoEl = document.getElementById('playerVideo');
     var epBtns = document.querySelectorAll('.ep-btn');
     epBtns.forEach(function(b, i) { b.classList.toggle('active', i === idx); });
+    if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
     if (!url) return;
-    // Use iframe player to handle m3u8
-    frame.src = PLAYER_API + encodeURIComponent(url);
+
+    // Proxy M3U8 through our backend to solve CORS
+    var proxyUrl = '/api/proxy?url=' + encodeURIComponent(url);
+
+    if (url.includes('.m3u8') && Hls.isSupported()) {
+      hlsInstance = new Hls({
+        xhrSetup: function(xhr, reqUrl) {
+          // Only proxy m3u8 files, let .ts segments load directly from CDN
+          if (reqUrl.includes('/api/proxy')) return;
+        }
+      });
+      hlsInstance.loadSource(proxyUrl);
+      hlsInstance.attachMedia(videoEl);
+      hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
+        videoEl.play().catch(function() {});
+      });
+      hlsInstance.on(Hls.Events.ERROR, function(evt, data) {
+        if (data.fatal) {
+          console.error('HLS error:', data);
+          // Fallback: try direct URL (some CDNs allow CORS)
+          hlsInstance.destroy(); hlsInstance = null;
+          var hls2 = new Hls();
+          hls2.loadSource(url);
+          hls2.attachMedia(videoEl);
+          hls2.on(Hls.Events.MANIFEST_PARSED, function() { videoEl.play().catch(function() {}); });
+          hlsInstance = hls2;
+        }
+      });
+    } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+      // Safari native HLS
+      videoEl.src = url;
+      videoEl.play().catch(function() {});
+    } else {
+      videoEl.src = url;
+      videoEl.play().catch(function() {});
+    }
   }
 
   function closePlayer() {
     var overlay = document.getElementById('playerOverlay');
+    var videoEl = document.getElementById('playerVideo');
     overlay.classList.remove('open');
-    document.getElementById('playerFrame').src = '';
+    videoEl.pause();
+    videoEl.removeAttribute('src');
+    if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
     var ld = document.getElementById('playerLoading');
     if (ld) ld.remove();
   }

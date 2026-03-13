@@ -410,6 +410,13 @@ def route(path, params):
             return {'error': 'missing id'}
         return video_detail(source, vid)
 
+    # M3U8 proxy (solve CORS)
+    if path == 'proxy':
+        m3u8_url = params.get('url', '')
+        if not m3u8_url:
+            return {'error': 'missing url'}
+        return '__PROXY__' + m3u8_url
+
     return {'error': 'not found'}
 
 
@@ -429,11 +436,33 @@ class handler(BaseHTTPRequestHandler):
 
         try:
             data = route(api_path, params)
+
+            # M3U8 proxy mode
+            if isinstance(data, str) and data.startswith('__PROXY__'):
+                m3u8_url = data[9:]
+                m3u8_content = fetch(m3u8_url)
+                # Rewrite relative URLs to absolute
+                base_url = m3u8_url.rsplit('/', 1)[0] + '/'
+                lines = []
+                for line in m3u8_content.split('\n'):
+                    line = line.strip()
+                    if line and not line.startswith('#'):
+                        if not line.startswith('http'):
+                            line = base_url + line
+                    lines.append(line)
+                body = '\n'.join(lines).encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/vnd.apple.mpegurl')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.send_header('Cache-Control', 's-maxage=300')
+                self.end_headers()
+                self.wfile.write(body)
+                return
+
             body = json.dumps(data, ensure_ascii=False).encode('utf-8')
             self.send_response(200)
             self.send_header('Content-Type', 'application/json; charset=utf-8')
             self.send_header('Access-Control-Allow-Origin', '*')
-            # CDN cache for 30 minutes, serve stale for 1 hour while revalidating
             self.send_header('Cache-Control', 's-maxage=1800, stale-while-revalidate=3600')
             self.end_headers()
             self.wfile.write(body)
@@ -441,6 +470,7 @@ class handler(BaseHTTPRequestHandler):
             body = json.dumps({'error': str(e)}, ensure_ascii=False).encode('utf-8')
             self.send_response(500)
             self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             self.wfile.write(body)
 
