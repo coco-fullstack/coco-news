@@ -339,7 +339,7 @@ def fetch_defi_tvl() -> dict:
     # Top 协议 TVL
     protocols = fetch_json("https://api.llama.fi/protocols")
     if protocols:
-        top = sorted(protocols, key=lambda x: x.get("tvl", 0), reverse=True)[:5]
+        top = sorted(protocols, key=lambda x: x.get("tvl") or 0, reverse=True)[:5]
         for p in top:
             tvl = p.get("tvl", 0)
             change_1d = p.get("change_1d", 0) or 0
@@ -348,6 +348,181 @@ def fetch_defi_tvl() -> dict:
                 "tvl": tvl,
                 "change_1d": change_1d,
             })
+
+    return result
+
+
+# ── 期权交割日 (Deribit) ──────────────────────────────────────────
+
+def fetch_options_expiry() -> dict:
+    """获取 BTC/ETH 期权到期日及未平仓量 (Deribit 公开 API)"""
+    result = {}
+    for currency in ["BTC", "ETH"]:
+        url = f"https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency={currency}&kind=option"
+        data = fetch_json(url)
+        if not data or "result" not in data:
+            continue
+
+        # 按到期日汇总未平仓量
+        expiry_oi = {}
+        for item in data["result"]:
+            name = item.get("instrument_name", "")
+            oi = float(item.get("open_interest", 0))
+            underlying = float(item.get("underlying_price", 0))
+            if oi <= 0:
+                continue
+            parts = name.split("-")
+            if len(parts) >= 2:
+                expiry_str = parts[1]
+                if expiry_str not in expiry_oi:
+                    expiry_oi[expiry_str] = {"oi_coins": 0, "underlying": underlying}
+                expiry_oi[expiry_str]["oi_coins"] += oi
+
+        expiries = []
+        for exp_str, info in expiry_oi.items():
+            notional = info["oi_coins"] * info["underlying"]
+            try:
+                exp_date = datetime.strptime(exp_str, "%d%b%y")
+            except ValueError:
+                continue
+            days_left = (exp_date - datetime.now()).days
+            if days_left < 0:
+                continue
+            expiries.append({
+                "date": exp_str,
+                "date_fmt": exp_date.strftime("%Y-%m-%d"),
+                "days_left": days_left,
+                "oi_coins": info["oi_coins"],
+                "notional_usd": notional,
+                "is_major": notional >= 1_000_000_000,
+            })
+
+        expiries.sort(key=lambda x: x["days_left"])
+        result[currency] = expiries[:5]
+
+    return result
+
+
+# ── 逐币爆仓/持仓数据 (Binance) ──────────────────────────────────
+
+def fetch_coin_liquidations() -> dict:
+    """获取 BTC/ETH 独立的未平仓量、买卖比、多空比"""
+    import time as _time
+    result = {}
+    for symbol in ["BTCUSDT", "ETHUSDT"]:
+        coin = symbol.replace("USDT", "")
+        info = {}
+
+        # 当前未平仓量
+        oi_data = fetch_json(f"https://fapi.binance.com/fapi/v1/openInterest?symbol={symbol}")
+        if oi_data:
+            info["open_interest"] = float(oi_data.get("openInterest", 0))
+
+        # 未平仓量历史 (计算变动)
+        oi_hist = fetch_json(
+            f"https://fapi.binance.com/futures/data/openInterestHist"
+            f"?symbol={symbol}&period=1d&limit=2"
+        )
+        if oi_hist and len(oi_hist) >= 2:
+            curr_oi = float(oi_hist[-1].get("sumOpenInterestValue", 0))
+            prev_oi = float(oi_hist[-2].get("sumOpenInterestValue", 0))
+            info["oi_value_usd"] = curr_oi
+            info["oi_change_pct"] = ((curr_oi - prev_oi) / prev_oi * 100) if prev_oi > 0 else 0
+
+        # 主动买卖比 (清算方向代理)
+        taker = fetch_json(
+            f"https://fapi.binance.com/futures/data/takerlongshortRatio"
+            f"?symbol={symbol}&period=1d&limit=1"
+        )
+        if taker and len(taker) > 0:
+            info["buy_vol"] = float(taker[0].get("buyVol", 0))
+            info["sell_vol"] = float(taker[0].get("sellVol", 0))
+            info["buy_sell_ratio"] = float(taker[0].get("buySellRatio", 1))
+
+        # 多空持仓人数比
+        ls = fetch_json(
+            f"https://fapi.binance.com/futures/data/globalLongShortAccountRatio"
+            f"?symbol={symbol}&period=1d&limit=1"
+        )
+        if ls and len(ls) > 0:
+            info["long_ratio"] = float(ls[0].get("longAccount", 0.5)) * 100
+
+        if info:
+            result[coin] = info
+        _time.sleep(0.3)
+
+    return result
+
+
+# ── Top 200 涨幅筛选 vs BTC (CoinGecko) ─────────────────────────
+
+def fetch_top200_vs_btc() -> dict:
+    """市值前200币种，筛选各时间维度跑赢BTC的全部币种
+    维度：周(7d)、月(30d)、年(1y)
+    """
+    import time as _time
+    all_coins = []
+    for page in [1, 2]:
+        url = (
+            f"{COINGECKO}/coins/markets?vs_currency=usd"
+            f"&order=market_cap_desc&per_page=125&page={page}"
+            f"&price_change_percentage=7d,30d,1y&sparkline=false"
+        )
+        data = fetch_json(url)
+        if data:
+            all_coins.extend(data)
+        _time.sleep(1.5)
+
+    if not all_coins:
+        return {}
+
+    btc_data = next((c for c in all_coins if c["id"] == "bitcoin"), None)
+    if not btc_data:
+        return {}
+
+    btc_7d = btc_data.get("price_change_percentage_7d_in_currency") or 0
+    btc_30d = btc_data.get("price_change_percentage_30d_in_currency") or 0
+    btc_1y = btc_data.get("price_change_percentage_1y_in_currency") or 0
+
+    stable_ids = {"tether", "usd-coin", "dai", "first-digital-usd", "ethena-usde",
+                  "usds", "true-usd", "paxos-standard", "frax", "usdd",
+                  "binance-peg-busd", "paypal-usd"}
+
+    result = {
+        "btc_benchmark": {"7d": btc_7d, "30d": btc_30d, "1y": btc_1y},
+        "outperformers": {"7d": [], "30d": [], "1y": []},
+        "total_coins": 0,
+    }
+
+    coins = [c for c in all_coins if c.get("id") not in stable_ids][:200]
+    result["total_coins"] = len(coins)
+
+    for coin in coins:
+        if coin["id"] == "bitcoin":
+            continue
+        sym = coin.get("symbol", "").upper()
+        name = coin.get("name", "")
+        rank = coin.get("market_cap_rank", 0)
+
+        c7d = coin.get("price_change_percentage_7d_in_currency") or 0
+        c30d = coin.get("price_change_percentage_30d_in_currency") or 0
+        c1y = coin.get("price_change_percentage_1y_in_currency") or 0
+
+        entry = {
+            "symbol": sym, "name": name, "rank": rank,
+            "price": coin.get("current_price", 0),
+            "mcap": coin.get("market_cap", 0),
+        }
+
+        if c7d > btc_7d:
+            result["outperformers"]["7d"].append({**entry, "change": c7d, "vs_btc": c7d - btc_7d})
+        if c30d > btc_30d:
+            result["outperformers"]["30d"].append({**entry, "change": c30d, "vs_btc": c30d - btc_30d})
+        if c1y > btc_1y:
+            result["outperformers"]["1y"].append({**entry, "change": c1y, "vs_btc": c1y - btc_1y})
+
+    for period in ["7d", "30d", "1y"]:
+        result["outperformers"][period].sort(key=lambda x: x["vs_btc"], reverse=True)
 
     return result
 
@@ -657,84 +832,82 @@ STYLE = """<style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{
   font-family:-apple-system,'SF Pro Display','Helvetica Neue','PingFang SC',sans-serif;
-  background:linear-gradient(160deg,#f8f9fe 0%,#f0f2f8 100%);
-  color:#1d1d1f;padding:24px 16px;
+  background:#0a0a0a;
+  color:#f5f5f7;padding:24px 16px;
   -webkit-font-smoothing:antialiased
 }
 .c{
   max-width:560px;margin:0 auto;
-  background:rgba(255,255,255,0.92);
-  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  background:rgba(28,28,30,0.72);
+  backdrop-filter:blur(40px) saturate(180%);
+  -webkit-backdrop-filter:blur(40px) saturate(180%);
   border-radius:24px;overflow:hidden;
-  border:1px solid rgba(255,255,255,0.6);
-  box-shadow:0 4px 24px rgba(0,0,0,0.04),0 1px 2px rgba(0,0,0,0.02)
+  border:1px solid rgba(255,255,255,0.08);
+  box-shadow:0 8px 32px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.05)
 }
 .hd{
   padding:36px 32px 20px;
-  background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
-  color:#fff
+  background:rgba(255,255,255,0.03);
+  border-bottom:1px solid rgba(255,255,255,0.06);
+  color:#f5f5f7
 }
-.hd h1{font-size:22px;font-weight:700;letter-spacing:-.5px;margin-bottom:4px}
-.hd .sub{font-size:11px;opacity:0.7;font-weight:400;letter-spacing:.5px}
-.hd .t{font-size:12px;opacity:0.85;margin-top:8px;font-variant-numeric:tabular-nums}
-.s{padding:24px 32px;border-top:1px solid rgba(0,0,0,0.04)}
+.hd h1{font-size:22px;font-weight:700;letter-spacing:-.5px;margin-bottom:4px;color:#fff}
+.hd .sub{font-size:11px;opacity:0.5;font-weight:400;letter-spacing:1.5px;text-transform:uppercase}
+.hd .t{font-size:12px;opacity:0.6;margin-top:8px;font-variant-numeric:tabular-nums}
+.s{padding:24px 32px;border-top:1px solid rgba(255,255,255,0.04)}
 .st{
-  font-size:10px;font-weight:600;color:#8e8e93;
+  font-size:10px;font-weight:600;color:rgba(255,255,255,0.4);
   text-transform:uppercase;letter-spacing:1.5px;
   margin-bottom:14px;
   display:flex;align-items:center;gap:6px
 }
 .st::before{
   content:'';display:inline-block;width:3px;height:12px;
-  border-radius:2px;background:linear-gradient(180deg,#667eea,#764ba2)
+  border-radius:2px;background:rgba(255,255,255,0.25)
 }
 .r{
   display:flex;justify-content:space-between;align-items:center;
   padding:8px 0;font-size:13px;line-height:1.4
 }
-.r .l{color:#48484a;font-weight:400}
-.r .v{font-weight:600;font-variant-numeric:tabular-nums;text-align:right;letter-spacing:-.2px}
-.up{color:#30d158}.dn{color:#ff453a}.nt{color:#8e8e93}
+.r .l{color:rgba(255,255,255,0.55);font-weight:400}
+.r .v{font-weight:600;font-variant-numeric:tabular-nums;text-align:right;letter-spacing:-.2px;color:#f5f5f7}
+.up{color:#34c759}.dn{color:#ff453a}.nt{color:rgba(255,255,255,0.3)}
 .tg{
   display:inline-block;font-size:9px;font-weight:600;
   padding:3px 8px;border-radius:6px;margin-left:6px;
   letter-spacing:.3px;text-transform:uppercase
 }
-.tg-r{background:rgba(255,69,58,0.08);color:#ff453a}
-.tg-b{background:rgba(0,122,255,0.08);color:#007aff}
-.tg-g{background:rgba(48,209,88,0.08);color:#30d158}
-.tg-y{background:rgba(255,159,10,0.08);color:#ff9f0a}
-.dv{height:1px;background:rgba(0,0,0,0.04);margin:6px 0}
+.tg-r{background:rgba(255,69,58,0.12);color:#ff453a}
+.tg-b{background:rgba(100,160,255,0.1);color:#64a0ff}
+.tg-g{background:rgba(52,199,89,0.1);color:#34c759}
+.tg-y{background:rgba(255,214,10,0.1);color:#ffd60a}
+.dv{height:1px;background:rgba(255,255,255,0.04);margin:6px 0}
 .ab{
   margin:8px 0;padding:14px 16px;border-radius:14px;
   font-size:12px;line-height:1.6
 }
-.ab-d{background:rgba(255,69,58,0.05);border:1px solid rgba(255,69,58,0.12)}
-.ab-i{background:rgba(0,122,255,0.05);border:1px solid rgba(0,122,255,0.12)}
+.ab-d{background:rgba(255,69,58,0.06);border:1px solid rgba(255,69,58,0.15)}
+.ab-i{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08)}
 .sb{
-  background:linear-gradient(135deg,rgba(102,126,234,0.04) 0%,rgba(118,75,162,0.04) 100%);
-  border:1px solid rgba(102,126,234,0.08);
+  background:rgba(255,255,255,0.03);
+  border:1px solid rgba(255,255,255,0.06);
   border-radius:14px;padding:16px 18px;margin-top:10px;
-  font-size:12px;line-height:1.8;color:#48484a
+  font-size:12px;line-height:1.8;color:rgba(255,255,255,0.7)
 }
 .ni{
   padding:12px 16px;margin:8px 0;font-size:12px;line-height:1.6;
-  background:rgba(0,0,0,0.015);border-radius:12px;
-  border-left:3px solid rgba(102,126,234,0.4)
+  background:rgba(255,255,255,0.02);border-radius:12px;
+  border-left:3px solid rgba(255,255,255,0.12)
 }
-.ni a{color:#667eea;text-decoration:none;font-weight:500}
-.ni a:hover{text-decoration:underline}
-.ni .sm{color:#8e8e93;font-size:11px;margin-top:2px;display:block}
+.ni a{color:rgba(255,255,255,0.85);text-decoration:none;font-weight:500}
+.ni a:hover{text-decoration:underline;color:#fff}
+.ni .sm{color:rgba(255,255,255,0.35);font-size:11px;margin-top:2px;display:block}
 .ft{
   padding:20px 32px;text-align:center;
-  font-size:10px;color:#c7c7cc;letter-spacing:.3px;
-  border-top:1px solid rgba(0,0,0,0.03)
+  font-size:10px;color:rgba(255,255,255,0.2);letter-spacing:.3px;
+  border-top:1px solid rgba(255,255,255,0.03)
 }
-.ft span{
-  background:linear-gradient(135deg,#667eea,#764ba2);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-  font-weight:600
-}
+.ft span{color:rgba(255,255,255,0.4);font-weight:600}
 </style>"""
 
 
@@ -896,7 +1069,44 @@ def build_daily_html(data: dict) -> str:
         tag = _ftag("拥堵", "r") if gas["fast"] > 50 else ""
         h += f'<div class="r"><span class="l">ETH Gas</span><span class="v">{gas["standard"]} Gwei {tag}</span></div>'
 
+    # 逐币爆仓/持仓数据
+    coin_liq = data.get("coin_liquidations", {})
+    if coin_liq:
+        h += '<div class="dv"></div>'
+        for coin in ["BTC", "ETH"]:
+            if coin not in coin_liq:
+                continue
+            cl = coin_liq[coin]
+            oi_val = cl.get("oi_value_usd", 0)
+            oi_chg = cl.get("oi_change_pct", 0)
+            bsr = cl.get("buy_sell_ratio", 1)
+            long_r = cl.get("long_ratio", 50)
+
+            oi_tag = _ftag("OI飙升", "r") if oi_chg > 10 else _ftag("OI骤降", "b") if oi_chg < -10 else ""
+            h += f'<div class="r"><span class="l">{coin} 未平仓</span><span class="v">{_mc(oi_val)} {_c(oi_chg)} {oi_tag}</span></div>'
+
+            side_tag = _ftag("多头主导", "g") if bsr > 1.1 else _ftag("空头主导", "r") if bsr < 0.9 else ""
+            h += f'<div class="r"><span class="l">{coin} 买卖比</span><span class="v">{bsr:.3f} (多{long_r:.0f}%/空{100-long_r:.0f}%) {side_tag}</span></div>'
+
     h += '</div>'
+
+    # ═══ 期权交割日历 ═══
+    options = data.get("options_expiry", {})
+    if options:
+        h += '<div class="s"><p class="st">期权交割日历</p>'
+        for currency in ["BTC", "ETH"]:
+            if currency not in options or not options[currency]:
+                continue
+            for exp in options[currency]:
+                days = exp["days_left"]
+                tag = _ftag("重大交割", "r") if exp["is_major"] else ""
+                if days <= 3:
+                    tag += _ftag(f"⚠ {days}天后", "r")
+                elif days <= 7:
+                    tag += _ftag(f"{days}天后", "y")
+                h += f'<div class="r"><span class="l">{currency} {exp["date_fmt"]}</span>'
+                h += f'<span class="v">{_mc(exp["notional_usd"])} ({exp["oi_coins"]:,.0f}枚) {tag}</span></div>'
+        h += '</div>'
 
     # ═══ 三、资金 & 宏观（合并：稳定币+市值+国债+汇率+TVL）═══
     h += '<div class="s"><p class="st">资金 & 宏观</p>'
@@ -952,7 +1162,30 @@ def build_daily_html(data: dict) -> str:
         h += f'<div class="r"><span class="l">{sym}</span><span class="v">{_p(d_["price"])} {_c(d_["change"])}</span></div>'
     h += '</div>'
 
-    # ═══ 五、新闻 + 决策参考（合并）═══
+    # ═══ 五、涨幅筛选 · 跑赢BTC ═══
+    screening = data.get("screening", {})
+    if screening and screening.get("outperformers"):
+        h += '<div class="s"><p class="st">涨幅筛选 · 跑赢BTC</p>'
+
+        bench = screening.get("btc_benchmark", {})
+        h += f'<div class="ab ab-i">BTC基准: 周 {bench.get("7d",0):+.1f}% · 月 {bench.get("30d",0):+.1f}% · 年 {bench.get("1y",0):+.1f}% &nbsp;(市值前{screening.get("total_coins", 200)})</div>'
+
+        period_labels = {"7d": "周涨幅", "30d": "月涨幅", "1y": "年涨幅"}
+        for period, label in period_labels.items():
+            ops = screening["outperformers"].get(period, [])
+            if not ops:
+                continue
+            h += '<div class="dv"></div>'
+            h += f'<p style="font-size:11px;color:#8e8e93;margin:8px 0 4px">{label} 跑赢BTC ({len(ops)}个)</p>'
+            for coin in ops[:10]:
+                h += f'<div class="r"><span class="l">#{coin["rank"]} {coin["symbol"]}</span>'
+                h += f'<span class="v">{coin["change"]:+.1f}% <span style="font-size:10px;color:#34c759">+{coin["vs_btc"]:.1f}%</span></span></div>'
+            if len(ops) > 10:
+                h += f'<p style="font-size:10px;color:#c7c7cc;text-align:center">...及其余 {len(ops)-10} 个币种</p>'
+
+        h += '</div>'
+
+    # ═══ 六、新闻 + 决策参考（合并）═══
     h += '<div class="s"><p class="st">新闻 & 研判</p>'
 
     # 决策参考放前面（最重要）
@@ -1062,7 +1295,7 @@ def build_alert_html(alerts: list[dict]) -> str:
     ts = now.strftime("%Y-%m-%d %H:%M")
 
     h = f'<!DOCTYPE html><html><head><meta charset="utf-8">{STYLE}</head><body><div class="c">'
-    h += f'<div class="hd" style="background:linear-gradient(135deg,#ff453a 0%,#ff6b6b 100%)"><p class="sub">TRIGGER ALERT</p><h1>Alert</h1><p class="t">{ts} CST</p></div>'
+    h += f'<div class="hd" style="border-left:3px solid #ff453a"><p class="sub">TRIGGER ALERT</p><h1>Alert</h1><p class="t">{ts} CST</p></div>'
 
     for section in alerts:
         h += f'<div class="s"><p class="st">{section["title"]}</p>'
@@ -1155,17 +1388,24 @@ def run_daily():
         "defi_tvl": fetch_defi_tvl(),
         "news": news,
         "ai_summary": generate_ai_summary(news, prices, fng),
+        "options_expiry": fetch_options_expiry(),
+        "coin_liquidations": fetch_coin_liquidations(),
+        "screening": fetch_top200_vs_btc(),
     }
 
     # 趋势评分
     data["trend_score"] = calculate_trend_score(data)
 
     liq_total = data["liquidations"].get("total_24h", 0)
+    screening = data.get("screening", {})
+    ops_count = sum(len(v) for v in screening.get("outperformers", {}).values())
+    opt_btc = len(data.get("options_expiry", {}).get("BTC", []))
     print(f"[INFO] 币价:{len(data['prices'])} 费率:{len(data['funding'])} "
           f"宏观:{len(data['yields'])} 清算:{_mc(liq_total)} "
           f"多空:{len(data['long_short'])} Gas:{data['gas_fee'].get('standard', '?')} "
           f"TVL:{_mc(data['defi_tvl'].get('total_tvl', 0))} "
-          f"趋势:{data['trend_score']} 新闻:{len(data['news'])}")
+          f"趋势:{data['trend_score']} 新闻:{len(data['news'])} "
+          f"期权到期:{opt_btc} 跑赢BTC:{ops_count}个")
 
     html = build_daily_html(data)
     push_all(f"{today} Market Digest", html)
@@ -1266,14 +1506,151 @@ def run_alert():
         print("[INFO] 无预警触发")
 
 
+def run_weekly():
+    """周报：涨幅筛选（全量展示） + 期权交割 + 市场总结"""
+    today = datetime.now(CST).strftime("%Y-%m-%d")
+    print("[INFO] === 周报 ===")
+
+    prices = fetch_prices()
+    fng = fetch_fear_greed()
+    gd = fetch_global_data()
+    screening = fetch_top200_vs_btc()
+    options = fetch_options_expiry()
+    coin_liq = fetch_coin_liquidations()
+
+    # 构建周报 HTML
+    now = datetime.now(CST)
+    d, t = now.strftime("%Y-%m-%d"), now.strftime("%H:%M")
+
+    h = f'<!DOCTYPE html><html><head><meta charset="utf-8">{STYLE}</head><body><div class="c">'
+    h += f"""<div class="hd">
+      <p class="sub">WEEKLY REPORT</p>
+      <h1>周报 · Performance Review</h1>
+      <p class="t">{d} · {t} CST</p>
+    </div>"""
+
+    # 市场概览
+    btc = prices.get("BTC", {})
+    eth = prices.get("ETH", {})
+    h += '<div class="s"><p class="st">市场概览</p>'
+    h += f'<div class="r"><span class="l">BTC</span><span class="v">{_p(btc.get("price", 0))} {_c(btc.get("change", 0))}</span></div>'
+    h += f'<div class="r"><span class="l">ETH</span><span class="v">{_p(eth.get("price", 0))} {_c(eth.get("change", 0))}</span></div>'
+    fng_val = fng.get("value", 0)
+    h += f'<div class="r"><span class="l">恐贪指数</span><span class="v">{fng_val} · {fng.get("label", "")}</span></div>'
+    if gd:
+        h += f'<div class="r"><span class="l">总市值</span><span class="v">{_mc(gd.get("total_market_cap", 0))}</span></div>'
+        h += f'<div class="r"><span class="l">BTC 市占</span><span class="v">{gd.get("btc_dominance", 0):.1f}%</span></div>'
+    h += '</div>'
+
+    # 期权交割日历
+    if options:
+        h += '<div class="s"><p class="st">期权交割日历</p>'
+        for currency in ["BTC", "ETH"]:
+            if currency not in options or not options[currency]:
+                continue
+            for exp in options[currency]:
+                days = exp["days_left"]
+                tag = _ftag("重大交割", "r") if exp["is_major"] else ""
+                if days <= 3:
+                    tag += _ftag(f"⚠ {days}天后", "r")
+                elif days <= 7:
+                    tag += _ftag(f"{days}天后", "y")
+                h += f'<div class="r"><span class="l">{currency} {exp["date_fmt"]}</span>'
+                h += f'<span class="v">{_mc(exp["notional_usd"])} ({exp["oi_coins"]:,.0f}枚) {tag}</span></div>'
+        h += '</div>'
+
+    # BTC/ETH 逐币持仓
+    if coin_liq:
+        h += '<div class="s"><p class="st">BTC/ETH 衍生品持仓</p>'
+        for coin in ["BTC", "ETH"]:
+            if coin not in coin_liq:
+                continue
+            cl = coin_liq[coin]
+            oi_val = cl.get("oi_value_usd", 0)
+            oi_chg = cl.get("oi_change_pct", 0)
+            bsr = cl.get("buy_sell_ratio", 1)
+            long_r = cl.get("long_ratio", 50)
+            h += f'<div class="r"><span class="l">{coin} 未平仓</span><span class="v">{_mc(oi_val)} {_c(oi_chg)}</span></div>'
+            h += f'<div class="r"><span class="l">{coin} 多空</span><span class="v">买卖比 {bsr:.3f} · 多{long_r:.0f}%/空{100-long_r:.0f}%</span></div>'
+            h += '<div class="dv"></div>'
+        h += '</div>'
+
+    # 涨幅筛选（全量展示，周报核心内容）
+    if screening and screening.get("outperformers"):
+        h += '<div class="s"><p class="st">涨幅筛选 · 跑赢BTC (全量)</p>'
+
+        bench = screening.get("btc_benchmark", {})
+        h += f'<div class="ab ab-i">BTC基准: 周 {bench.get("7d",0):+.1f}% · 月 {bench.get("30d",0):+.1f}% · 年 {bench.get("1y",0):+.1f}% &nbsp;(市值前{screening.get("total_coins", 200)})</div>'
+
+        period_labels = {"7d": "周涨幅", "30d": "月涨幅", "1y": "年涨幅"}
+        for period, label in period_labels.items():
+            ops = screening["outperformers"].get(period, [])
+            if not ops:
+                continue
+            h += '<div class="dv"></div>'
+            h += f'<p style="font-size:11px;color:#8e8e93;margin:8px 0 4px;font-weight:600">{label} 跑赢BTC ({len(ops)}个)</p>'
+            for coin in ops[:20]:  # 周报展示 top 20
+                h += f'<div class="r"><span class="l">#{coin["rank"]} {coin["symbol"]}</span>'
+                h += f'<span class="v">{coin["change"]:+.1f}% <span style="font-size:10px;color:#34c759">+{coin["vs_btc"]:.1f}%</span></span></div>'
+            if len(ops) > 20:
+                h += f'<p style="font-size:10px;color:#c7c7cc;text-align:center">...及其余 {len(ops)-20} 个币种</p>'
+
+        h += '</div>'
+
+    h += f'<div class="ft">Powered by <span>Automated Intelligence</span> · {d}</div>'
+    h += '</div></body></html>'
+
+    push_all(f"{today} 周报 · Weekly Report", h)
+
+
+def run_urgent():
+    """紧急新闻检查：RSS 抓取 + 价格异动"""
+    print("[INFO] === 紧急新闻检查 ===")
+    news = fetch_news()
+    urgent_news = [n for n in news if n.get("urgent")]
+
+    prices = fetch_prices()
+
+    sections = []
+
+    # 紧急新闻
+    if urgent_news:
+        sections.append({
+            "title": f"紧急新闻 ({len(urgent_news)}条)",
+            "items": [n.get("title_cn", n["title"]) for n in urgent_news[:5]],
+            "danger": True,
+        })
+
+    # 价格异动
+    pump_msgs = []
+    for sym, d in prices.items():
+        if abs(d["change"]) >= PUMP_THRESHOLD:
+            direction = "暴涨" if d["change"] > 0 else "暴跌"
+            pump_msgs.append(f'{sym} {direction} {d["change"]:+.1f}% → {_p(d["price"])}')
+    if pump_msgs:
+        sections.append({"title": "价格异动 (24h ±10%+)", "items": pump_msgs, "danger": True})
+
+    if sections:
+        count = sum(len(s["items"]) for s in sections)
+        print(f"[URGENT] 推送 {count} 条紧急消息")
+        html = build_alert_html(sections)
+        push_all("URGENT", html)
+    else:
+        print("[INFO] 无紧急事件")
+
+
 def main():
     mode = sys.argv[1] if len(sys.argv) > 1 else "daily"
-    if mode == "daily":
-        run_daily()
-    elif mode == "alert":
-        run_alert()
+    modes = {
+        "daily": run_daily,
+        "alert": run_alert,
+        "weekly": run_weekly,
+        "urgent": run_urgent,
+    }
+    if mode in modes:
+        modes[mode]()
     else:
-        print(f"[ERROR] 未知模式: {mode} (可用: daily / alert)")
+        print(f"[ERROR] 未知模式: {mode} (可用: {'/'.join(modes)})")
         sys.exit(1)
 
 
