@@ -263,10 +263,15 @@ def get_anime_detail(mal_id):
 # ===== VIDEO SOURCES (采集API) =====
 
 VIDEO_SOURCES = [
-    {'name': '无尽资源', 'key': 'wjzy', 'api': 'https://api.wujinapi.me/api.php/provide/vod/from/wjm3u8/'},
-    {'name': '红牛资源', 'key': 'hnzy', 'api': 'https://www.hongniuzy2.com/api.php/provide/vod/from/hnm3u8/'},
-    {'name': '金鹰资源', 'key': 'jyzy', 'api': 'https://jyzyapi.com/api.php/provide/vod/'},
+    {'name': '非凡资源', 'key': 'ffzy', 'api': 'https://api.ffzyapi.com/api.php/provide/vod/', 'quality': 'HD'},
+    {'name': '1080资源', 'key': '1080zy', 'api': 'https://api.1080zyku.com/inc/apijson.php?', 'quality': '1080P'},
+    {'name': '无尽资源', 'key': 'wjzy', 'api': 'https://api.wujinapi.me/api.php/provide/vod/from/wjm3u8/', 'quality': 'HD'},
+    {'name': '红牛资源', 'key': 'hnzy', 'api': 'https://www.hongniuzy2.com/api.php/provide/vod/from/hnm3u8/', 'quality': 'HD'},
+    {'name': '金鹰资源', 'key': 'jyzy', 'api': 'https://jyzyapi.com/api.php/provide/vod/', 'quality': 'SD'},
 ]
+
+# Keywords that indicate higher quality streams
+_HD_KEYWORDS = ['1080', 'hd', '超清', '蓝光', '4k', 'uhd', 'ffm3u8', 'feifan']
 
 
 def _normalize_query(query):
@@ -277,34 +282,51 @@ def _normalize_query(query):
     return q if q else query.strip()
 
 
+def _pick_best_episodes(play_urls, play_from=''):
+    """Parse play URLs and pick the best quality group."""
+    if not play_urls:
+        return []
+    groups = play_urls.split('$$$')
+    froms = play_from.split('$$$') if play_from else [''] * len(groups)
+    best_eps = []
+    best_score = -1
+    for i, group in enumerate(groups):
+        grp_eps = []
+        for ep in group.split('#'):
+            parts = ep.split('$', 1)
+            if len(parts) == 2 and parts[1].strip():
+                ep_url = parts[1].strip()
+                if ep_url.startswith('http'):
+                    grp_eps.append({'name': parts[0], 'url': ep_url})
+        if not grp_eps:
+            continue
+        # Score this group: prefer m3u8 URLs and HD keywords
+        tag = (froms[i] if i < len(froms) else '').lower() + group[:200].lower()
+        score = 0
+        if 'm3u8' in tag or '.m3u8' in grp_eps[0]['url']:
+            score += 10
+        for kw in _HD_KEYWORDS:
+            if kw in tag:
+                score += 5
+        if score > best_score:
+            best_score = score
+            best_eps = grp_eps
+    return best_eps
+
+
 def video_search(query):
     """Search across video sources, skip m3u8 validation to avoid timeout."""
     search_query = _normalize_query(query)
     all_results = []
     for src in VIDEO_SOURCES:
         try:
-            # Use ac=detail for full play URLs (videolist may omit them)
-            url = src['api'] + '?ac=detail&wd=' + urllib.parse.quote(search_query)
+            sep = '&' if '?' in src['api'] else '?'
+            url = src['api'] + sep + 'ac=detail&wd=' + urllib.parse.quote(search_query)
             data = fetch(url, as_json=True)
-            for item in data.get('list', [])[:5]:
+            for item in data.get('list', [])[:3]:
                 play_urls = item.get('vod_play_url', '')
-                episodes = []
-                if play_urls:
-                    # Prefer m3u8 group, fallback to first group
-                    for group in play_urls.split('$$$'):
-                        grp_eps = []
-                        for ep in group.split('#'):
-                            parts = ep.split('$', 1)
-                            if len(parts) == 2 and parts[1].strip():
-                                ep_url = parts[1].strip()
-                                if ep_url.startswith('http'):
-                                    grp_eps.append({'name': parts[0], 'url': ep_url})
-                        if grp_eps:
-                            if 'm3u8' in group:
-                                episodes = grp_eps
-                                break
-                            elif not episodes:
-                                episodes = grp_eps
+                play_from = item.get('vod_play_from', '')
+                episodes = _pick_best_episodes(play_urls, play_from)
                 if episodes:
                     hits = 0
                     try:
@@ -322,33 +344,50 @@ def video_search(query):
                         'hits': hits,
                         'source': src['key'],
                         'source_name': src['name'],
+                        'quality': src.get('quality', ''),
                         'episodes': episodes,
                     })
         except Exception:
             continue
 
-    # Sort by hits (popularity), no m3u8 validation — let frontend handle failures
-    all_results.sort(key=lambda x: x.get('hits', 0), reverse=True)
-    return all_results
+    # Filter: only keep results whose title contains the search query (or vice versa)
+    filtered = []
+    for r in all_results:
+        t = r['title']
+        if search_query in t or t in search_query or any(w in t for w in search_query if len(w) > 1):
+            filtered.append(r)
+    # If filtering removed everything, keep all results
+    if not filtered:
+        filtered = all_results
+
+    # Deduplicate by title — keep highest quality source per unique title
+    seen_titles = {}
+    quality_rank = {'1080P': 4, 'HD': 3, 'SD': 1}
+    for r in filtered:
+        t = r['title']
+        q = quality_rank.get(r.get('quality', ''), 2)
+        if t not in seen_titles or q > seen_titles[t][1]:
+            seen_titles[t] = (r, q)
+    deduped = [v[0] for v in seen_titles.values()]
+
+    # Sort: quality first, then hits
+    deduped.sort(key=lambda x: (quality_rank.get(x.get('quality', ''), 2), x.get('hits', 0)), reverse=True)
+    return deduped
 
 
 def video_detail(source_key, vid):
     """Get video detail with play URLs from a specific source."""
     src = next((s for s in VIDEO_SOURCES if s['key'] == source_key), VIDEO_SOURCES[0])
     try:
-        url = src['api'] + '?ac=detail&ids=' + str(vid)
+        sep = '&' if '?' in src['api'] else '?'
+        url = src['api'] + sep + 'ac=detail&ids=' + str(vid)
         data = fetch(url, as_json=True)
         if not data.get('list'):
             return {'error': 'not found'}
         item = data['list'][0]
         play_urls = item.get('vod_play_url', '')
-        episodes = []
-        if play_urls:
-            for group in play_urls.split('$$$'):
-                for ep in group.split('#'):
-                    parts = ep.split('$', 1)
-                    if len(parts) == 2 and parts[1].strip():
-                        episodes.append({'name': parts[0], 'url': parts[1]})
+        play_from = item.get('vod_play_from', '')
+        episodes = _pick_best_episodes(play_urls, play_from)
         return {
             'id': item.get('vod_id'),
             'title': item.get('vod_name', ''),

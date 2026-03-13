@@ -330,7 +330,19 @@ main { position: relative; z-index: 2; padding: 24px 0 60px; }
   position: absolute; inset: 0; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 12px; color: #aaa; font-size: 13px;
 }
-.source-info { padding: 4px 20px 0; font-size: 11px; color: #666; }
+.source-info { padding: 4px 20px 0; font-size: 11px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.source-switcher {
+  display: flex; align-items: center; padding: 6px 20px; gap: 6px;
+  overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.source-switcher::-webkit-scrollbar { display: none; }
+.src-btn {
+  padding: 4px 12px; border-radius: 4px; font-size: 11px;
+  font-family: var(--font); cursor: pointer; transition: all 0.2s;
+  border: 1px solid #333; background: #1a1a1a; color: #999; white-space: nowrap; flex-shrink: 0;
+}
+.src-btn:hover { background: #2a2a2a; color: #fff; }
+.src-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
 .play-btn-modal {
   padding: 10px 28px; border-radius: 20px; font-size: 13px; font-weight: 600;
   cursor: pointer; font-family: var(--font); transition: all 0.25s;
@@ -898,23 +910,21 @@ footer {
 
       currentResults = results;
       currentSourceIdx = 0;
-      var video = results[0];
-      currentEpisodes = video.episodes || [];
-      srcInfo.textContent = '来源: ' + (video.source_name || '未知') + ' | ' + (video.remarks || '') + (results.length > 1 ? ' (共' + results.length + '个源)' : '');
+      loadPlayerSource(0);
 
-      if (!currentEpisodes.length) {
-        srcInfo.textContent = '该资源暂无可播放内容';
-        return;
+      // Show source switcher if multiple sources
+      if (results.length > 1) {
+        var srcWrap = el('div', { className: 'source-switcher', id: 'sourceSwitcher' });
+        srcWrap.appendChild(el('span', { style: 'color:#888;font-size:11px;margin-right:8px' }, '切换线路:'));
+        results.forEach(function(r, i) {
+          var label = (r.source_name || '线路' + (i+1)) + (r.quality ? ' ' + r.quality : '');
+          srcWrap.appendChild(el('button', {
+            className: 'src-btn' + (i === 0 ? ' active' : ''),
+            onClick: (function(idx) { return function() { loadPlayerSource(idx); }; })(i)
+          }, label));
+        });
+        srcInfo.parentNode.insertBefore(srcWrap, srcInfo.nextSibling);
       }
-
-      currentEpisodes.forEach(function(ep, idx) {
-        epList.appendChild(el('button', {
-          className: 'ep-btn' + (idx === 0 ? ' active' : ''),
-          onClick: (function(e, i) { return function() { playEpisode(e.url, i); }; })(ep, idx)
-        }, ep.name));
-      });
-
-      playEpisode(currentEpisodes[0].url, 0);
     }).catch(function(e) {
       var ld = document.getElementById('playerLoading');
       if (ld) ld.remove();
@@ -952,24 +962,37 @@ footer {
     }
   }
 
+  function loadPlayerSource(idx) {
+    currentSourceIdx = idx;
+    var video = currentResults[idx];
+    currentEpisodes = video.episodes || [];
+    var srcInfo = document.getElementById('sourceInfo');
+    var qualityTag = video.quality ? ' [' + video.quality + ']' : '';
+    srcInfo.textContent = video.title + ' - ' + (video.source_name || '未知') + qualityTag + (video.remarks ? ' | ' + video.remarks : '');
+    var epList = document.getElementById('epList');
+    epList.textContent = '';
+
+    // Update source switcher active state
+    document.querySelectorAll('.src-btn').forEach(function(b, i) { b.classList.toggle('active', i === idx); });
+
+    if (!currentEpisodes.length) {
+      srcInfo.textContent = '该资源暂无可播放内容';
+      return;
+    }
+    currentEpisodes.forEach(function(ep, i) {
+      epList.appendChild(el('button', {
+        className: 'ep-btn' + (i === 0 ? ' active' : ''),
+        onClick: (function(e, j) { return function() { playEpisode(e.url, j); }; })(ep, i)
+      }, ep.name));
+    });
+    playEpisode(currentEpisodes[0].url, 0);
+  }
+
   function tryNextSource() {
-    currentSourceIdx++;
-    if (currentSourceIdx < currentResults.length) {
-      var next = currentResults[currentSourceIdx];
-      currentEpisodes = next.episodes || [];
-      var srcInfo = document.getElementById('sourceInfo');
-      srcInfo.textContent = '切换来源: ' + (next.source_name || '未知') + ' | ' + (next.remarks || '');
-      var epList = document.getElementById('epList');
-      epList.textContent = '';
-      currentEpisodes.forEach(function(ep, idx) {
-        epList.appendChild(el('button', {
-          className: 'ep-btn' + (idx === 0 ? ' active' : ''),
-          onClick: (function(e, i) { return function() { playEpisode(e.url, i); }; })(ep, idx)
-        }, ep.name));
-      });
-      if (currentEpisodes.length) playEpisode(currentEpisodes[0].url, 0);
+    if (currentSourceIdx + 1 < currentResults.length) {
+      loadPlayerSource(currentSourceIdx + 1);
     } else {
-      document.getElementById('sourceInfo').textContent = '所有资源均不可用';
+      document.getElementById('sourceInfo').textContent = '所有线路均不可用，请稍后再试';
     }
   }
 
@@ -982,6 +1005,8 @@ footer {
     if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
     var ld = document.getElementById('playerLoading');
     if (ld) ld.remove();
+    var sw = document.getElementById('sourceSwitcher');
+    if (sw) sw.remove();
   }
 
   document.getElementById('playerClose').addEventListener('click', closePlayer);
