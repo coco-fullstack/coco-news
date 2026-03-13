@@ -1303,12 +1303,84 @@ def _ema(data: list[float], period: int) -> float:
     return ema
 
 
-def _build_strategy_html(indicators: dict) -> str:
+def generate_ai_strategy(indicators: dict, fng: dict, funding: dict) -> str:
+    """用 Groq AI 分析策略指标，输出交易研判"""
+    if not GROQ_API_KEY or not indicators:
+        return ""
+
+    lines = []
+    for sym in ["BTC", "ETH"]:
+        if sym not in indicators:
+            continue
+        ind = indicators[sym]
+        lines.append(f"\n{sym}:")
+        lines.append(f"  价格: {_p(ind.get('price', 0))}")
+        lines.append(f"  均线: MA7={_p(ind.get('ma7',0))} MA25={_p(ind.get('ma25',0))} MA50={_p(ind.get('ma50',0) or 0)} → {ind.get('ma_signal','')}")
+        if "macd_signal" in ind:
+            lines.append(f"  MACD: {ind['macd_signal']} (DIF={ind.get('macd_dif',0):.2f} DEA={ind.get('macd_dea',0):.2f})")
+        lines.append(f"  30天区间: 支撑{_p(ind.get('support',0))} 阻力{_p(ind.get('resistance',0))} 位置{ind.get('price_vs_range',50):.0f}%")
+        if "vol_signal" in ind:
+            lines.append(f"  成交量: {ind['vol_signal']} ({ind.get('vol_change',0):+.0f}%)")
+        if "funding_trend" in ind:
+            lines.append(f"  费率趋势: {ind['funding_trend']}")
+
+    fng_val = fng.get("value", "N/A")
+    fund_str = ", ".join(f"{k}={v:.4f}%" for k, v in funding.items()) if funding else "无"
+    context = "\n".join(lines)
+
+    prompt = f"""你是一位专业加密货币交易策略分析师。根据以下BTC和ETH的技术指标数据，给出简洁的交易策略建议。
+
+数据：
+恐贪指数: {fng_val}
+资金费率: {fund_str}
+{context}
+
+要求：
+- 分别给BTC和ETH各2-3句话的策略分析
+- 包含：当前趋势判断、关键支撑阻力位、操作建议（做多/做空/观望/减仓）
+- 如果指标出现背离或矛盾信号，明确指出
+- 风格：专业简洁，像交易员的盘前笔记
+- 用中文回答"""
+
+    payload = json.dumps({
+        "model": "llama-3.3-70b-versatile",
+        "max_tokens": 400,
+        "temperature": 0.3,
+        "messages": [{"role": "user", "content": prompt}],
+    }).encode("utf-8")
+
+    req = Request(
+        "https://api.groq.com/openai/v1/chat/completions",
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+        },
+        method="POST",
+    )
+
+    try:
+        with urlopen(req, timeout=30) as resp:
+            result = json.loads(resp.read().decode())
+            text = result["choices"][0]["message"]["content"]
+            print(f"[OK] AI 策略分析完成 ({len(text)} 字)")
+            return text
+    except Exception as e:
+        print(f"[ERROR] AI 策略分析失败: {e}")
+        return ""
+
+
+def _build_strategy_html(indicators: dict, ai_analysis: str = "") -> str:
     """构建交易策略指标 HTML 区块"""
     if not indicators:
         return ""
 
     h = '<div class="s"><p class="st">交易策略指标</p>'
+
+    # AI 策略研判（放在最前面）
+    if ai_analysis:
+        h += f'<div class="sb">{ai_analysis.replace(chr(10), "<br>")}</div>'
+        h += '<div class="dv"></div>'
 
     for sym in ["BTC", "ETH"]:
         if sym not in indicators:
@@ -1443,7 +1515,7 @@ def build_daily_html(data: dict) -> str:
     # ═══ 交易策略指标（风险仪表盘上方）═══
     strategy = data.get("strategy_indicators", {})
     if strategy:
-        h += _build_strategy_html(strategy)
+        h += _build_strategy_html(strategy, data.get("ai_strategy", ""))
 
     # ═══ 二、风险仪表盘（合并：衍生品+清算+多空+Gas）═══
     h += '<div class="s"><p class="st">风险仪表盘</p>'
@@ -1861,6 +1933,12 @@ def run_daily():
     # 趋势评分
     data["trend_score"] = calculate_trend_score(data)
 
+    # AI 策略分析
+    data["ai_strategy"] = generate_ai_strategy(
+        data.get("strategy_indicators", {}),
+        fng, data.get("funding", {}),
+    )
+
     liq_total = data["liquidations"].get("total_24h", 0)
     screening = data.get("screening", {})
     ops_count = sum(len(v) for v in screening.get("outperformers", {}).values())
@@ -1980,10 +2058,13 @@ def run_weekly():
     prices = fetch_prices()
     fng = fetch_fear_greed()
     gd = fetch_global_data()
+    funding = fetch_funding_rates()
     screening = _safe_fetch(fetch_top200_vs_btc, {})
     options = _safe_fetch(fetch_options_expiry, {})
     coin_liq = _safe_fetch(fetch_coin_liquidations, {})
     institutional = _safe_fetch(fetch_institutional_holdings, {})
+    strategy = _safe_fetch(fetch_strategy_indicators, {})
+    ai_strategy = generate_ai_strategy(strategy, fng, funding)
 
     # 构建周报 HTML
     now = datetime.now(CST)
@@ -2058,6 +2139,10 @@ def run_weekly():
                 h += f'<span class="v">{_mc(comp["value_usd"])} ({comp["pct_supply"]:.2f}%)</span></div>'
             h += '<div class="dv"></div>'
         h += '</div>'
+
+    # 交易策略指标 + AI 分析
+    if strategy:
+        h += _build_strategy_html(strategy, ai_strategy)
 
     # 涨幅筛选（全量展示，周报核心内容）
     if screening and screening.get("outperformers"):
