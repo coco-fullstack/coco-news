@@ -129,6 +129,15 @@ def translate_to_chinese(text: str) -> str:
     return text
 
 
+def _safe_fetch(func, default=None):
+    """安全调用数据获取函数，出错返回默认值"""
+    try:
+        return func()
+    except Exception as e:
+        print(f"[ERROR] {func.__name__} 失败: {e}")
+        return default
+
+
 # ══════════════════════════════════════════════════════════════════
 #  数据获取层
 # ══════════════════════════════════════════════════════════════════
@@ -964,15 +973,15 @@ def build_daily_html(data: dict) -> str:
     now = datetime.now(CST)
     d, t = now.strftime("%Y-%m-%d"), now.strftime("%H:%M")
 
-    prices = data["prices"]
-    stables = data["stablecoins"]
-    forex = data["forex"]
-    fng = data["fng"]
-    gd = data["global"]
-    funding = data["funding"]
-    yields = data["yields"]
-    btc_rsi = data["btc_rsi"]
-    eth_rsi = data["eth_rsi"]
+    prices = data.get("prices", {})
+    stables = data.get("stablecoins", {})
+    forex = data.get("forex", {})
+    fng = data.get("fng", {})
+    gd = data.get("global", {})
+    funding = data.get("funding", {})
+    yields = data.get("yields", {})
+    btc_rsi = data.get("btc_rsi")
+    eth_rsi = data.get("eth_rsi")
     news = data["news"]
     ls = data.get("long_short", {})
     gas = data.get("gas_fee", {})
@@ -1388,9 +1397,9 @@ def run_daily():
         "defi_tvl": fetch_defi_tvl(),
         "news": news,
         "ai_summary": generate_ai_summary(news, prices, fng),
-        "options_expiry": fetch_options_expiry(),
-        "coin_liquidations": fetch_coin_liquidations(),
-        "screening": fetch_top200_vs_btc(),
+        "options_expiry": _safe_fetch(fetch_options_expiry, {}),
+        "coin_liquidations": _safe_fetch(fetch_coin_liquidations, {}),
+        "screening": _safe_fetch(fetch_top200_vs_btc, {}),
     }
 
     # 趋势评分
@@ -1514,9 +1523,9 @@ def run_weekly():
     prices = fetch_prices()
     fng = fetch_fear_greed()
     gd = fetch_global_data()
-    screening = fetch_top200_vs_btc()
-    options = fetch_options_expiry()
-    coin_liq = fetch_coin_liquidations()
+    screening = _safe_fetch(fetch_top200_vs_btc, {})
+    options = _safe_fetch(fetch_options_expiry, {})
+    coin_liq = _safe_fetch(fetch_coin_liquidations, {})
 
     # 构建周报 HTML
     now = datetime.now(CST)
