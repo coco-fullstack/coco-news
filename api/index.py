@@ -243,35 +243,51 @@ def get_anime_detail(mal_id):
 # ===== VIDEO SOURCES (采集API) =====
 
 VIDEO_SOURCES = [
-    {'name': '暴风资源', 'key': 'bfzy', 'api': 'https://bfzyapi.com/api.php/provide/vod/'},
+    {'name': '无尽资源', 'key': 'wjzy', 'api': 'https://api.wujinapi.me/api.php/provide/vod/from/wjm3u8/'},
     {'name': '红牛资源', 'key': 'hnzy', 'api': 'https://www.hongniuzy2.com/api.php/provide/vod/from/hnm3u8/'},
+    {'name': '金鹰资源', 'key': 'jyzy', 'api': 'https://jyzyapi.com/api.php/provide/vod/'},
 ]
 
 
+def _test_m3u8(url):
+    """Quick test if m3u8 URL is alive."""
+    try:
+        req = urllib.request.Request(url, headers=HEADERS)
+        req.method = 'HEAD'
+        with urllib.request.urlopen(req, timeout=4) as resp:
+            return resp.status == 200
+    except Exception:
+        try:
+            req = urllib.request.Request(url, headers=HEADERS)
+            with urllib.request.urlopen(req, timeout=4) as resp:
+                return len(resp.read(100)) > 0
+        except Exception:
+            return False
+
+
 def video_search(query):
-    """Search across video sources for playable content."""
-    results = []
+    """Search across video sources, test m3u8, auto-fallback."""
+    all_results = []
     for src in VIDEO_SOURCES:
         try:
             url = src['api'] + '?ac=videolist&wd=' + urllib.parse.quote(query)
             data = fetch(url, as_json=True)
-            for item in data.get('list', [])[:5]:
+            for item in data.get('list', [])[:3]:
                 play_urls = item.get('vod_play_url', '')
                 episodes = []
                 if play_urls:
-                    # Use first source group only (before $$$)
                     first_group = play_urls.split('$$$')[0]
                     for ep in first_group.split('#'):
                         parts = ep.split('$', 1)
                         if len(parts) == 2 and parts[1].strip():
                             episodes.append({'name': parts[0], 'url': parts[1]})
-                if episodes:  # Only add if has playable episodes
+                if episodes:
                     hits = 0
                     try:
                         hits = int(item.get('vod_hits', 0) or item.get('vod_hits_day', 0) or 0)
                     except (ValueError, TypeError):
                         pass
-                    results.append({
+                    all_results.append({
                         'id': item.get('vod_id'),
                         'title': item.get('vod_name', ''),
                         'type': item.get('type_name', ''),
@@ -284,13 +300,22 @@ def video_search(query):
                         'source_name': src['name'],
                         'episodes': episodes,
                     })
-            if results:
-                break
         except Exception:
             continue
-    # Sort by popularity (hits) descending
-    results.sort(key=lambda x: x.get('hits', 0), reverse=True)
-    return results
+
+    # Test first episode m3u8 for each result, put working ones first
+    verified = []
+    unverified = []
+    for r in all_results:
+        if r['episodes']:
+            test_url = r['episodes'][0].get('url', '')
+            if _test_m3u8(test_url):
+                verified.append(r)
+            else:
+                unverified.append(r)
+
+    verified.sort(key=lambda x: x.get('hits', 0), reverse=True)
+    return verified + unverified
 
 
 def video_detail(source_key, vid):

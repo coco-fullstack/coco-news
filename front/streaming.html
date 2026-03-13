@@ -804,6 +804,8 @@ footer {
   // ===== PLAYER =====
   var hlsInstance = null;
   var currentEpisodes = [];
+  var currentResults = [];
+  var currentSourceIdx = 0;
 
   function searchAndPlay(title) {
     var overlay = document.getElementById('playerOverlay');
@@ -829,9 +831,11 @@ footer {
         return;
       }
 
+      currentResults = results;
+      currentSourceIdx = 0;
       var video = results[0];
       currentEpisodes = video.episodes || [];
-      srcInfo.textContent = '来源: ' + (video.source_name || '未知') + ' | ' + (video.remarks || '');
+      srcInfo.textContent = '来源: ' + (video.source_name || '未知') + ' | ' + (video.remarks || '') + (results.length > 1 ? ' (共' + results.length + '个源)' : '');
 
       if (!currentEpisodes.length) {
         srcInfo.textContent = '该资源暂无可播放内容';
@@ -860,31 +864,17 @@ footer {
     if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
     if (!url) return;
 
-    // Proxy M3U8 through our backend to solve CORS
-    var proxyUrl = '/api/proxy?url=' + encodeURIComponent(url);
-
     if (url.includes('.m3u8') && Hls.isSupported()) {
-      hlsInstance = new Hls({
-        xhrSetup: function(xhr, reqUrl) {
-          // Only proxy m3u8 files, let .ts segments load directly from CDN
-          if (reqUrl.includes('/api/proxy')) return;
-        }
-      });
-      hlsInstance.loadSource(proxyUrl);
+      hlsInstance = new Hls();
+      hlsInstance.loadSource(url);
       hlsInstance.attachMedia(videoEl);
       hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
         videoEl.play().catch(function() {});
       });
       hlsInstance.on(Hls.Events.ERROR, function(evt, data) {
         if (data.fatal) {
-          console.error('HLS error:', data);
-          // Fallback: try direct URL (some CDNs allow CORS)
-          hlsInstance.destroy(); hlsInstance = null;
-          var hls2 = new Hls();
-          hls2.loadSource(url);
-          hls2.attachMedia(videoEl);
-          hls2.on(Hls.Events.MANIFEST_PARSED, function() { videoEl.play().catch(function() {}); });
-          hlsInstance = hls2;
+          console.error('HLS error, trying next source');
+          tryNextSource();
         }
       });
     } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
@@ -894,6 +884,27 @@ footer {
     } else {
       videoEl.src = url;
       videoEl.play().catch(function() {});
+    }
+  }
+
+  function tryNextSource() {
+    currentSourceIdx++;
+    if (currentSourceIdx < currentResults.length) {
+      var next = currentResults[currentSourceIdx];
+      currentEpisodes = next.episodes || [];
+      var srcInfo = document.getElementById('sourceInfo');
+      srcInfo.textContent = '切换来源: ' + (next.source_name || '未知') + ' | ' + (next.remarks || '');
+      var epList = document.getElementById('epList');
+      epList.textContent = '';
+      currentEpisodes.forEach(function(ep, idx) {
+        epList.appendChild(el('button', {
+          className: 'ep-btn' + (idx === 0 ? ' active' : ''),
+          onClick: (function(e, i) { return function() { playEpisode(e.url, i); }; })(ep, idx)
+        }, ep.name));
+      });
+      if (currentEpisodes.length) playEpisode(currentEpisodes[0].url, 0);
+    } else {
+      document.getElementById('sourceInfo').textContent = '所有资源均不可用';
     }
   }
 
