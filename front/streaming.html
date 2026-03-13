@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CineVerse — 全球影视浏览器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg-primary: #08080a;
+  --bg-secondary: #111114;
+  --bg-card: rgba(255,255,255,0.04);
+  --bg-glass: rgba(20,20,25,0.75);
+  --text-primary: #f0f0f2;
+  --text-secondary: rgba(255,255,255,0.55);
+  --text-tertiary: rgba(255,255,255,0.3);
+  --accent: #4a9eff;
+  --accent-glow: rgba(74,158,255,0.25);
+  --accent-warm: #ff6b4a;
+  --gradient-hero: linear-gradient(180deg, transparent 0%, rgba(8,8,10,0.4) 40%, rgba(8,8,10,0.85) 70%, var(--bg-primary) 100%);
+  --gradient-side: linear-gradient(90deg, var(--bg-primary) 0%, transparent 30%, transparent 70%, var(--bg-primary) 100%);
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --shadow-card: 0 4px 24px rgba(0,0,0,0.4);
+  --shadow-glow: 0 0 60px rgba(74,158,255,0.15);
+  --font-display: 'Bebas Neue', sans-serif;
+  --font-body: 'Outfit', sans-serif;
+  --nav-height: 64px;
+  --carousel-gap: 14px;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { width: 6px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+/* ===== SETUP SCREEN ===== */
+.setup-screen {
+  position: fixed; inset: 0; z-index: 9999;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-primary);
+  transition: opacity 0.6s, visibility 0.6s;
+}
+.setup-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+.setup-card {
+  width: min(460px, 90vw); padding: 48px 40px;
+  background: var(--bg-secondary);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: var(--radius-xl);
+  text-align: center; position: relative; overflow: hidden;
+}
+.setup-card::before {
+  content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+  background: radial-gradient(circle at 50% 80%, var(--accent-glow), transparent 60%); opacity: 0.4;
+}
+.setup-card > * { position: relative; }
+.setup-logo {
+  font-family: var(--font-display); font-size: 52px; letter-spacing: 6px;
+  background: linear-gradient(135deg, var(--accent), #a78bfa);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px;
+}
+.setup-sub { color: var(--text-secondary); font-size: 15px; margin-bottom: 32px; font-weight: 300; }
+.setup-input {
+  width: 100%; padding: 14px 18px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--radius-md); color: var(--text-primary);
+  font-size: 15px; font-family: var(--font-body); outline: none;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.setup-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.setup-input::placeholder { color: var(--text-tertiary); }
+.setup-btn {
+  width: 100%; margin-top: 16px; padding: 14px;
+  background: linear-gradient(135deg, var(--accent), #6366f1);
+  border: none; border-radius: var(--radius-md);
+  color: white; font-size: 16px; font-weight: 600;
+  font-family: var(--font-body); cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.setup-btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-glow); }
+.setup-btn:active { transform: scale(0.98); }
+.setup-hint { margin-top: 20px; font-size: 13px; color: var(--text-tertiary); line-height: 1.6; }
+.setup-hint a { color: var(--accent); text-decoration: none; }
+.setup-error { color: var(--accent-warm); font-size: 13px; margin-top: 10px; display: none; }
+
+/* ===== NAV ===== */
+nav {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: var(--nav-height); z-index: 1000;
+  display: flex; align-items: center; padding: 0 40px;
+  transition: background 0.4s, backdrop-filter 0.4s;
+}
+nav.scrolled {
+  background: rgba(8,8,10,0.82);
+  backdrop-filter: blur(30px) saturate(1.4);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.nav-brand {
+  font-family: var(--font-display); font-size: 28px; letter-spacing: 4px;
+  background: linear-gradient(135deg, var(--accent), #a78bfa);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  flex-shrink: 0; cursor: pointer;
+}
+.nav-tabs {
+  display: flex; gap: 4px; margin-left: 40px;
+  background: rgba(255,255,255,0.04); border-radius: 10px; padding: 3px;
+}
+.nav-tab {
+  padding: 7px 18px; border-radius: 8px; font-size: 13px; font-weight: 500;
+  color: var(--text-secondary); cursor: pointer; transition: all 0.25s;
+  white-space: nowrap; border: none; background: none; font-family: var(--font-body);
+}
+.nav-tab:hover { color: var(--text-primary); }
+.nav-tab.active { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+.nav-spacer { flex: 1; }
+.nav-search-btn {
+  width: 38px; height: 38px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04);
+  color: var(--text-secondary); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.25s; font-size: 18px;
+}
+.nav-search-btn:hover { background: rgba(255,255,255,0.08); color: var(--text-primary); }
+
+/* ===== SEARCH OVERLAY ===== */
+.search-overlay {
+  position: fixed; inset: 0; z-index: 2000;
+  background: rgba(8,8,10,0.92); backdrop-filter: blur(40px);
+  display: flex; flex-direction: column; padding: 0 40px;
+  opacity: 0; visibility: hidden; transition: opacity 0.35s, visibility 0.35s;
+}
+.search-overlay.open { opacity: 1; visibility: visible; }
+.search-bar-wrap {
+  display: flex; align-items: center; gap: 16px;
+  height: 80px; border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.search-icon { font-size: 22px; color: var(--text-secondary); }
+.search-input {
+  flex: 1; background: none; border: none; color: var(--text-primary);
+  font-size: 22px; font-family: var(--font-body); font-weight: 300; outline: none;
+}
+.search-input::placeholder { color: var(--text-tertiary); }
+.search-close {
+  background: rgba(255,255,255,0.06); border: none; color: var(--text-secondary);
+  font-size: 13px; padding: 6px 14px; border-radius: 6px; cursor: pointer;
+  font-family: var(--font-body); transition: all 0.2s;
+}
+.search-close:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+.search-results { flex: 1; overflow-y: auto; padding: 24px 0; }
+.search-results-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 20px;
+}
+.search-empty { text-align: center; padding: 80px 0; color: var(--text-tertiary); font-size: 15px; }
+
+/* ===== HERO ===== */
+.hero { position: relative; height: 85vh; min-height: 560px; overflow: hidden; }
+.hero-slide {
+  position: absolute; inset: 0; opacity: 0; transition: opacity 1s ease;
+}
+.hero-slide.active { opacity: 1; }
+.hero-backdrop {
+  width: 100%; height: 100%; object-fit: cover;
+  transform: scale(1.05); transition: transform 8s ease-out;
+  image-rendering: -webkit-optimize-contrast;
+}
+.hero-slide.active .hero-backdrop { transform: scale(1); }
+.hero-overlay { position: absolute; inset: 0; background: var(--gradient-hero); }
+.hero-side-fade { position: absolute; inset: 0; background: var(--gradient-side); }
+.hero-content {
+  position: absolute; bottom: 12%; left: 40px; max-width: 580px; z-index: 2;
+}
+.hero-badge {
+  display: inline-block; padding: 4px 12px; background: var(--accent);
+  border-radius: 4px; font-size: 11px; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 14px;
+}
+.hero-title {
+  font-family: var(--font-display); font-size: clamp(40px, 6vw, 72px);
+  letter-spacing: 2px; line-height: 1; margin-bottom: 14px;
+  text-shadow: 0 2px 40px rgba(0,0,0,0.5);
+}
+.hero-meta {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 14px; color: var(--text-secondary); margin-bottom: 14px;
+}
+.hero-meta .dot { width: 3px; height: 3px; background: var(--text-tertiary); border-radius: 50%; }
+.hero-rating { color: #fbbf24; font-weight: 600; }
+.hero-desc {
+  font-size: 15px; line-height: 1.6; color: rgba(255,255,255,0.7); font-weight: 300;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+  overflow: hidden; margin-bottom: 24px;
+}
+.hero-actions { display: flex; gap: 12px; }
+.btn-play, .btn-info {
+  padding: 12px 28px; border-radius: var(--radius-md); font-size: 15px; font-weight: 600;
+  cursor: pointer; font-family: var(--font-body); transition: all 0.25s;
+  border: none; display: flex; align-items: center; gap: 8px;
+}
+.btn-play { background: white; color: #111; }
+.btn-play:hover { transform: scale(1.03); box-shadow: 0 0 30px rgba(255,255,255,0.2); }
+.btn-info {
+  background: rgba(255,255,255,0.12); color: white;
+  backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1);
+}
+.btn-info:hover { background: rgba(255,255,255,0.18); }
+.hero-dots {
+  position: absolute; bottom: 4%; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 8px; z-index: 5;
+}
+.hero-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.2);
+  cursor: pointer; transition: all 0.3s; border: none;
+}
+.hero-dot.active { background: white; width: 24px; border-radius: 4px; }
+
+/* ===== MAIN CONTENT ===== */
+main { position: relative; z-index: 2; margin-top: -60px; padding-bottom: 80px; }
+
+.section {
+  margin-bottom: 48px; opacity: 0; transform: translateY(30px);
+  transition: opacity 0.7s, transform 0.7s;
+}
+.section.visible { opacity: 1; transform: none; }
+.section-header {
+  display: flex; align-items: baseline; gap: 12px;
+  padding: 0 40px; margin-bottom: 18px;
+}
+.section-title { font-family: var(--font-display); font-size: 28px; letter-spacing: 2px; }
+
+.carousel {
+  display: flex; gap: var(--carousel-gap); padding: 0 40px;
+  overflow-x: auto; scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none; cursor: grab;
+}
+.carousel::-webkit-scrollbar { display: none; }
+.carousel:active { cursor: grabbing; }
+
+.card {
+  flex-shrink: 0; width: 200px; scroll-snap-align: start;
+  transition: transform 0.35s; cursor: pointer;
+}
+.card:hover { transform: translateY(-8px); }
+.card-poster {
+  position: relative; width: 100%; aspect-ratio: 2/3;
+  border-radius: var(--radius-md); overflow: hidden;
+  background: var(--bg-secondary); box-shadow: var(--shadow-card);
+}
+.card-poster img {
+  width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s;
+  image-rendering: -webkit-optimize-contrast;
+}
+.card:hover .card-poster img { transform: scale(1.06); }
+.card-poster .card-rating {
+  position: absolute; top: 10px; right: 10px;
+  background: rgba(0,0,0,0.65); backdrop-filter: blur(8px);
+  padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; color: #fbbf24;
+}
+.card-poster .card-type-badge {
+  position: absolute; top: 10px; left: 10px; padding: 2px 8px; border-radius: 4px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+}
+.badge-movie { background: #6366f1; }
+.badge-tv { background: #10b981; }
+.badge-anime { background: #f43f5e; }
+.card-info { padding: 10px 2px 0; }
+.card-title { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-sub { font-size: 12px; color: var(--text-secondary); margin-top: 3px; }
+
+.card-wide { width: 340px; }
+.card-wide .card-poster { aspect-ratio: 16/9; }
+
+/* ===== DETAIL MODAL ===== */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 3000;
+  background: rgba(0,0,0,0.75); backdrop-filter: blur(10px);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 40px; overflow-y: auto;
+  opacity: 0; visibility: hidden; transition: opacity 0.35s, visibility 0.35s;
+}
+.modal-overlay.open { opacity: 1; visibility: visible; }
+.modal {
+  width: min(880px, 100%); background: var(--bg-secondary);
+  border-radius: var(--radius-xl); overflow: hidden;
+  transform: translateY(30px) scale(0.96);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.modal-overlay.open .modal { transform: none; }
+.modal-backdrop-wrap { position: relative; width: 100%; aspect-ratio: 16/9; overflow: hidden; }
+.modal-backdrop {
+  width: 100%; height: 100%; object-fit: cover;
+  image-rendering: -webkit-optimize-contrast;
+}
+.modal-backdrop-fade {
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, transparent 30%, var(--bg-secondary) 100%);
+}
+.modal-close {
+  position: absolute; top: 16px; right: 16px; width: 36px; height: 36px;
+  border-radius: 50%; background: rgba(0,0,0,0.5); backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.1); color: white; font-size: 18px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+}
+.modal-close:hover { background: rgba(255,255,255,0.15); }
+.modal-body { padding: 0 36px 36px; margin-top: -40px; position: relative; }
+.modal-title { font-family: var(--font-display); font-size: 42px; letter-spacing: 2px; margin-bottom: 12px; }
+.modal-meta {
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+  margin-bottom: 16px; font-size: 14px; color: var(--text-secondary);
+}
+.modal-meta .rating { color: #fbbf24; font-weight: 600; }
+.modal-meta .sep { color: var(--text-tertiary); }
+.modal-genres { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+.genre-tag {
+  padding: 5px 14px; border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.12);
+  font-size: 12px; color: var(--text-secondary); font-weight: 500;
+}
+.modal-overview { font-size: 15px; line-height: 1.7; color: rgba(255,255,255,0.7); font-weight: 300; margin-bottom: 28px; }
+.modal-section-title { font-family: var(--font-display); font-size: 22px; letter-spacing: 1.5px; margin-bottom: 14px; }
+.modal-cast {
+  display: flex; gap: 16px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none;
+}
+.modal-cast::-webkit-scrollbar { display: none; }
+.cast-card { flex-shrink: 0; text-align: center; width: 80px; }
+.cast-avatar {
+  width: 64px; height: 64px; border-radius: 50%; object-fit: cover;
+  background: var(--bg-card); margin-bottom: 6px;
+  image-rendering: -webkit-optimize-contrast;
+}
+.cast-name { font-size: 11px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cast-role { font-size: 10px; color: var(--text-tertiary); }
+
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-secondary) 25%, rgba(255,255,255,0.06) 50%, var(--bg-secondary) 75%);
+  background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: var(--radius-md);
+}
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.spinner {
+  width: 32px; height: 32px; border: 3px solid rgba(255,255,255,0.08);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin 0.8s linear infinite; margin: 40px auto;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+footer {
+  text-align: center; padding: 40px; color: var(--text-tertiary);
+  font-size: 13px; border-top: 1px solid rgba(255,255,255,0.04);
+}
+
+@media (max-width: 768px) {
+  nav { padding: 0 20px; }
+  .nav-tabs { margin-left: 16px; }
+  .nav-tab { padding: 6px 12px; font-size: 12px; }
+  .hero-content { left: 20px; max-width: 85%; }
+  .hero-title { font-size: 36px; }
+  .section-header, .carousel { padding-left: 20px; padding-right: 20px; }
+  .card { width: 150px; }
+  .card-wide { width: 280px; }
+  .modal-overlay { padding: 20px; }
+  .modal-body { padding: 0 24px 24px; }
+  .modal-title { font-size: 30px; }
+}
+@media (max-width: 480px) {
+  .nav-tabs { display: none; }
+  .card { width: 130px; }
+  .card-wide { width: 260px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Setup Screen -->
+<div class="setup-screen" id="setupScreen">
+  <div class="setup-card">
+    <div class="setup-logo">CINEVERSE</div>
+    <p class="setup-sub">全球影视浏览器 — 探索电影、剧集与动漫</p>
+    <input class="setup-input" id="apiKeyInput" type="text" placeholder="输入你的 TMDB API Key" autocomplete="off">
+    <button class="setup-btn" id="setupBtn">开始探索</button>
+    <p class="setup-error" id="setupError">API Key 无效，请检查后重试</p>
+    <p class="setup-hint">
+      前往 <a href="https://www.themoviedb.org/settings/api" target="_blank">themoviedb.org</a> 免费注册获取 API Key<br>
+      注册后在 Settings &rarr; API 中复制 API Key (v3 auth)
+    </p>
+  </div>
+</div>
+
+<!-- Nav -->
+<nav id="nav">
+  <div class="nav-brand" id="navBrand">CINEVERSE</div>
+  <div class="nav-tabs" id="navTabs">
+    <button class="nav-tab active" data-type="all">全部</button>
+    <button class="nav-tab" data-type="movie">电影</button>
+    <button class="nav-tab" data-type="tv">剧集</button>
+    <button class="nav-tab" data-type="anime">动漫</button>
+  </div>
+  <div class="nav-spacer"></div>
+  <button class="nav-search-btn" id="searchBtn" title="搜索 (Ctrl+K)">&#128269;</button>
+</nav>
+
+<!-- Search Overlay -->
+<div class="search-overlay" id="searchOverlay">
+  <div class="search-bar-wrap">
+    <span class="search-icon">&#128269;</span>
+    <input class="search-input" id="searchInput" type="text" placeholder="搜索电影、剧集、动漫…">
+    <button class="search-close" id="searchClose">ESC</button>
+  </div>
+  <div class="search-results" id="searchResults"></div>
+</div>
+
+<!-- Hero -->
+<section class="hero" id="hero">
+  <div class="hero-dots" id="heroDots"></div>
+</section>
+
+<!-- Main Content -->
+<main id="mainContent"></main>
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modal">
+    <div class="modal-backdrop-wrap">
+      <img class="modal-backdrop" id="modalBackdrop" src="" alt="">
+      <div class="modal-backdrop-fade"></div>
+      <button class="modal-close" id="modalClose">&#10005;</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<footer>CineVerse — 数据来源 TMDB · 仅供浏览学习使用</footer>
+
+<script>
+(function() {
+  'use strict';
+
+  const IMG_BASE = 'https://image.tmdb.org/t/p/';
+  const API_BASE = 'https://api.themoviedb.org/3';
+  let API_KEY = localStorage.getItem('tmdb_api_key') || '';
+  let currentType = 'all';
+  let heroSlides = [];
+  let heroIndex = 0;
+  let heroTimer = null;
+  let genreMap = {};
+  let searchTimer = null;
+
+  // ===== UTILS =====
+  function esc(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.textContent;
+  }
+
+  function el(tag, attrs, children) {
+    const node = document.createElement(tag);
+    if (attrs) {
+      Object.entries(attrs).forEach(([k, v]) => {
+        if (k === 'className') node.className = v;
+        else if (k.startsWith('on')) node.addEventListener(k.slice(2).toLowerCase(), v);
+        else node.setAttribute(k, v);
+      });
+    }
+    if (typeof children === 'string') node.textContent = children;
+    else if (Array.isArray(children)) children.forEach(c => { if (c) node.appendChild(c); });
+    else if (children instanceof Node) node.appendChild(children);
+    return node;
+  }
+
+  // Use highest quality images — original for backdrops, w780 for posters
+  function posterURL(path) {
+    return path ? IMG_BASE + 'w780' + path : 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><rect fill="#222" width="200" height="300"/><text fill="#555" x="100" y="150" text-anchor="middle" font-size="14">No Image</text></svg>');
+  }
+  function backdropURL(path, size) {
+    return path ? IMG_BASE + (size || 'original') + path : '';
+  }
+
+  // ===== SETUP =====
+  const setupScreen = document.getElementById('setupScreen');
+  const apiKeyInput = document.getElementById('apiKeyInput');
+  const setupBtn = document.getElementById('setupBtn');
+  const setupError = document.getElementById('setupError');
+
+  if (API_KEY) {
+    setupScreen.classList.add('hidden');
+    init();
+  } else {
+    apiKeyInput.focus();
+  }
+
+  setupBtn.addEventListener('click', async function() {
+    const key = apiKeyInput.value.trim();
+    if (!key) return;
+    setupBtn.textContent = '验证中…';
+    try {
+      const res = await fetch(API_BASE + '/configuration?api_key=' + encodeURIComponent(key));
+      if (!res.ok) throw new Error();
+      API_KEY = key;
+      localStorage.setItem('tmdb_api_key', key);
+      setupScreen.classList.add('hidden');
+      init();
+    } catch(_e) {
+      setupError.style.display = 'block';
+      setupBtn.textContent = '开始探索';
+    }
+  });
+
+  apiKeyInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') setupBtn.click(); });
+
+  // ===== API =====
+  async function tmdb(endpoint, params) {
+    const url = new URL(API_BASE + endpoint);
+    url.searchParams.set('api_key', API_KEY);
+    url.searchParams.set('language', 'zh-CN');
+    if (params) Object.entries(params).forEach(function(kv) { url.searchParams.set(kv[0], kv[1]); });
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('TMDB Error: ' + res.status);
+    return res.json();
+  }
+
+  // ===== INIT =====
+  async function init() {
+    const results = await Promise.all([tmdb('/genre/movie/list'), tmdb('/genre/tv/list')]);
+    results[0].genres.concat(results[1].genres).forEach(function(g) { genreMap[g.id] = g.name; });
+    loadContent();
+    setupNav();
+    setupSearch();
+    setupScrollObserver();
+  }
+
+  async function loadContent() {
+    var main = document.getElementById('mainContent');
+    main.textContent = '';
+    loadHero();
+    var sections = getSections();
+    sections.forEach(function(sec) {
+      var secEl = createSectionEl(sec.title, sec.id);
+      main.appendChild(secEl);
+      loadSection(sec, secEl);
+    });
+  }
+
+  function getSections() {
+    var base = [];
+    if (currentType === 'all' || currentType === 'movie') {
+      base.push(
+        { id: 'trending_movie', title: '🔥 热门电影', endpoint: '/trending/movie/week' },
+        { id: 'upcoming', title: '📅 即将上映', endpoint: '/movie/upcoming', wide: true },
+        { id: 'cn_movie', title: '🇨🇳 华语电影', endpoint: '/discover/movie', params: { with_origin_country: 'CN', sort_by: 'popularity.desc' } },
+        { id: 'top_movie', title: '⭐ 最高评分电影', endpoint: '/movie/top_rated' },
+        { id: 'now_playing', title: '🎬 正在热映', endpoint: '/movie/now_playing' }
+      );
+    }
+    if (currentType === 'all' || currentType === 'tv') {
+      base.push(
+        { id: 'trending_tv', title: '📺 热门剧集', endpoint: '/trending/tv/week' },
+        { id: 'cn_tv', title: '🇨🇳 华语剧集', endpoint: '/discover/tv', params: { with_origin_country: 'CN', sort_by: 'popularity.desc' } },
+        { id: 'jp_tv', title: '🇯🇵 日剧', endpoint: '/discover/tv', params: { with_origin_country: 'JP', sort_by: 'popularity.desc' } },
+        { id: 'top_tv', title: '⭐ 最高评分剧集', endpoint: '/tv/top_rated' },
+        { id: 'airing', title: '📡 正在播出', endpoint: '/tv/airing_today' }
+      );
+    }
+    if (currentType === 'all' || currentType === 'anime') {
+      base.push(
+        { id: 'anime_pop', title: '🎌 热门动漫', endpoint: '/discover/tv', params: { with_genres: '16', with_origin_country: 'JP', sort_by: 'popularity.desc' } },
+        { id: 'anime_top', title: '⭐ 高分动漫', endpoint: '/discover/tv', params: { with_genres: '16', with_origin_country: 'JP', sort_by: 'vote_average.desc', 'vote_count.gte': '100' } },
+        { id: 'cn_anime', title: '🇨🇳 国产动画', endpoint: '/discover/tv', params: { with_genres: '16', with_origin_country: 'CN', sort_by: 'popularity.desc' } },
+        { id: 'anime_movie', title: '🎬 动画电影', endpoint: '/discover/movie', params: { with_genres: '16', sort_by: 'popularity.desc' } }
+      );
+    }
+    return base;
+  }
+
+  // ===== HERO =====
+  async function loadHero() {
+    try {
+      var data;
+      if (currentType === 'anime') data = await tmdb('/discover/tv', { with_genres: '16', with_origin_country: 'JP', sort_by: 'popularity.desc' });
+      else if (currentType === 'movie') data = await tmdb('/trending/movie/week');
+      else if (currentType === 'tv') data = await tmdb('/trending/tv/week');
+      else data = await tmdb('/trending/all/week');
+
+      heroSlides = data.results.filter(function(m) { return m.backdrop_path; }).slice(0, 6);
+      renderHero();
+    } catch(e) { console.error('Hero load error:', e); }
+  }
+
+  function renderHero() {
+    var hero = document.getElementById('hero');
+    var dots = document.getElementById('heroDots');
+    hero.querySelectorAll('.hero-slide').forEach(function(s) { s.remove(); });
+    dots.textContent = '';
+
+    heroSlides.forEach(function(item, i) {
+      var mediaType = item.media_type || (item.title ? 'movie' : 'tv');
+      var title = esc(item.title || item.name);
+      var date = item.release_date || item.first_air_date || '';
+      var year = date ? date.split('-')[0] : '';
+      var rating = item.vote_average ? item.vote_average.toFixed(1) : '';
+      var genreNames = (item.genre_ids || []).slice(0, 3).map(function(id) { return genreMap[id] || ''; }).filter(Boolean);
+
+      var slide = el('div', { className: 'hero-slide' + (i === 0 ? ' active' : '') });
+
+      var img = el('img', { className: 'hero-backdrop', src: backdropURL(item.backdrop_path, 'original'), alt: title, loading: i === 0 ? 'eager' : 'lazy' });
+      slide.appendChild(img);
+      slide.appendChild(el('div', { className: 'hero-overlay' }));
+      slide.appendChild(el('div', { className: 'hero-side-fade' }));
+
+      var content = el('div', { className: 'hero-content' });
+      var badgeText = mediaType === 'movie' ? '电影' : mediaType === 'tv' ? '剧集' : '热门';
+      content.appendChild(el('span', { className: 'hero-badge' }, badgeText));
+
+      var h1 = el('h1', { className: 'hero-title' }, title);
+      content.appendChild(h1);
+
+      var meta = el('div', { className: 'hero-meta' });
+      if (rating) {
+        meta.appendChild(el('span', { className: 'hero-rating' }, '\u2605 ' + rating));
+        meta.appendChild(el('span', { className: 'dot' }));
+      }
+      if (year) meta.appendChild(el('span', null, year));
+      if (genreNames.length) {
+        meta.appendChild(el('span', { className: 'dot' }));
+        meta.appendChild(el('span', null, genreNames.join(' / ')));
+      }
+      content.appendChild(meta);
+
+      if (item.overview) {
+        content.appendChild(el('p', { className: 'hero-desc' }, esc(item.overview)));
+      }
+
+      var actions = el('div', { className: 'hero-actions' });
+      var detailBtn = el('button', {
+        className: 'btn-info',
+        onClick: (function(id, mt) { return function() { openDetail(id, mt); }; })(item.id, mediaType)
+      }, '\u2139\uFE0F 详情');
+      actions.appendChild(detailBtn);
+      content.appendChild(actions);
+      slide.appendChild(content);
+      hero.insertBefore(slide, dots);
+
+      var dot = el('button', {
+        className: 'hero-dot' + (i === 0 ? ' active' : ''),
+        onClick: (function(idx) { return function() { goHero(idx); }; })(i)
+      });
+      dots.appendChild(dot);
+    });
+
+    clearInterval(heroTimer);
+    heroTimer = setInterval(function() { goHero((heroIndex + 1) % heroSlides.length); }, 7000);
+  }
+
+  function goHero(i) {
+    heroIndex = i;
+    document.querySelectorAll('.hero-slide').forEach(function(s, idx) { s.classList.toggle('active', idx === i); });
+    document.querySelectorAll('.hero-dot').forEach(function(d, idx) { d.classList.toggle('active', idx === i); });
+  }
+
+  // ===== SECTIONS =====
+  function createSectionEl(title, id) {
+    var sec = el('section', { className: 'section', id: 'section-' + id });
+    var header = el('div', { className: 'section-header' });
+    header.appendChild(el('h2', { className: 'section-title' }, title));
+    sec.appendChild(header);
+
+    var carousel = el('div', { className: 'carousel', id: 'carousel-' + id });
+    for (var k = 0; k < 8; k++) {
+      var placeholder = el('div', { className: 'card' });
+      var ph = el('div', { className: 'card-poster skeleton', style: 'aspect-ratio:2/3' });
+      placeholder.appendChild(ph);
+      carousel.appendChild(placeholder);
+    }
+    sec.appendChild(carousel);
+    return sec;
+  }
+
+  async function loadSection(sec, secEl) {
+    try {
+      var data = await tmdb(sec.endpoint, sec.params || {});
+      var carousel = secEl.querySelector('.carousel');
+      carousel.textContent = '';
+      data.results.forEach(function(item) {
+        carousel.appendChild(createCard(item, sec.wide));
+      });
+      setupDragScroll(carousel);
+    } catch(e) { console.error('Section ' + sec.id + ' error:', e); }
+  }
+
+  function createCard(item, wide) {
+    var mediaType = item.media_type || (item.title ? 'movie' : (item.genre_ids && item.genre_ids.includes(16) ? 'anime' : 'tv'));
+    var title = esc(item.title || item.name);
+    var date = item.release_date || item.first_air_date || '';
+    var year = date ? date.split('-')[0] : '';
+    var rating = item.vote_average ? item.vote_average.toFixed(1) : '';
+    var imgSrc = wide ? backdropURL(item.backdrop_path) : posterURL(item.poster_path);
+
+    var card = el('div', {
+      className: 'card' + (wide ? ' card-wide' : ''),
+      onClick: (function(id, mt) { return function() { openDetail(id, mt === 'anime' ? 'tv' : mt); }; })(item.id, mediaType)
+    });
+
+    var poster = el('div', { className: 'card-poster' });
+    poster.appendChild(el('img', { src: imgSrc, alt: title, loading: 'lazy' }));
+
+    if (rating > 0) poster.appendChild(el('span', { className: 'card-rating' }, '\u2605 ' + rating));
+
+    var isAnime = item.genre_ids && item.genre_ids.includes(16);
+    if (isAnime) poster.appendChild(el('span', { className: 'card-type-badge badge-anime' }, '动漫'));
+    else if (mediaType === 'movie') poster.appendChild(el('span', { className: 'card-type-badge badge-movie' }, '电影'));
+    else if (mediaType === 'tv') poster.appendChild(el('span', { className: 'card-type-badge badge-tv' }, '剧集'));
+
+    card.appendChild(poster);
+
+    var info = el('div', { className: 'card-info' });
+    info.appendChild(el('div', { className: 'card-title' }, title));
+    info.appendChild(el('div', { className: 'card-sub' }, year));
+    card.appendChild(info);
+
+    return card;
+  }
+
+  // ===== DETAIL MODAL =====
+  function openDetail(id, mediaType) {
+    var overlay = document.getElementById('modalOverlay');
+    var body = document.getElementById('modalBody');
+    var backdrop = document.getElementById('modalBackdrop');
+
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    body.textContent = '';
+    body.appendChild(el('div', { className: 'spinner' }));
+    backdrop.src = '';
+
+    Promise.all([
+      tmdb('/' + mediaType + '/' + id),
+      tmdb('/' + mediaType + '/' + id + '/credits')
+    ]).then(function(results) {
+      var detail = results[0];
+      var credits = results[1];
+
+      backdrop.src = backdropURL(detail.backdrop_path, 'original');
+
+      body.textContent = '';
+
+      var title = esc(detail.title || detail.name);
+      var date = detail.release_date || detail.first_air_date || '';
+      var year = date ? date.split('-')[0] : '';
+      var runtime = detail.runtime ? detail.runtime + ' 分钟' : detail.number_of_seasons ? detail.number_of_seasons + ' 季' : '';
+      var rating = detail.vote_average ? detail.vote_average.toFixed(1) : '';
+      var genres = (detail.genres || []).map(function(g) { return g.name; });
+      var cast = (credits.cast || []).slice(0, 12);
+      var statusMap = {
+        'Released': '已上映', 'Post Production': '后期制作', 'In Production': '制作中',
+        'Planned': '计划中', 'Canceled': '已取消', 'Rumored': '传闻',
+        'Returning Series': '连载中', 'Ended': '已完结', 'Pilot': '试播'
+      };
+      var statusText = statusMap[detail.status] || detail.status || '';
+
+      body.appendChild(el('h2', { className: 'modal-title' }, title));
+
+      var meta = el('div', { className: 'modal-meta' });
+      if (rating > 0) { meta.appendChild(el('span', { className: 'rating' }, '\u2605 ' + rating)); meta.appendChild(el('span', { className: 'sep' }, ' · ')); }
+      if (year) meta.appendChild(el('span', null, year));
+      if (runtime) { meta.appendChild(el('span', { className: 'sep' }, ' · ')); meta.appendChild(el('span', null, runtime)); }
+      if (statusText) { meta.appendChild(el('span', { className: 'sep' }, ' · ')); meta.appendChild(el('span', null, statusText)); }
+      if (detail.original_language) { meta.appendChild(el('span', { className: 'sep' }, ' · ')); meta.appendChild(el('span', null, detail.original_language.toUpperCase())); }
+      body.appendChild(meta);
+
+      if (genres.length) {
+        var genresDiv = el('div', { className: 'modal-genres' });
+        genres.forEach(function(g) { genresDiv.appendChild(el('span', { className: 'genre-tag' }, g)); });
+        body.appendChild(genresDiv);
+      }
+
+      body.appendChild(el('p', { className: 'modal-overview' }, esc(detail.overview) || '暂无简介'));
+
+      if (detail.tagline) {
+        var tagline = el('p', { style: 'color:var(--text-tertiary);font-style:italic;margin-bottom:24px;font-size:14px' });
+        tagline.textContent = '"' + detail.tagline + '"';
+        body.appendChild(tagline);
+      }
+
+      if (cast.length) {
+        body.appendChild(el('h3', { className: 'modal-section-title' }, '演员阵容'));
+        var castDiv = el('div', { className: 'modal-cast' });
+        cast.forEach(function(c) {
+          var card = el('div', { className: 'cast-card' });
+          card.appendChild(el('img', { className: 'cast-avatar', src: posterURL(c.profile_path), alt: esc(c.name), loading: 'lazy' }));
+          card.appendChild(el('div', { className: 'cast-name' }, esc(c.name)));
+          card.appendChild(el('div', { className: 'cast-role' }, esc(c.character || '')));
+          castDiv.appendChild(card);
+        });
+        body.appendChild(castDiv);
+      }
+    }).catch(function(e) {
+      body.textContent = '';
+      body.appendChild(el('p', { style: 'text-align:center;color:var(--text-secondary);padding:40px' }, '加载失败，请稍后重试'));
+      console.error(e);
+    });
+  }
+
+  document.getElementById('modalOverlay').addEventListener('click', function(e) {
+    if (e.target === e.currentTarget) closeModal();
+  });
+  document.getElementById('modalClose').addEventListener('click', closeModal);
+
+  function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  // ===== NAV =====
+  function setupNav() {
+    window.addEventListener('scroll', function() {
+      document.getElementById('nav').classList.toggle('scrolled', window.scrollY > 50);
+    }, { passive: true });
+
+    document.getElementById('navBrand').addEventListener('click', function() { window.scrollTo({ top: 0 }); });
+
+    document.querySelectorAll('.nav-tab').forEach(function(tab) {
+      tab.addEventListener('click', function() {
+        document.querySelectorAll('.nav-tab').forEach(function(t) { t.classList.remove('active'); });
+        tab.classList.add('active');
+        currentType = tab.dataset.type;
+        loadContent();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    });
+  }
+
+  // ===== SEARCH =====
+  function setupSearch() {
+    var overlay = document.getElementById('searchOverlay');
+    var input = document.getElementById('searchInput');
+    var resultsEl = document.getElementById('searchResults');
+
+    resultsEl.textContent = '';
+    resultsEl.appendChild(el('div', { className: 'search-empty' }, '输入关键词搜索全球影视内容'));
+
+    document.getElementById('searchBtn').addEventListener('click', function() {
+      overlay.classList.add('open');
+      input.focus();
+    });
+
+    document.getElementById('searchClose').addEventListener('click', function() {
+      overlay.classList.remove('open');
+      input.value = '';
+    });
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && overlay.classList.contains('open')) {
+        overlay.classList.remove('open');
+        input.value = '';
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        overlay.classList.add('open');
+        input.focus();
+      }
+    });
+
+    input.addEventListener('input', function() {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(function() { doSearch(input.value.trim()); }, 350);
+    });
+  }
+
+  async function doSearch(query) {
+    var container = document.getElementById('searchResults');
+    if (!query) {
+      container.textContent = '';
+      container.appendChild(el('div', { className: 'search-empty' }, '输入关键词搜索全球影视内容'));
+      return;
+    }
+    container.textContent = '';
+    container.appendChild(el('div', { className: 'spinner' }));
+
+    try {
+      var data = await tmdb('/search/multi', { query: query });
+      var results = data.results.filter(function(r) { return r.media_type === 'movie' || r.media_type === 'tv'; });
+
+      container.textContent = '';
+      if (!results.length) {
+        container.appendChild(el('div', { className: 'search-empty' }, '未找到 "' + esc(query) + '" 的相关结果'));
+        return;
+      }
+
+      var grid = el('div', { className: 'search-results-grid' });
+      results.forEach(function(item) { grid.appendChild(createCard(item)); });
+      container.appendChild(grid);
+    } catch(_e) {
+      container.textContent = '';
+      container.appendChild(el('div', { className: 'search-empty' }, '搜索出错，请稍后重试'));
+    }
+  }
+
+  // ===== DRAG SCROLL =====
+  function setupDragScroll(carousel) {
+    var isDown = false, startX = 0, scrollLeft = 0;
+    carousel.addEventListener('mousedown', function(e) {
+      isDown = true; startX = e.pageX - carousel.offsetLeft; scrollLeft = carousel.scrollLeft;
+    });
+    carousel.addEventListener('mouseleave', function() { isDown = false; });
+    carousel.addEventListener('mouseup', function() { isDown = false; });
+    carousel.addEventListener('mousemove', function(e) {
+      if (!isDown) return;
+      e.preventDefault();
+      carousel.scrollLeft = scrollLeft - (e.pageX - carousel.offsetLeft - startX) * 1.5;
+    });
+  }
+
+  // ===== SCROLL OBSERVER =====
+  function setupScrollObserver() {
+    var observer = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) { if (entry.isIntersecting) entry.target.classList.add('visible'); });
+    }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+    new MutationObserver(function() {
+      document.querySelectorAll('.section:not(.visible)').forEach(function(s) { observer.observe(s); });
+    }).observe(document.getElementById('mainContent'), { childList: true });
+  }
+
+})();
+</script>
+</body>
+</html>
