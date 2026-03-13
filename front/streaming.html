@@ -5,7 +5,6 @@
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CoCo - 影视聚合</title>
-<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -446,7 +445,7 @@ footer {
     <button class="player-close-btn" id="playerClose">&times;</button>
   </div>
   <div class="player-video-wrap" id="playerVideoWrap">
-    <video id="playerVideo" controls playsinline></video>
+    <iframe id="playerFrame" allowfullscreen style="width:100%;height:100%;border:none;background:#000"></iframe>
   </div>
   <div class="player-bottom">
     <div class="source-info" id="sourceInfo"></div>
@@ -802,8 +801,8 @@ footer {
   }
 
   // ===== PLAYER =====
-  var hlsInstance = null;
   var currentEpisodes = [];
+  var PLAYER_API = 'https://jx.xmflv.com/?url=';
 
   function searchAndPlay(title) {
     var overlay = document.getElementById('playerOverlay');
@@ -814,6 +813,7 @@ footer {
     overlay.classList.add('open');
     epList.textContent = '';
     srcInfo.textContent = '搜索中...';
+    document.getElementById('playerFrame').src = '';
 
     var loadDiv = el('div', { className: 'player-loading', id: 'playerLoading' });
     loadDiv.appendChild(el('div', { className: 'spinner' }));
@@ -854,40 +854,18 @@ footer {
   }
 
   function playEpisode(url, idx) {
-    var video = document.getElementById('playerVideo');
+    var frame = document.getElementById('playerFrame');
     var epBtns = document.querySelectorAll('.ep-btn');
     epBtns.forEach(function(b, i) { b.classList.toggle('active', i === idx); });
-
-    if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
-
     if (!url) return;
-
-    if (url.includes('.m3u8')) {
-      if (Hls.isSupported()) {
-        hlsInstance = new Hls();
-        hlsInstance.loadSource(url);
-        hlsInstance.attachMedia(video);
-        hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() { video.play(); });
-        hlsInstance.on(Hls.Events.ERROR, function(evt, data) {
-          if (data.fatal) console.error('HLS error:', data);
-        });
-      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = url;
-        video.addEventListener('loadedmetadata', function() { video.play(); }, { once: true });
-      }
-    } else {
-      video.src = url;
-      video.play();
-    }
+    // Use iframe player to handle m3u8
+    frame.src = PLAYER_API + encodeURIComponent(url);
   }
 
   function closePlayer() {
     var overlay = document.getElementById('playerOverlay');
-    var video = document.getElementById('playerVideo');
     overlay.classList.remove('open');
-    video.pause();
-    video.removeAttribute('src');
-    if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
+    document.getElementById('playerFrame').src = '';
     var ld = document.getElementById('playerLoading');
     if (ld) ld.remove();
   }
