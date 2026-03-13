@@ -274,12 +274,56 @@ VIDEO_SOURCES = [
 _HD_KEYWORDS = ['1080', 'hd', '超清', '蓝光', '4k', 'uhd', 'ffm3u8', 'feifan']
 
 
-def _normalize_query(query):
-    """Normalize search query: strip season numbers like '2' → search base title."""
+_CN_NUM = {'一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10}
+
+def _extract_season(query):
+    """Extract base title and season number from query like '剑来2' → ('剑来', 2)."""
     q = query.strip()
-    # Remove trailing Arabic numerals or common season markers
-    q = re.sub(r'\s*[第]?[0-9一二三四五六七八九十]+[季部]?\s*$', '', q)
-    return q if q else query.strip()
+    # Match trailing season: "剑来2", "剑来第二季", "剑来 第2部"
+    m = re.search(r'\s*[第]?([0-9一二三四五六七八九十]+)[季部]?\s*$', q)
+    if m:
+        num_str = m.group(1)
+        base = q[:m.start()]
+        if num_str in _CN_NUM:
+            season = _CN_NUM[num_str]
+        else:
+            try:
+                season = int(num_str)
+            except ValueError:
+                season = 0
+        return (base if base else q, season)
+    return (q, 0)
+
+
+def _title_season_score(title, base_query, target_season):
+    """Score how well a title matches the target season. Higher = better match."""
+    if not target_season:
+        return 0
+    t = title.lower()
+    # Check for season indicators in title
+    season_patterns = [
+        (rf'第{target_season}季', 10),
+        (rf'第{target_season}部', 10),
+    ]
+    # Chinese numeral version
+    cn_reverse = {v: k for k, v in _CN_NUM.items()}
+    if target_season in cn_reverse:
+        cn = cn_reverse[target_season]
+        season_patterns.append((rf'第{cn}季', 10))
+        season_patterns.append((rf'第{cn}部', 10))
+    # "剑来第二季" style
+    season_patterns.append((rf'{re.escape(base_query)}第.季', 8))
+    season_patterns.append((rf'{re.escape(base_query)}第.部', 8))
+
+    for pat, score in season_patterns:
+        if re.search(pat, title):
+            return score
+
+    # If title is exactly the base (no season marker) = likely season 1
+    if title == base_query or title == base_query + '第一季':
+        return -5 if target_season != 1 else 5
+
+    return 0
 
 
 def _pick_best_episodes(play_urls, play_from=''):
@@ -316,7 +360,8 @@ def _pick_best_episodes(play_urls, play_from=''):
 
 def video_search(query):
     """Search across video sources, skip m3u8 validation to avoid timeout."""
-    search_query = _normalize_query(query)
+    base_query, target_season = _extract_season(query)
+    search_query = base_query
     all_results = []
     for src in VIDEO_SOURCES:
         try:
@@ -354,9 +399,8 @@ def video_search(query):
     filtered = []
     for r in all_results:
         t = r['title']
-        if search_query in t or t in search_query or any(w in t for w in search_query if len(w) > 1):
+        if search_query in t or t in search_query:
             filtered.append(r)
-    # If filtering removed everything, keep all results
     if not filtered:
         filtered = all_results
 
@@ -370,8 +414,12 @@ def video_search(query):
             seen_titles[t] = (r, q)
     deduped = [v[0] for v in seen_titles.values()]
 
-    # Sort: quality first, then hits
-    deduped.sort(key=lambda x: (quality_rank.get(x.get('quality', ''), 2), x.get('hits', 0)), reverse=True)
+    # Sort: season match first, then quality, then hits
+    deduped.sort(key=lambda x: (
+        _title_season_score(x['title'], base_query, target_season),
+        quality_rank.get(x.get('quality', ''), 2),
+        x.get('hits', 0)
+    ), reverse=True)
     return deduped
 
 
