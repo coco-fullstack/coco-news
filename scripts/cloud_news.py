@@ -448,26 +448,86 @@ def fetch_news() -> list[dict]:
 
 STYLE = """<style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,'Helvetica Neue','PingFang SC','Hiragino Sans',sans-serif;background:#f5f5f7;color:#1d1d1f;padding:16px;-webkit-font-smoothing:antialiased}
-.c{max-width:560px;margin:0 auto;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 1px 8px rgba(0,0,0,.06)}
-.hd{padding:28px 24px 16px}
-.hd h1{font-size:20px;font-weight:600;letter-spacing:-.3px}
-.hd .t{font-size:12px;color:#86868b;margin-top:2px}
-.s{padding:16px 24px;border-top:1px solid #f0f0f2}
-.st{font-size:10px;font-weight:600;color:#86868b;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:10px}
-.r{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:13px;line-height:1.4}
-.r .l{color:#424245}.r .v{font-weight:500;font-variant-numeric:tabular-nums;text-align:right}
-.up{color:#34c759}.dn{color:#ff3b30}.nt{color:#86868b}
-.tg{display:inline-block;font-size:10px;font-weight:500;padding:2px 7px;border-radius:4px;margin-left:4px}
-.tg-r{background:#fff0f0;color:#ff3b30}.tg-b{background:#f0f8ff;color:#007aff}
-.tg-g{background:#f0faf0;color:#34c759}.tg-y{background:#fffbf0;color:#ff9500}
-.dv{height:1px;background:#f0f0f2;margin:3px 0}
-.ab{margin:6px 0;padding:10px 14px;border-radius:10px;font-size:12px;line-height:1.5}
-.ab-d{background:#fff5f5;border:1px solid #ffe0e0}.ab-i{background:#f0f8ff;border:1px solid #d0e8ff}
-.sb{background:#f5f5f7;border-radius:10px;padding:12px 14px;margin-top:8px;font-size:12px;line-height:1.7;color:#424245}
-.ni{padding:8px 12px;border-left:2px solid #d2d2d7;margin:6px 0;font-size:12px;line-height:1.5}
-.ni a{color:#0066cc;text-decoration:none}.ni .sm{color:#86868b;font-size:11px}
-.ft{padding:14px 24px;text-align:center;font-size:10px;color:#c7c7cc;border-top:1px solid #f0f0f2}
+body{
+  font-family:-apple-system,'SF Pro Display','Helvetica Neue','PingFang SC',sans-serif;
+  background:linear-gradient(160deg,#f8f9fe 0%,#f0f2f8 100%);
+  color:#1d1d1f;padding:24px 16px;
+  -webkit-font-smoothing:antialiased
+}
+.c{
+  max-width:560px;margin:0 auto;
+  background:rgba(255,255,255,0.92);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-radius:24px;overflow:hidden;
+  border:1px solid rgba(255,255,255,0.6);
+  box-shadow:0 4px 24px rgba(0,0,0,0.04),0 1px 2px rgba(0,0,0,0.02)
+}
+.hd{
+  padding:36px 32px 20px;
+  background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+  color:#fff
+}
+.hd h1{font-size:22px;font-weight:700;letter-spacing:-.5px;margin-bottom:4px}
+.hd .sub{font-size:11px;opacity:0.7;font-weight:400;letter-spacing:.5px}
+.hd .t{font-size:12px;opacity:0.85;margin-top:8px;font-variant-numeric:tabular-nums}
+.s{padding:24px 32px;border-top:1px solid rgba(0,0,0,0.04)}
+.st{
+  font-size:10px;font-weight:600;color:#8e8e93;
+  text-transform:uppercase;letter-spacing:1.5px;
+  margin-bottom:14px;
+  display:flex;align-items:center;gap:6px
+}
+.st::before{
+  content:'';display:inline-block;width:3px;height:12px;
+  border-radius:2px;background:linear-gradient(180deg,#667eea,#764ba2)
+}
+.r{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:8px 0;font-size:13px;line-height:1.4
+}
+.r .l{color:#48484a;font-weight:400}
+.r .v{font-weight:600;font-variant-numeric:tabular-nums;text-align:right;letter-spacing:-.2px}
+.up{color:#30d158}.dn{color:#ff453a}.nt{color:#8e8e93}
+.tg{
+  display:inline-block;font-size:9px;font-weight:600;
+  padding:3px 8px;border-radius:6px;margin-left:6px;
+  letter-spacing:.3px;text-transform:uppercase
+}
+.tg-r{background:rgba(255,69,58,0.08);color:#ff453a}
+.tg-b{background:rgba(0,122,255,0.08);color:#007aff}
+.tg-g{background:rgba(48,209,88,0.08);color:#30d158}
+.tg-y{background:rgba(255,159,10,0.08);color:#ff9f0a}
+.dv{height:1px;background:rgba(0,0,0,0.04);margin:6px 0}
+.ab{
+  margin:8px 0;padding:14px 16px;border-radius:14px;
+  font-size:12px;line-height:1.6
+}
+.ab-d{background:rgba(255,69,58,0.05);border:1px solid rgba(255,69,58,0.12)}
+.ab-i{background:rgba(0,122,255,0.05);border:1px solid rgba(0,122,255,0.12)}
+.sb{
+  background:linear-gradient(135deg,rgba(102,126,234,0.04) 0%,rgba(118,75,162,0.04) 100%);
+  border:1px solid rgba(102,126,234,0.08);
+  border-radius:14px;padding:16px 18px;margin-top:10px;
+  font-size:12px;line-height:1.8;color:#48484a
+}
+.ni{
+  padding:12px 16px;margin:8px 0;font-size:12px;line-height:1.6;
+  background:rgba(0,0,0,0.015);border-radius:12px;
+  border-left:3px solid rgba(102,126,234,0.4)
+}
+.ni a{color:#667eea;text-decoration:none;font-weight:500}
+.ni a:hover{text-decoration:underline}
+.ni .sm{color:#8e8e93;font-size:11px;margin-top:2px;display:block}
+.ft{
+  padding:20px 32px;text-align:center;
+  font-size:10px;color:#c7c7cc;letter-spacing:.3px;
+  border-top:1px solid rgba(0,0,0,0.03)
+}
+.ft span{
+  background:linear-gradient(135deg,#667eea,#764ba2);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  font-weight:600
+}
 </style>"""
 
 
@@ -538,7 +598,7 @@ def build_daily_html(data: dict) -> str:
     h = f'<!DOCTYPE html><html><head><meta charset="utf-8">{STYLE}</head><body><div class="c">'
 
     # Header
-    h += f'<div class="hd"><h1>Market Digest</h1><p class="t">{d} · {t} CST</p></div>'
+    h += f'<div class="hd"><p class="sub">DAILY BRIEFING</p><h1>Market Digest</h1><p class="t">{d} · {t} CST</p></div>'
 
     # ── 一、资金面 ──
     h += '<div class="s"><p class="st">资金面</p>'
@@ -624,11 +684,12 @@ def build_daily_html(data: dict) -> str:
         h += f'<div class="r"><span class="l">空头清算</span><span class="v">{_mc(shorts)}</span></div>'
         # 多空比可视化
         bar_w = max(5, min(95, long_pct))
-        h += f'<div style="margin-top:6px;height:6px;background:#f0f0f2;border-radius:3px;overflow:hidden">'
-        h += f'<div style="width:{bar_w}%;height:100%;background:{"#ff3b30" if long_pct > 60 else "#34c759" if long_pct < 40 else "#86868b"};border-radius:3px"></div></div>'
-        h += f'<div class="r"><span class="l" style="font-size:11px">多头 {long_pct:.0f}%</span><span class="v" style="font-size:11px">空头 {100-long_pct:.0f}%</span></div>'
+        bar_color = "linear-gradient(90deg,#ff453a,#ff6b6b)" if long_pct > 60 else "linear-gradient(90deg,#30d158,#4cd964)" if long_pct < 40 else "linear-gradient(90deg,#667eea,#764ba2)"
+        h += f'<div style="margin-top:10px;height:8px;background:rgba(0,0,0,0.04);border-radius:4px;overflow:hidden">'
+        h += f'<div style="width:{bar_w}%;height:100%;background:{bar_color};border-radius:4px;transition:width .3s"></div></div>'
+        h += f'<div class="r"><span class="l" style="font-size:11px;color:#8e8e93">Long {long_pct:.0f}%</span><span class="v" style="font-size:11px;color:#8e8e93">Short {100-long_pct:.0f}%</span></div>'
         if liq.get("source") == "binance_sample":
-            h += '<p style="font-size:10px;color:#c7c7cc;margin-top:2px">* Binance 样本估算</p>'
+            h += '<p style="font-size:10px;color:#c7c7cc;margin-top:4px;letter-spacing:.3px">* Binance sample estimate</p>'
         h += '</div>'
 
     # ── 五、行情一览 ──
@@ -684,7 +745,7 @@ def build_daily_html(data: dict) -> str:
     h += '</div>'
 
     # Footer
-    h += f'<div class="ft">GitHub Actions · {d}</div>'
+    h += f'<div class="ft">Powered by <span>Automated Intelligence</span> · {d}</div>'
     h += '</div></body></html>'
     return h
 
@@ -772,7 +833,7 @@ def build_alert_html(alerts: list[dict]) -> str:
     ts = now.strftime("%Y-%m-%d %H:%M")
 
     h = f'<!DOCTYPE html><html><head><meta charset="utf-8">{STYLE}</head><body><div class="c">'
-    h += f'<div class="hd"><h1 style="color:#ff3b30;">Alert</h1><p class="t">{ts} CST</p></div>'
+    h += f'<div class="hd" style="background:linear-gradient(135deg,#ff453a 0%,#ff6b6b 100%)"><p class="sub">TRIGGER ALERT</p><h1>Alert</h1><p class="t">{ts} CST</p></div>'
 
     for section in alerts:
         h += f'<div class="s"><p class="st">{section["title"]}</p>'
@@ -781,7 +842,7 @@ def build_alert_html(alerts: list[dict]) -> str:
             h += f'<div class="ab {cls}">{item}</div>'
         h += '</div>'
 
-    h += f'<div class="ft">GitHub Actions Alert · {ts}</div>'
+    h += f'<div class="ft">Powered by <span>Automated Intelligence</span> · {ts}</div>'
     h += '</div></body></html>'
     return h
 
