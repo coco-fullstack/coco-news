@@ -278,6 +278,213 @@ def fetch_rsi(coin_id: str = "bitcoin", days: int = 30) -> float | None:
     return calculate_rsi([p[1] for p in data["prices"]])
 
 
+# ── 多空持仓比 (Binance) ─────────────────────────────────────────
+
+def fetch_long_short_ratio() -> dict:
+    """Binance 全网多空持仓人数比"""
+    result = {}
+    for symbol in ["BTCUSDT", "ETHUSDT", "SOLUSDT"]:
+        url = f"https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol={symbol}&period=1h&limit=1"
+        data = fetch_json(url)
+        if data and len(data) > 0:
+            name = symbol.replace("USDT", "")
+            ratio = float(data[0].get("longShortRatio", 1))
+            long_pct = float(data[0].get("longAccount", 0.5)) * 100
+            result[name] = {"ratio": ratio, "long_pct": long_pct}
+    return result
+
+
+# ── Gas Fee (ETH) ────────────────────────────────────────────────
+
+def fetch_gas_fee() -> dict:
+    """获取 ETH Gas 费（通过公开 API）"""
+    # 方案1: Etherscan 免费端点（不需要 key 的 gas tracker）
+    data = fetch_json("https://api.etherscan.io/api?module=gastracker&action=gasoracle")
+    if data and data.get("status") == "1":
+        result = data.get("result", {})
+        return {
+            "low": int(result.get("SafeGasPrice", 0)),
+            "standard": int(result.get("ProposeGasPrice", 0)),
+            "fast": int(result.get("FastGasPrice", 0)),
+        }
+
+    # 方案2: 备用 - 通过 ETH RPC 粗略估算
+    rpc_data = fetch_json(
+        "https://ethereum-rpc.publicnode.com",
+    )
+    # 如果上面也失败，返回空
+    return {}
+
+
+# ── DeFi TVL (DeFiLlama) ────────────────────────────────────────
+
+def fetch_defi_tvl() -> dict:
+    """获取 DeFi 总 TVL 及主要协议"""
+    # 总 TVL
+    data = fetch_json("https://api.llama.fi/v2/historicalChainTvl")
+    if not data or len(data) < 2:
+        return {}
+    latest = data[-1]
+    prev = data[-2]
+    total_tvl = latest.get("tvl", 0)
+    prev_tvl = prev.get("tvl", 0)
+    change_pct = ((total_tvl - prev_tvl) / prev_tvl * 100) if prev_tvl > 0 else 0
+
+    result = {
+        "total_tvl": total_tvl,
+        "change_pct": change_pct,
+        "protocols": [],
+    }
+
+    # Top 协议 TVL
+    protocols = fetch_json("https://api.llama.fi/protocols")
+    if protocols:
+        top = sorted(protocols, key=lambda x: x.get("tvl", 0), reverse=True)[:5]
+        for p in top:
+            tvl = p.get("tvl", 0)
+            change_1d = p.get("change_1d", 0) or 0
+            result["protocols"].append({
+                "name": p.get("name", ""),
+                "tvl": tvl,
+                "change_1d": change_1d,
+            })
+
+    return result
+
+
+# ── 趋势评分系统 ─────────────────────────────────────────────────
+
+def calculate_trend_score(data: dict) -> int:
+    """综合所有指标计算 0-100 的市场趋势评分
+    50=中性, >70=偏多, <30=偏空
+    """
+    score = 50  # 基准分
+
+    # 恐贪指数 (权重大)
+    fng = data.get("fng", {}).get("value", 50)
+    if fng >= 70:
+        score += 10
+    elif fng >= 55:
+        score += 5
+    elif fng <= 25:
+        score -= 12
+    elif fng <= 40:
+        score -= 6
+
+    # BTC RSI
+    btc_rsi = data.get("btc_rsi")
+    if btc_rsi is not None:
+        if btc_rsi >= 70:
+            score += 8
+        elif btc_rsi >= 55:
+            score += 3
+        elif btc_rsi <= 30:
+            score -= 10
+        elif btc_rsi <= 40:
+            score -= 5
+
+    # BTC 24h 涨跌
+    btc = data.get("prices", {}).get("BTC", {})
+    btc_change = btc.get("change", 0)
+    if btc_change > 5:
+        score += 8
+    elif btc_change > 2:
+        score += 4
+    elif btc_change < -5:
+        score -= 8
+    elif btc_change < -2:
+        score -= 4
+
+    # 资金费率
+    funding = data.get("funding", {})
+    if funding:
+        avg_rate = sum(funding.values()) / len(funding)
+        if avg_rate > 0.05:
+            score -= 5  # 过热反而扣分
+        elif avg_rate > 0.01:
+            score += 3
+        elif avg_rate < -0.01:
+            score -= 5
+
+    # 稳定币流入
+    usdt = data.get("stablecoins", {}).get("USDT", {})
+    mcap_change = usdt.get("mcap_change_pct", 0)
+    if mcap_change > 0.5:
+        score += 5
+    elif mcap_change < -0.3:
+        score -= 5
+
+    # DeFi TVL
+    defi = data.get("defi_tvl", {})
+    tvl_change = defi.get("change_pct", 0)
+    if tvl_change > 2:
+        score += 4
+    elif tvl_change < -2:
+        score -= 4
+
+    # 多空比
+    ls = data.get("long_short", {}).get("BTC", {})
+    if ls:
+        if ls.get("long_pct", 50) > 65:
+            score -= 3  # 散户过度做多=反指标
+        elif ls.get("long_pct", 50) < 35:
+            score += 3  # 散户过度做空=反指标
+
+    # 清算
+    liq = data.get("liquidations", {})
+    if liq.get("total_24h", 0) >= LIQUIDATION_ALERT:
+        long_ratio = liq.get("long_ratio", 50)
+        if long_ratio > 60:
+            score -= 6  # 多头大清算=偏空
+        else:
+            score += 4  # 空头被清=偏多
+
+    return max(0, min(100, score))
+
+
+def trend_label(score: int) -> tuple[str, str]:
+    """返回趋势标签和 CSS class"""
+    if score >= 75:
+        return "Strong Bull", "g"
+    elif score >= 60:
+        return "Bullish", "g"
+    elif score >= 45:
+        return "Neutral", "b"
+    elif score >= 30:
+        return "Bearish", "y"
+    else:
+        return "Strong Bear", "r"
+
+
+# ── 历史数据归档 ─────────────────────────────────────────────────
+
+def archive_snapshot(data: dict):
+    """保存当日数据快照为 JSON"""
+    today = datetime.now(CST).strftime("%Y-%m-%d")
+    archive_dir = "data/snapshots"
+    os.makedirs(archive_dir, exist_ok=True)
+
+    snapshot = {
+        "date": today,
+        "timestamp": datetime.now(CST).isoformat(),
+        "btc_price": data.get("prices", {}).get("BTC", {}).get("price"),
+        "eth_price": data.get("prices", {}).get("ETH", {}).get("price"),
+        "fng": data.get("fng", {}).get("value"),
+        "btc_rsi": data.get("btc_rsi"),
+        "total_market_cap": data.get("global", {}).get("total_market_cap"),
+        "btc_dominance": data.get("global", {}).get("btc_dominance"),
+        "defi_tvl": data.get("defi_tvl", {}).get("total_tvl"),
+        "funding_btc": data.get("funding", {}).get("BTC"),
+        "liquidation_24h": data.get("liquidations", {}).get("total_24h"),
+        "trend_score": data.get("trend_score"),
+    }
+
+    filepath = os.path.join(archive_dir, f"{today}.json")
+    with open(filepath, "w", encoding="utf-8") as f:
+        json.dump(snapshot, f, ensure_ascii=False, indent=2)
+    print(f"[OK] 快照已保存: {filepath}")
+
+
 # ── 清算数据 (Coinglass) ──────────────────────────────────────────
 
 def fetch_liquidations() -> dict:
@@ -597,8 +804,11 @@ def build_daily_html(data: dict) -> str:
 
     h = f'<!DOCTYPE html><html><head><meta charset="utf-8">{STYLE}</head><body><div class="c">'
 
-    # Header
-    h += f'<div class="hd"><p class="sub">DAILY BRIEFING</p><h1>Market Digest</h1><p class="t">{d} · {t} CST</p></div>'
+    # Header + 趋势评分
+    score = data.get("trend_score", 50)
+    label, label_cls = trend_label(score)
+    h += f'<div class="hd"><p class="sub">DAILY BRIEFING</p><h1>Market Digest</h1>'
+    h += f'<p class="t">{d} · {t} CST &nbsp;&nbsp; Trend Score: {score}/100 · {label}</p></div>'
 
     # ── 一、资金面 ──
     h += '<div class="s"><p class="st">资金面</p>'
@@ -662,9 +872,36 @@ def build_daily_html(data: dict) -> str:
             else:
                 tag = _ftag("中性", "g")
             h += f'<div class="r"><span class="l">{sym} 资金费率</span><span class="v">{rate:.4f}% {tag}</span></div>'
+    # 多空持仓比
+    ls = data.get("long_short", {})
+    if ls:
+        h += '<div class="dv"></div>'
+        for sym in ["BTC", "ETH", "SOL"]:
+            if sym in ls:
+                lp = ls[sym]["long_pct"]
+                tag_cls = "r" if lp > 65 else "g" if lp < 35 else "b"
+                tag_text = "多头拥挤" if lp > 65 else "空头拥挤" if lp < 35 else "均衡"
+                h += f'<div class="r"><span class="l">{sym} 多空比</span><span class="v">L {lp:.0f}% / S {100-lp:.0f}% {_ftag(tag_text, tag_cls)}</span></div>'
     h += '</div>'
 
-    # ── 四、清算数据 ──
+    # ── 四、链上 & DeFi ──
+    gas = data.get("gas_fee", {})
+    defi = data.get("defi_tvl", {})
+    if gas or defi:
+        h += '<div class="s"><p class="st">链上 & DeFi</p>'
+        if gas and gas.get("standard"):
+            gas_tag = _ftag("拥堵", "r") if gas["fast"] > 50 else _ftag("正常", "g") if gas["standard"] < 20 else ""
+            h += f'<div class="r"><span class="l">ETH Gas</span><span class="v">{gas["low"]} / {gas["standard"]} / {gas["fast"]} Gwei {gas_tag}</span></div>'
+        if defi and defi.get("total_tvl"):
+            tvl_change = _c(defi["change_pct"])
+            h += f'<div class="r"><span class="l">DeFi TVL</span><span class="v">{_mc(defi["total_tvl"])} {tvl_change}</span></div>'
+            # Top 协议
+            for p in defi.get("protocols", [])[:3]:
+                pchange = _c(p["change_1d"])
+                h += f'<div class="r"><span class="l" style="padding-left:12px;color:#8e8e93">{p["name"]}</span><span class="v">{_mc(p["tvl"])} {pchange}</span></div>'
+        h += '</div>'
+
+    # ── 五、清算数据 ──
     liq = data.get("liquidations", {})
     if liq and liq.get("total_24h", 0) > 0:
         h += '<div class="s"><p class="st">清算数据 (24h)</p>'
@@ -692,7 +929,7 @@ def build_daily_html(data: dict) -> str:
             h += '<p style="font-size:10px;color:#c7c7cc;margin-top:4px;letter-spacing:.3px">* Binance sample estimate</p>'
         h += '</div>'
 
-    # ── 五、行情一览 ──
+    # ── 六、行情一览 ──
     h += '<div class="s"><p class="st">行情一览</p>'
     sorted_prices = sorted(prices.items(), key=lambda x: abs(x[1]["change"]), reverse=True)
     for sym, d_ in sorted_prices:
@@ -921,16 +1158,28 @@ def run_daily():
         "btc_rsi": fetch_rsi("bitcoin"),
         "eth_rsi": fetch_rsi("ethereum"),
         "liquidations": fetch_liquidations(),
+        "long_short": fetch_long_short_ratio(),
+        "gas_fee": fetch_gas_fee(),
+        "defi_tvl": fetch_defi_tvl(),
         "news": news,
         "ai_summary": generate_ai_summary(news, prices, fng),
     }
 
+    # 趋势评分
+    data["trend_score"] = calculate_trend_score(data)
+
     liq_total = data["liquidations"].get("total_24h", 0)
     print(f"[INFO] 币价:{len(data['prices'])} 费率:{len(data['funding'])} "
-          f"宏观:{len(data['yields'])} 清算:{_mc(liq_total)} 新闻:{len(data['news'])}")
+          f"宏观:{len(data['yields'])} 清算:{_mc(liq_total)} "
+          f"多空:{len(data['long_short'])} Gas:{data['gas_fee'].get('standard', '?')} "
+          f"TVL:{_mc(data['defi_tvl'].get('total_tvl', 0))} "
+          f"趋势:{data['trend_score']} 新闻:{len(data['news'])}")
 
     html = build_daily_html(data)
     push_all(f"{today} Market Digest", html)
+
+    # 归档快照
+    archive_snapshot(data)
 
 
 def run_alert():
@@ -1008,6 +1257,13 @@ def run_alert():
             fund_msgs.append(f"{sym} 资金费率 {rate:.4f}% 为负")
     if fund_msgs:
         sections.append({"title": "资金费率异常", "items": fund_msgs, "danger": True})
+
+    # Gas 费飙升
+    gas = fetch_gas_fee()
+    if gas and gas.get("fast", 0) > 100:
+        sections.append({"title": "Gas Fee 异常", "items": [
+            f"ETH Gas 飙升: {gas['low']}/{gas['standard']}/{gas['fast']} Gwei (低/中/快)"
+        ], "danger": True})
 
     if sections:
         count = sum(len(s["items"]) for s in sections)
