@@ -681,11 +681,17 @@ footer {
   async function loadSection(endpoint, secEl, wide) {
     try {
       var data = await api(endpoint);
+      if (!data || !data.length) { secEl.remove(); return; }
       var carousel = secEl.querySelector('.carousel');
       carousel.textContent = '';
       data.forEach(function(item) { carousel.appendChild(createCard(item, wide)); });
       setupDragScroll(carousel);
-    } catch(e) { console.error('Section error:', e); }
+      // Force visible after data loads
+      secEl.classList.add('visible');
+    } catch(e) {
+      console.error('Section error:', endpoint, e);
+      secEl.remove();
+    }
   }
 
   function createCard(item, wide) {
@@ -851,10 +857,13 @@ footer {
   function setupScrollObserver() {
     var obs = new IntersectionObserver(function(entries) {
       entries.forEach(function(e) { if (e.isIntersecting) e.target.classList.add('visible'); });
-    }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
-    new MutationObserver(function() {
+    }, { threshold: 0.01, rootMargin: '0px 0px 200px 0px' });
+    function observeAll() {
       document.querySelectorAll('.section:not(.visible)').forEach(function(s) { obs.observe(s); });
-    }).observe(document.getElementById('mainContent'), { childList: true });
+    }
+    new MutationObserver(observeAll).observe(document.getElementById('mainContent'), { childList: true });
+    observeAll();
+    setTimeout(observeAll, 800);
   }
 
   // ===== PLAYER =====
