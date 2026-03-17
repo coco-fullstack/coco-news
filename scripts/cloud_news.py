@@ -2119,17 +2119,21 @@ def send_email(subject: str, html_body: str):
     if not SMTP_USER or not SMTP_PASS or not EMAIL_TO:
         print("[SKIP] 邮件未配置")
         return
+    recipients = [addr.strip() for addr in EMAIL_TO.split(",") if addr.strip()]
+    if not recipients:
+        print("[SKIP] 无有效收件人")
+        return
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"] = SMTP_USER
-    msg["To"] = EMAIL_TO
+    msg["To"] = ", ".join(recipients)
     msg.attach(MIMEText(html_body, "html", "utf-8"))
     try:
         with smtplib.SMTP("smtp.gmail.com", 587) as server:
             server.starttls()
             server.login(SMTP_USER, SMTP_PASS)
-            server.send_message(msg)
-        print(f"[OK] 邮件已发送: {EMAIL_TO}")
+            server.sendmail(SMTP_USER, recipients, msg.as_string())
+        print(f"[OK] 邮件已发送: {', '.join(recipients)}")
     except Exception as e:
         print(f"[ERROR] 邮件失败: {e}")
 
