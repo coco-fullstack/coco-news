@@ -36,6 +36,16 @@ TRACKED_COINS = {
     "uniswap": "UNI", "bittensor": "TAO",
 }
 
+WATCHLIST_COINS = {
+    "uniswap": "UNI",
+    "bio-protocol": "BIO",
+    "openeden": "EDEN",
+    "chainbase": "C",
+    "bittensor": "TAO",
+    "kiteai": "KITE",
+    "pancakeswap-token": "CAKE",
+}
+
 STABLECOINS = {"tether": "USDT", "usd-coin": "USDC"}
 
 # ── 阈值 ─────────────────────────────────────────────────────────
@@ -69,6 +79,10 @@ CRYPTO_KEYWORDS = [
     "山寨币", "altcoin", "meme币", "CZ", "赵长鹏",
     "Vitalik", "V神", "Michael Saylor", "MicroStrategy",
     "BlackRock", "贝莱德", "Grayscale", "灰度",
+    "UNI", "Uniswap", "BIO", "Bio Protocol",
+    "EDEN", "OpenEden", "TAO", "Bittensor",
+    "CAKE", "PancakeSwap", "KITE", "KiteAI",
+    "Chainbase",
 ]
 
 URGENT_KEYWORDS = [
@@ -143,13 +157,14 @@ def _safe_fetch(func, default=None):
 # ══════════════════════════════════════════════════════════════════
 
 def fetch_prices() -> dict:
-    ids = ",".join(TRACKED_COINS.keys())
+    all_coins = {**TRACKED_COINS, **WATCHLIST_COINS}
+    ids = ",".join(all_coins.keys())
     url = f"{COINGECKO}/simple/price?ids={ids}&vs_currencies=usd&include_24hr_change=true"
     data = fetch_json(url)
     if not data:
         return {}
     result = {}
-    for coin_id, symbol in TRACKED_COINS.items():
+    for coin_id, symbol in all_coins.items():
         if coin_id in data:
             result[symbol] = {
                 "price": data[coin_id]["usd"],
@@ -826,6 +841,67 @@ ETH: {_p(eth.get('price', 0))} ({'+' if eth.get('change', 0) >= 0 else ''}{eth.g
         return ""
 
 
+def _ai_filter_urgent_news(news_items: list[dict]) -> list[dict]:
+    """用 AI 判断紧急新闻是否值得推送"""
+    if not GROQ_API_KEY or not news_items:
+        return news_items  # 无 API key 时回退到原逻辑
+
+    titles = "\n".join(
+        f"{i+1}. {n.get('title_cn', n['title'])}" for i, n in enumerate(news_items[:10])
+    )
+    prompt = f"""你是加密市场新闻编辑。以下是今日标记为"紧急"的新闻标题，请判断哪些是真正重大事件值得立即推送。
+
+判断标准：
+- 重大价格异动（暴涨暴跌>5%）、交易所被黑、监管重大政策、ETF批准/拒绝、项目重大事故
+- 日常波动、普通融资、常规升级、营销活动 → 不推送
+- 标题党、重复信息 → 不推送
+
+新闻列表：
+{titles}
+
+请只返回值得推送的新闻序号（从1开始），用逗号分隔。如果都不值得推送，返回"无"。"""
+
+    payload = json.dumps({
+        "model": "llama-3.3-70b-versatile",
+        "max_tokens": 100,
+        "temperature": 0.1,
+        "messages": [{"role": "user", "content": prompt}],
+    }).encode("utf-8")
+
+    req = Request(
+        "https://api.groq.com/openai/v1/chat/completions",
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+        },
+        method="POST",
+    )
+
+    try:
+        with urlopen(req, timeout=30) as resp:
+            result = json.loads(resp.read().decode())
+            text = result["choices"][0]["message"]["content"].strip()
+            print(f"[AI] 紧急新闻过滤结果: {text}")
+
+            if "无" in text or text == "0":
+                return []
+
+            # 解析序号
+            indices = []
+            for part in re.findall(r"\d+", text):
+                idx = int(part) - 1  # 转为0索引
+                if 0 <= idx < len(news_items):
+                    indices.append(idx)
+
+            filtered = [news_items[i] for i in indices]
+            print(f"[AI] 保留 {len(filtered)}/{len(news_items)} 条紧急新闻")
+            return filtered
+    except Exception as e:
+        print(f"[ERROR] AI 过滤失败，回退原逻辑: {e}")
+        return news_items
+
+
 # ── RSS 新闻 ─────────────────────────────────────────────────────
 
 def parse_feed(xml_text: str) -> list[dict]:
@@ -894,6 +970,22 @@ def fetch_news() -> list[dict]:
     return filtered
 
 
+def fetch_watchlist_news() -> dict:
+    """从 RSS 抓取关注币种相关新闻"""
+    all_news = fetch_news()
+    result = {}
+    for cg_id, symbol in WATCHLIST_COINS.items():
+        keywords = [symbol.lower(), cg_id.replace("-", " ")]
+        matched = []
+        for n in all_news:
+            text = f"{n['title']} {n.get('description', '')}".lower()
+            if any(kw in text for kw in keywords):
+                matched.append(n)
+        if matched:
+            result[symbol] = matched
+    return result
+
+
 # ══════════════════════════════════════════════════════════════════
 #  Apple 风格极简 HTML 模板
 # ══════════════════════════════════════════════════════════════════
@@ -902,22 +994,20 @@ STYLE = """<style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{
   font-family:-apple-system,'SF Pro Display','Helvetica Neue','PingFang SC',sans-serif;
-  background:linear-gradient(170deg,#faf9f6 0%,#f5f0e8 100%);
+  background:#faf9f6;
   color:#1d1d1f;padding:24px 16px;
   -webkit-font-smoothing:antialiased
 }
 .c{
   max-width:560px;margin:0 auto;
-  background:rgba(255,255,255,0.65);
-  backdrop-filter:blur(40px) saturate(180%);
-  -webkit-backdrop-filter:blur(40px) saturate(180%);
+  background:#ffffff;
   border-radius:24px;overflow:hidden;
-  border:1px solid rgba(255,255,255,0.7);
+  border:1px solid #f0ede6;
   box-shadow:0 8px 40px rgba(0,0,0,0.06),0 1px 3px rgba(0,0,0,0.04)
 }
 .hd{
   padding:36px 32px 20px;
-  background:rgba(255,252,245,0.5);
+  background:#fffcf5;
   border-bottom:1px solid rgba(0,0,0,0.04);
   color:#1d1d1f
 }
@@ -929,49 +1019,45 @@ body{
   font-size:10px;font-weight:600;color:#b0a898;
   text-transform:uppercase;letter-spacing:1.5px;
   margin-bottom:14px;
-  display:flex;align-items:center;gap:6px
-}
-.st::before{
-  content:'';display:inline-block;width:3px;height:12px;
-  border-radius:2px;background:linear-gradient(180deg,#c9b99a,#a89880)
+  padding-left:10px;
+  border-left:3px solid #c9b99a
 }
 .r{
-  display:flex;justify-content:space-between;align-items:center;
-  padding:8px 0;font-size:13px;line-height:1.4
+  padding:8px 0;font-size:13px;line-height:1.4;overflow:hidden
 }
-.r .l{color:#6e6e73;font-weight:400}
-.r .v{font-weight:600;font-variant-numeric:tabular-nums;text-align:right;letter-spacing:-.2px;color:#1d1d1f}
+.r .l{color:#6e6e73;font-weight:400;float:left}
+.r .v{font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.2px;color:#1d1d1f;float:right;text-align:right}
 .up{color:#34a853}.dn{color:#ea4335}.nt{color:#b0b0b0}
 .tg{
   display:inline-block;font-size:9px;font-weight:600;
   padding:3px 8px;border-radius:6px;margin-left:6px;
   letter-spacing:.3px;text-transform:uppercase
 }
-.tg-r{background:rgba(234,67,53,0.07);color:#ea4335}
-.tg-b{background:rgba(66,133,244,0.07);color:#4285f4}
-.tg-g{background:rgba(52,168,83,0.07);color:#34a853}
-.tg-y{background:rgba(205,170,110,0.1);color:#b8960c}
+.tg-r{background:#fef0ef;color:#ea4335}
+.tg-b{background:#eef3fe;color:#4285f4}
+.tg-g{background:#eef8f0;color:#34a853}
+.tg-y{background:#f8f3e8;color:#b8960c}
 .dv{height:1px;background:rgba(0,0,0,0.04);margin:6px 0}
 .ab{
   margin:8px 0;padding:14px 16px;border-radius:14px;
   font-size:12px;line-height:1.6
 }
-.ab-d{background:rgba(234,67,53,0.04);border:1px solid rgba(234,67,53,0.1)}
-.ab-i{background:rgba(201,185,154,0.08);border:1px solid rgba(201,185,154,0.15)}
+.ab-d{background:#fef0ef;border:1px solid #fcd9d6}
+.ab-i{background:#f8f5ee;border:1px solid #e8e0ce}
 .sb{
-  background:rgba(250,248,242,0.6);
-  border:1px solid rgba(201,185,154,0.15);
+  background:#faf8f2;
+  border:1px solid #e8e0ce;
   border-radius:14px;padding:16px 18px;margin-top:10px;
   font-size:12px;line-height:1.8;color:#48484a
 }
 .ni{
   padding:12px 16px;margin:8px 0;font-size:12px;line-height:1.6;
-  background:rgba(250,248,242,0.5);border-radius:12px;
-  border-left:3px solid rgba(201,185,154,0.4)
+  background:#faf8f2;border-radius:12px;
+  border-left:3px solid #d4c5a9
 }
 .ni a{color:#1d1d1f;text-decoration:none;font-weight:500}
 .ni a:hover{text-decoration:underline}
-.ni .sm{color:#999;font-size:11px;margin-top:2px;display:block}
+.ni .sm{color:#999;font-size:11px;margin-top:2px}
 .ft{
   padding:20px 32px;text-align:center;
   font-size:10px;color:#c7c2b8;letter-spacing:.3px;
@@ -1031,11 +1117,10 @@ def _ftag(text: str, cls: str) -> str:
 # ══════════════════════════════════════════════════════════════════
 
 def _vis_gauge(value: int, label: str, max_val: int = 100) -> str:
-    """半圆仪表盘（恐贪指数等 0-100 值）"""
+    """横条仪表盘（恐贪指数等 0-100 值）— 邮件兼容 table 布局"""
     pct = max(0, min(100, value / max_val * 100))
-    # 角度：0% = -90deg (左), 100% = 90deg (右)
-    angle = -90 + (pct * 1.8)
-    # 颜色：红(恐惧) → 黄(中性) → 绿(贪婪)
+    remain = 100 - pct
+    # 颜色：红(恐惧) → 橙 → 黄(中性) → 绿(贪婪)
     if pct <= 25:
         color = "#ea4335"
     elif pct <= 45:
@@ -1047,31 +1132,49 @@ def _vis_gauge(value: int, label: str, max_val: int = 100) -> str:
     else:
         color = "#34a853"
 
-    return f'''<div style="text-align:center;margin:12px 0 8px">
-<div style="position:relative;width:140px;height:78px;margin:0 auto;overflow:hidden">
-<div style="width:140px;height:140px;border-radius:50%;
-  background:conic-gradient(from 0.75turn,{color} {pct}%,rgba(0,0,0,0.06) {pct}%);
-  -webkit-mask:radial-gradient(circle at 50% 50%,transparent 50px,#000 51px);
-  mask:radial-gradient(circle at 50% 50%,transparent 50px,#000 51px)"></div>
-<div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);
-  font-size:24px;font-weight:700;color:#1d1d1f;line-height:1">{value}</div>
-</div>
-<div style="font-size:10px;color:#999;margin-top:4px;text-transform:uppercase;letter-spacing:1px">{label}</div>
-</div>'''
+    return f'''<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:12px 0 8px">
+<tr>
+<td style="padding:0">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr>
+    <td style="width:{pct:.0f}%;height:10px;border-radius:5px 0 0 5px" bgcolor="{color}"></td>
+    <td style="width:{remain:.0f}%;height:10px;border-radius:0 5px 5px 0" bgcolor="#ededed"></td>
+    <td style="width:90px;padding-left:10px;font-size:18px;font-weight:700;color:#1d1d1f;white-space:nowrap;vertical-align:middle" rowspan="1">{value} · <span style="font-size:11px;font-weight:600;color:{color}">{label}</span></td>
+  </tr>
+  </table>
+</td>
+</tr>
+<tr>
+<td style="padding:0">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:2px">
+  <tr>
+    <td style="font-size:9px;color:#bbb;text-align:left;width:33%">←极度恐惧</td>
+    <td style="font-size:9px;color:#bbb;text-align:center;width:34%">中性</td>
+    <td style="font-size:9px;color:#bbb;text-align:right;width:33%">极度贪婪→</td>
+  </tr>
+  </table>
+</td>
+</tr>
+</table>'''
 
 
 def _vis_progress_bar(long_pct: float, symbol: str) -> str:
-    """多空比彩色进度条"""
+    """多空比彩色进度条 — 邮件兼容 table 布局"""
     short_pct = 100 - long_pct
     long_w = max(5, long_pct)
     short_w = max(5, short_pct)
-    return f'''<div style="margin:6px 0 10px">
-<div style="display:flex;justify-content:space-between;font-size:10px;color:#999;margin-bottom:3px">
-<span>{symbol} 多 {long_pct:.1f}%</span><span>空 {short_pct:.1f}%</span></div>
-<div style="display:flex;height:8px;border-radius:4px;overflow:hidden;background:rgba(0,0,0,0.04)">
-<div style="width:{long_w:.1f}%;background:linear-gradient(90deg,#34a853,#87c38f);border-radius:4px 0 0 4px"></div>
-<div style="width:{short_w:.1f}%;background:linear-gradient(90deg,#f4a261,#ea4335);border-radius:0 4px 4px 0"></div>
-</div></div>'''
+    return f'''<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 10px">
+<tr>
+<td style="font-size:10px;color:#999;padding-bottom:3px">{symbol} 多 {long_pct:.1f}%</td>
+<td style="font-size:10px;color:#999;padding-bottom:3px;text-align:right">空 {short_pct:.1f}%</td>
+</tr>
+<tr><td colspan="2" style="padding:0">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+    <td style="width:{long_w:.1f}%;height:8px;border-radius:4px 0 0 4px" bgcolor="#34a853"></td>
+    <td style="width:{short_w:.1f}%;height:8px;border-radius:0 4px 4px 0" bgcolor="#ea4335"></td>
+  </tr></table>
+</td></tr>
+</table>'''
 
 
 def _vis_bar_chart(items: list[dict], value_key: str = "vs_btc",
@@ -1089,56 +1192,66 @@ def _vis_bar_chart(items: list[dict], value_key: str = "vs_btc",
         val = item[value_key]
         w = abs(val) / max_val * 100
         w = max(8, min(95, w))
+        remain_w = 100 - w
         color = "#34a853" if val >= 0 else "#ea4335"
         label = item[label_key]
-        rows += f'''<div style="display:flex;align-items:center;margin:4px 0;font-size:11px">
-<span style="width:50px;color:#6e6e73;flex-shrink:0">{label}</span>
-<div style="flex:1;height:16px;background:rgba(0,0,0,0.03);border-radius:3px;overflow:hidden;margin:0 8px">
-<div style="width:{w:.0f}%;height:100%;background:{color};border-radius:3px;opacity:0.8"></div>
-</div>
-<span style="width:55px;text-align:right;font-weight:600;color:{color};font-variant-numeric:tabular-nums">{val:+.1f}%</span>
-</div>'''
+        rows += f'''<tr>
+<td style="width:50px;color:#6e6e73;font-size:11px;padding:3px 0;white-space:nowrap">{label}</td>
+<td style="padding:3px 8px">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+    <td style="width:{w:.0f}%;height:16px;border-radius:3px" bgcolor="{color}"></td>
+    <td style="width:{remain_w:.0f}%;height:16px" bgcolor="#f5f5f5"></td>
+  </tr></table>
+</td>
+<td style="width:55px;text-align:right;font-weight:600;color:{color};font-size:11px;font-variant-numeric:tabular-nums;padding:3px 0;white-space:nowrap">{val:+.1f}%</td>
+</tr>'''
 
-    return f'<div style="margin:10px 0">{rows}</div>'
+    return f'<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:10px 0">{rows}</table>'
 
 
 def _vis_timeline(expiries: list[dict], currency: str) -> str:
-    """期权到期时间轴（气泡大小=名义价值）"""
+    """期权到期时间轴 — 表格横条图（邮件兼容 table 布局）"""
     if not expiries:
         return ""
     max_notional = max(e["notional_usd"] for e in expiries) if expiries else 1
     if max_notional == 0:
         max_notional = 1
 
-    dots = ""
-    for exp in expiries[:5]:
+    rows = ""
+    for exp in expiries[:6]:
         days = exp["days_left"]
         notional = exp["notional_usd"]
-        # 气泡大小: 12-36px
-        size = 12 + (notional / max_notional) * 24
-        color = "#ea4335" if exp["is_major"] else "#c9b99a"
-        opacity = "1" if days <= 7 else "0.7"
-        # 位置：0天=5%, 90天=95%
-        left_pct = 5 + min(90, days / 90 * 90)
-        dots += f'''<div style="position:absolute;left:{left_pct:.0f}%;top:50%;
-transform:translate(-50%,-50%);width:{size:.0f}px;height:{size:.0f}px;
-border-radius:50%;background:{color};opacity:{opacity};
-display:flex;align-items:center;justify-content:center;
-font-size:8px;color:#fff;font-weight:600">{days}d</div>'''
+        bar_pct = max(8, int(notional / max_notional * 100))
+        remain_pct = 100 - bar_pct
+        # 颜色编码：<=3天红、<=7天橙、>7天金
+        if days <= 3:
+            color = "#ea4335"
+        elif days <= 7:
+            color = "#f4a261"
+        else:
+            color = "#c9b99a"
+        star = " ★" if exp["is_major"] else ""
+        nv = _mc(notional)
+        rows += f'''<tr>
+<td style="font-size:11px;color:#6e6e73;padding:3px 0;white-space:nowrap;width:50px">{exp["date_fmt"]}</td>
+<td style="font-size:10px;color:#999;padding:3px 6px;white-space:nowrap;width:40px;text-align:right">{days}天</td>
+<td style="padding:3px 0">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+    <td style="width:{bar_pct}%;height:8px;border-radius:4px 0 0 4px" bgcolor="{color}"></td>
+    <td style="width:{remain_pct}%;height:8px" bgcolor="#f5f5f5"></td>
+  </tr></table>
+</td>
+<td style="font-size:11px;font-weight:600;color:#1d1d1f;padding:3px 0 3px 8px;white-space:nowrap;width:80px;text-align:right">{nv}{star}</td>
+</tr>'''
 
-    return f'''<div style="margin:8px 0 12px">
-<div style="font-size:10px;color:#b0a898;margin-bottom:4px">{currency} 到期时间轴</div>
-<div style="position:relative;height:44px;background:rgba(0,0,0,0.02);border-radius:8px;overflow:visible">
-<div style="position:absolute;top:50%;left:5%;right:5%;height:1px;background:rgba(0,0,0,0.08)"></div>
-{dots}
-</div>
-<div style="display:flex;justify-content:space-between;font-size:9px;color:#ccc;margin-top:2px">
-<span>今天</span><span>30天</span><span>90天</span></div>
-</div>'''
+    return f'''<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 12px">
+<tr><td colspan="4" style="font-size:10px;color:#b0a898;padding-bottom:6px;font-weight:600">{currency} 到期时间轴</td></tr>
+{rows}
+</table>'''
 
 
 def _vis_holdings_bars(companies: list[dict], max_items: int = 5) -> str:
-    """机构持仓比例条（类 treemap 横条）"""
+    """机构持仓比例条（类 treemap 横条）— 邮件兼容 table 布局"""
     if not companies:
         return ""
     total = sum(c["value_usd"] for c in companies[:max_items])
@@ -1146,16 +1259,116 @@ def _vis_holdings_bars(companies: list[dict], max_items: int = 5) -> str:
         return ""
 
     colors = ["#c9b99a", "#b0a898", "#d4c5a9", "#a89880", "#e0d5c1"]
-    bars = ""
+    cells = ""
     for i, comp in enumerate(companies[:max_items]):
         pct = comp["value_usd"] / total * 100
         if pct < 2:
             continue
         color = colors[i % len(colors)]
         name = comp["name"][:12]
-        bars += f'<div style="width:{pct:.1f}%;background:{color};height:24px;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;font-weight:600;white-space:nowrap;overflow:hidden">{name}</div>'
+        cells += f'<td style="width:{pct:.1f}%;height:24px;text-align:center;font-size:8px;color:#fff;font-weight:600;white-space:nowrap;overflow:hidden" bgcolor="{color}">{name}</td>'
 
-    return f'''<div style="display:flex;border-radius:6px;overflow:hidden;margin:8px 0">{bars}</div>'''
+    return f'''<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0;border-radius:6px;overflow:hidden"><tr>{cells}</tr></table>'''
+
+
+def _vis_rsi_bar(rsi_value: float, symbol: str) -> str:
+    """RSI 进度条 — 邮件兼容 table 布局"""
+    if rsi_value is None:
+        return ""
+    rsi = max(0, min(100, rsi_value))
+    remain = 100 - rsi
+    # 颜色：<=30 蓝色(超卖) / 30-70 金色(中性) / >=70 红色(超买)
+    if rsi <= 30:
+        color = "#4285f4"
+        tag = "超卖"
+    elif rsi >= 70:
+        color = "#ea4335"
+        tag = "超买"
+    else:
+        color = "#c9b99a"
+        tag = ""
+    tag_html = f' <span style="font-size:9px;font-weight:600;color:{color}">{tag}</span>' if tag else ""
+    return f'''<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:4px 0 8px">
+<tr>
+<td style="font-size:11px;color:#6e6e73;padding-bottom:3px;width:60px">{symbol} RSI</td>
+<td style="padding-bottom:3px">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+    <td style="width:{rsi:.0f}%;height:7px;border-radius:4px 0 0 4px" bgcolor="{color}"></td>
+    <td style="width:{remain:.0f}%;height:7px;border-radius:0 4px 4px 0" bgcolor="#ededed"></td>
+  </tr></table>
+</td>
+<td style="font-size:12px;font-weight:600;color:#1d1d1f;padding-bottom:3px;padding-left:8px;width:60px;text-align:right;white-space:nowrap">{rsi:.0f}{tag_html}</td>
+</tr>
+<tr><td></td>
+<td style="padding:0">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+    <td style="font-size:8px;color:#ccc;text-align:left;width:33%">30</td>
+    <td style="font-size:8px;color:#ccc;text-align:center;width:34%">50</td>
+    <td style="font-size:8px;color:#ccc;text-align:right;width:33%">70</td>
+  </tr></table>
+</td>
+<td></td></tr>
+</table>'''
+
+
+def _vis_funding_heatmap(funding: dict) -> str:
+    """资金费率热力图 — 邮件兼容 table 布局"""
+    if not funding:
+        return ""
+    cells_top = ""
+    cells_bottom = ""
+    for sym in ["BTC", "ETH", "SOL"]:
+        if sym not in funding:
+            continue
+        rate = funding[sym]
+        # 颜色映射：过热红 / 过冷蓝 / 中性绿
+        if rate > FUNDING_HOT:
+            color = "#ea4335"
+            tag = "过热"
+        elif rate < FUNDING_COLD:
+            color = "#4285f4"
+            tag = "过冷"
+        else:
+            color = "#34a853"
+            tag = "中性"
+        cells_top += f'''<td style="padding:6px;text-align:center;width:33%">
+<span style="font-size:12px;font-weight:700;color:#1d1d1f">{sym}</span> <span style="color:{color};font-size:14px">&#9632;</span>
+<br><span style="font-size:11px;font-weight:600;color:{color}">{rate:.4f}%</span>
+</td>'''
+        cells_bottom += f'<td style="font-size:9px;color:#999;text-align:center;padding:0 6px">({tag})</td>'
+
+    return f'''<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 10px;background:#faf8f2;border:1px solid #f0ede6;border-radius:8px">
+<tr><td colspan="3" style="font-size:10px;color:#b0a898;padding:8px 10px 4px;font-weight:600">费率热力图</td></tr>
+<tr>{cells_top}</tr>
+<tr>{cells_bottom}</tr>
+<tr><td colspan="3" style="height:6px"></td></tr>
+</table>'''
+
+
+def _vis_mini_sparkline(rates: list, trend_label: str, trend_cls: str = "b") -> str:
+    """费率趋势迷你柱状图 — 邮件兼容 table 布局"""
+    if not rates or len(rates) < 2:
+        return ""
+    # 归一化到 2-16px 高度
+    min_r = min(rates)
+    max_r = max(rates)
+    rng = max_r - min_r if max_r != min_r else 1
+    cells = ""
+    for r in rates:
+        h = 2 + int((r - min_r) / rng * 14)
+        # 颜色：正值金色，负值蓝色
+        color = "#c9b99a" if r >= 0 else "#4285f4"
+        cells += f'<td style="vertical-align:bottom;padding:0 1px"><div style="width:6px;height:{h}px;border-radius:1px;background:{color}"></div></td>'
+
+    tag = _ftag(trend_label, trend_cls)
+    return f'''<table cellpadding="0" cellspacing="0" border="0" style="margin:2px 0">
+<tr>
+<td style="font-size:11px;color:#6e6e73;padding-right:8px;vertical-align:middle">费率趋势</td>
+<td style="vertical-align:middle">
+  <table cellpadding="0" cellspacing="0" border="0"><tr>{cells}</tr></table>
+</td>
+<td style="padding-left:8px;vertical-align:middle">{tag}</td>
+</tr></table>'''
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -1405,12 +1618,15 @@ def _build_strategy_html(indicators: dict, ai_analysis: str = "") -> str:
         # 价格位置进度条（30天区间）
         support = ind.get("support", 0)
         resist = ind.get("resistance", 0)
-        h += f'''<div style="margin:4px 0 8px">
-<div style="display:flex;justify-content:space-between;font-size:9px;color:#999">
-<span>支撑 {_p(support)}</span><span>阻力 {_p(resist)}</span></div>
-<div style="height:6px;background:rgba(0,0,0,0.04);border-radius:3px;overflow:hidden;margin-top:2px">
-<div style="width:{price_pos:.0f}%;height:100%;background:linear-gradient(90deg,#34a853,#e9c46a,#ea4335);border-radius:3px"></div>
-</div></div>'''
+        remain_pos = 100 - price_pos
+        h += f'''<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:4px 0 8px">
+<tr><td style="font-size:9px;color:#999">支撑 {_p(support)}</td><td style="font-size:9px;color:#999;text-align:right">阻力 {_p(resist)}</td></tr>
+<tr><td colspan="2" style="padding-top:2px">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+    <td style="width:{price_pos:.0f}%;height:6px;border-radius:3px 0 0 3px" bgcolor="#e9c46a"></td>
+    <td style="width:{remain_pos:.0f}%;height:6px;border-radius:0 3px 3px 0" bgcolor="#ededed"></td>
+  </tr></table>
+</td></tr></table>'''
 
         # MACD
         if "macd_signal" in ind:
@@ -1423,12 +1639,14 @@ def _build_strategy_html(indicators: dict, ai_analysis: str = "") -> str:
             vol_chg = ind.get("vol_change", 0)
             h += f'<div class="r"><span class="l">成交量(7d)</span><span class="v">{_ftag(ind["vol_signal"], vol_cls)} {vol_chg:+.0f}%</span></div>'
 
-        # 资金费率趋势
+        # 资金费率趋势（迷你柱状图）
         if "funding_trend" in ind:
             ft_cls = ind.get("funding_trend_class", "b")
             rates = ind.get("funding_rates", [])
-            rate_str = " → ".join(f"{r:.4f}%" for r in rates) if rates else ""
-            h += f'<div class="r"><span class="l">费率趋势</span><span class="v">{_ftag(ind["funding_trend"], ft_cls)} {rate_str}</span></div>'
+            if rates:
+                h += _vis_mini_sparkline(rates, ind["funding_trend"], ft_cls)
+            else:
+                h += f'<div class="r"><span class="l">费率趋势</span><span class="v">{_ftag(ind["funding_trend"], ft_cls)}</span></div>'
 
         h += '<div class="dv"></div>'
 
@@ -1520,19 +1738,14 @@ def build_daily_html(data: dict) -> str:
     # ═══ 二、风险仪表盘（合并：衍生品+清算+多空+Gas）═══
     h += '<div class="s"><p class="st">风险仪表盘</p>'
 
-    # 资金费率（只显示 BTC 主要的）
+    # 资金费率热力图
     if funding:
-        for sym in ["BTC", "ETH", "SOL"]:
-            if sym in funding:
-                rate = funding[sym]
-                tag = _ftag("过热", "r") if rate > FUNDING_HOT else _ftag("过冷", "b") if rate < FUNDING_COLD else _ftag("中性", "g")
-                h += f'<div class="r"><span class="l">{sym} 费率</span><span class="v">{rate:.4f}% {tag}</span></div>'
+        h += _vis_funding_heatmap(funding)
 
-    # RSI
-    for rlabel, rsi in [("BTC RSI", btc_rsi), ("ETH RSI", eth_rsi)]:
+    # RSI 可视化进度条
+    for sym, rsi in [("BTC", btc_rsi), ("ETH", eth_rsi)]:
         if rsi is not None:
-            tag = _ftag("超买", "r") if rsi >= RSI_OVERBOUGHT else _ftag("超卖", "b") if rsi <= RSI_OVERSOLD else ""
-            h += f'<div class="r"><span class="l">{rlabel}</span><span class="v">{rsi:.0f} {tag}</span></div>'
+            h += _vis_rsi_bar(rsi, sym)
 
     # 多空比（可视化进度条）
     if ls:
@@ -1587,10 +1800,13 @@ def build_daily_html(data: dict) -> str:
         for currency in ["BTC", "ETH"]:
             if currency not in options or not options[currency]:
                 continue
-            # 时间轴气泡图
+            # 时间轴横条图
             h += _vis_timeline(options[currency], currency)
+            # 详情行只显示重要项（<=7天或重大交割）
             for exp in options[currency]:
                 days = exp["days_left"]
+                if days > 7 and not exp["is_major"]:
+                    continue
                 tag = _ftag("重大交割", "r") if exp["is_major"] else ""
                 if days <= 3:
                     tag += _ftag(f"⚠ {days}天后", "r")
@@ -1715,6 +1931,25 @@ def build_daily_html(data: dict) -> str:
                 if len(after200) > 3:
                     h += f'<p style="font-size:10px;color:#c7c7cc;text-align:center">...及其余 {len(after200)-3} 个</p>'
 
+        h += '</div>'
+
+    # ═══ 关注币种动态 ═══
+    watchlist_news = data.get("watchlist_news", {})
+    if watchlist_news:
+        h += '<div class="s"><p class="st">关注币种动态</p>'
+        for sym, news_list in watchlist_news.items():
+            for n in news_list[:2]:  # 每币最多2条
+                title = n.get("title_cn", n["title"])
+                source = n.get("source", "")
+                link = n.get("link", "")
+                h += '<div class="ni">'
+                if link:
+                    h += f'<a href="{link}">{sym} · {title}</a>'
+                else:
+                    h += f'{sym} · {title}'
+                if source:
+                    h += f'<span class="sm">{source}</span>'
+                h += '</div>'
         h += '</div>'
 
     # ═══ 六、新闻 + 决策参考（合并）═══
@@ -1928,6 +2163,7 @@ def run_daily():
         "screening": _safe_fetch(fetch_top200_vs_btc, {}),
         "institutional": _safe_fetch(fetch_institutional_holdings, {}),
         "strategy_indicators": _safe_fetch(fetch_strategy_indicators, {}),
+        "watchlist_news": _safe_fetch(fetch_watchlist_news, {}),
     }
 
     # 趋势评分
@@ -2090,12 +2326,13 @@ def run_weekly():
         h += f'<div class="r"><span class="l">BTC 市占</span><span class="v">{gd.get("btc_dominance", 0):.1f}%</span></div>'
     h += '</div>'
 
-    # 期权交割日历
+    # 期权交割日历（含时间轴可视化）
     if options:
         h += '<div class="s"><p class="st">期权交割日历</p>'
         for currency in ["BTC", "ETH"]:
             if currency not in options or not options[currency]:
                 continue
+            h += _vis_timeline(options[currency], currency)
             for exp in options[currency]:
                 days = exp["days_left"]
                 tag = _ftag("重大交割", "r") if exp["is_major"] else ""
@@ -2173,16 +2410,20 @@ def run_weekly():
 
 
 def run_urgent():
-    """紧急新闻检查：RSS 抓取 + 价格异动"""
+    """紧急新闻检查：AI 过滤 + 关注币种 + 价格异动"""
     print("[INFO] === 紧急新闻检查 ===")
     news = fetch_news()
     urgent_news = [n for n in news if n.get("urgent")]
+
+    # AI 智能过滤：只保留真正重大事件
+    if urgent_news:
+        urgent_news = _ai_filter_urgent_news(urgent_news)
 
     prices = fetch_prices()
 
     sections = []
 
-    # 紧急新闻
+    # 紧急新闻（AI 过滤后）
     if urgent_news:
         sections.append({
             "title": f"紧急新闻 ({len(urgent_news)}条)",
@@ -2198,6 +2439,19 @@ def run_urgent():
             pump_msgs.append(f'{sym} {direction} {d["change"]:+.1f}% → {_p(d["price"])}')
     if pump_msgs:
         sections.append({"title": "价格异动 (24h ±10%+)", "items": pump_msgs, "danger": True})
+
+    # 关注币种重要新闻
+    watchlist_news = fetch_watchlist_news()
+    if watchlist_news:
+        wl_items = []
+        for sym, news_list in watchlist_news.items():
+            for n in news_list[:2]:
+                wl_items.append(f"{sym}: {n.get('title_cn', n['title'])}")
+        if wl_items:
+            sections.append({
+                "title": f"关注币种动态 ({len(wl_items)}条)",
+                "items": wl_items,
+            })
 
     if sections:
         count = sum(len(s["items"]) for s in sections)
