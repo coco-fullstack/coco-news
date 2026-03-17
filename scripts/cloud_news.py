@@ -1697,6 +1697,11 @@ def build_daily_html(data: dict) -> str:
     else:
         fng_tag = "极度贪婪"
 
+    # ETH/BTC 汇率
+    btc_price = btc.get('price', 0)
+    eth_price = eth.get('price', 0)
+    eth_btc = eth_price / btc_price if btc_price > 0 else 0
+
     h += f"""<div class="hd">
       <p class="sub">DAILY BRIEFING</p>
       <h1>Market Digest</h1>
@@ -1711,6 +1716,11 @@ def build_daily_html(data: dict) -> str:
           <td style="padding:6px 0"><b>ETH</b></td>
           <td style="text-align:right">{_p(eth.get('price', 0))}</td>
           <td style="text-align:right;opacity:0.8">{'+' if eth.get('change', 0) >= 0 else ''}{eth.get('change', 0):.1f}%</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0"><b>ETH/BTC</b></td>
+          <td style="text-align:right">{eth_btc:.6f}</td>
+          <td></td>
         </tr>
         <tr><td colspan="3" style="padding:8px 0 4px;border-top:1px solid rgba(0,0,0,0.06)">
           <span style="opacity:0.7">趋势</span> <b>{score}</b>/100 · {slabel}
