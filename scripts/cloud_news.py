@@ -2093,14 +2093,42 @@ def build_alert_html(alerts: list[dict]) -> str:
 #  推送
 # ══════════════════════════════════════════════════════════════════
 
+def _trim_html_for_wechat(html_body: str, max_len: int = 18000) -> str:
+    """裁剪 HTML 内容以适应 PushPlus 2万字限制"""
+    if len(html_body) <= max_len:
+        return html_body
+    # 移除涨幅筛选（最占篇幅的部分）
+    trimmed = re.sub(
+        r'<div class="s"><p class="st">涨幅筛选.*?</div>\s*(?=<div class="s">|<div class="ft">)',
+        '', html_body, flags=re.DOTALL,
+    )
+    if len(trimmed) <= max_len:
+        return trimmed
+    # 还超？移除机构持仓
+    trimmed = re.sub(
+        r'<div class="s"><p class="st">机构持仓.*?</div>\s*(?=<div class="s">|<div class="ft">)',
+        '', trimmed, flags=re.DOTALL,
+    )
+    if len(trimmed) <= max_len:
+        return trimmed
+    # 最后手段：截断
+    cut = trimmed[:max_len]
+    close_idx = cut.rfind('</div>')
+    if close_idx > 0:
+        cut = cut[:close_idx + 6]
+    cut += '<div class="ft">内容已裁剪，完整版请查看邮件</div></div></body></html>'
+    return cut
+
+
 def push_wechat(title: str, html_body: str):
     for token in PUSHPLUS_TOKENS:
         token = token.strip()
         if not token:
             continue
+        content = _trim_html_for_wechat(html_body)
         payload = json.dumps({
             "token": token, "title": title,
-            "content": html_body, "template": "html",
+            "content": content, "template": "html",
         }).encode("utf-8")
         req = Request("http://www.pushplus.plus/send", data=payload,
                       headers={"Content-Type": "application/json"}, method="POST")
