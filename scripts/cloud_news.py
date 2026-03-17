@@ -2093,8 +2093,23 @@ def build_alert_html(alerts: list[dict]) -> str:
 #  推送
 # ══════════════════════════════════════════════════════════════════
 
+def _convert_links_for_wechat(html_body: str) -> str:
+    """将 <a href="url">title</a> 转为微信可读格式：标题 + 可复制链接"""
+    def _replace_link(m):
+        url = m.group(1)
+        text = m.group(2)
+        # 短链接显示
+        short = url.split("//")[-1]
+        if len(short) > 50:
+            short = short[:47] + "..."
+        return f'{text}<br><span style="font-size:10px;color:#4285f4;word-break:break-all">{url}</span>'
+    return re.sub(r'<a\s+href="([^"]*)"[^>]*>(.*?)</a>', _replace_link, html_body, flags=re.DOTALL)
+
+
 def _trim_html_for_wechat(html_body: str, max_len: int = 18000) -> str:
     """裁剪 HTML 内容以适应 PushPlus 2万字限制"""
+    # 先转换链接为可复制文本
+    html_body = _convert_links_for_wechat(html_body)
     if len(html_body) <= max_len:
         return html_body
     # 移除涨幅筛选（最占篇幅的部分）
