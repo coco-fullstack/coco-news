@@ -103,6 +103,7 @@ SMTP_USER = os.environ.get("SMTP_USER", "")
 SMTP_PASS = os.environ.get("SMTP_PASS", "")
 EMAIL_TO = os.environ.get("EMAIL_TO", "")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -826,17 +827,65 @@ def _fetch_liquidations_binance() -> dict:
 
 # ── AI 新闻摘要 (Claude API) ────────────────────────────────────
 
+def _ai_call(prompt: str, max_tokens: int = 300, temperature: float = 0.3) -> str:
+    """统一 AI 调用：Gemini 优先 → Groq 兜底"""
+    # ── Gemini ──
+    if GEMINI_API_KEY:
+        url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
+               f"gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}")
+        payload = json.dumps({
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": temperature,
+                "maxOutputTokens": max_tokens,
+            },
+        }).encode("utf-8")
+        req = Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+        try:
+            with urlopen(req, timeout=30) as resp:
+                result = json.loads(resp.read().decode())
+                text = result["candidates"][0]["content"]["parts"][0]["text"]
+                print(f"[OK] Gemini 响应 ({len(text)} 字)")
+                return text
+        except Exception as e:
+            print(f"[WARN] Gemini 调用失败: {e}，尝试 Groq 兜底")
+
+    # ── Groq 兜底 ──
+    if GROQ_API_KEY:
+        payload = json.dumps({
+            "model": "llama-3.3-70b-versatile",
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "messages": [{"role": "user", "content": prompt}],
+        }).encode("utf-8")
+        req = Request(
+            "https://api.groq.com/openai/v1/chat/completions",
+            data=payload,
+            headers={"Content-Type": "application/json",
+                     "Authorization": f"Bearer {GROQ_API_KEY}"},
+            method="POST",
+        )
+        try:
+            with urlopen(req, timeout=30) as resp:
+                result = json.loads(resp.read().decode())
+                text = result["choices"][0]["message"]["content"]
+                print(f"[OK] Groq 响应 ({len(text)} 字)")
+                return text
+        except Exception as e:
+            print(f"[ERROR] Groq 调用失败: {e}")
+
+    print("[SKIP] AI 未配置 (需要 GEMINI_API_KEY 或 GROQ_API_KEY)")
+    return ""
+
+
 def generate_ai_summary(news: list[dict], prices: dict, fng: dict) -> str:
-    """用 Groq (Llama 3) 把新闻浓缩成 3 句话的今日要点"""
-    if not GROQ_API_KEY:
-        print("[SKIP] GROQ_API_KEY 未配置，跳过 AI 摘要")
+    """AI 生成 3 句话的今日要点"""
+    if not GEMINI_API_KEY and not GROQ_API_KEY:
+        print("[SKIP] AI 未配置，跳过摘要")
         return ""
 
-    # 构建新闻标题列表
     titles = [item.get("title_cn", item["title"]) for item in news[:15]]
     titles_text = "\n".join(f"- {t}" for t in titles)
-
-    # 市场上下文
     btc = prices.get("BTC", {})
     eth = prices.get("ETH", {})
     fng_val = fng.get("value", "N/A")
@@ -857,38 +906,13 @@ ETH: {_p(eth.get('price', 0))} ({'+' if eth.get('change', 0) >= 0 else ''}{eth.g
 今日新闻：
 {titles_text}"""
 
-    payload = json.dumps({
-        "model": "llama-3.3-70b-versatile",
-        "max_tokens": 300,
-        "temperature": 0.3,
-        "messages": [{"role": "user", "content": prompt}],
-    }).encode("utf-8")
-
-    req = Request(
-        "https://api.groq.com/openai/v1/chat/completions",
-        data=payload,
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {GROQ_API_KEY}",
-        },
-        method="POST",
-    )
-
-    try:
-        with urlopen(req, timeout=30) as resp:
-            result = json.loads(resp.read().decode())
-            text = result["choices"][0]["message"]["content"]
-            print(f"[OK] AI 摘要生成完成 ({len(text)} 字)")
-            return text
-    except Exception as e:
-        print(f"[ERROR] AI 摘要失败: {e}")
-        return ""
+    return _ai_call(prompt, max_tokens=300, temperature=0.3)
 
 
 def _ai_filter_urgent_news(news_items: list[dict]) -> list[dict]:
     """用 AI 判断紧急新闻是否值得推送"""
-    if not GROQ_API_KEY or not news_items:
-        return news_items  # 无 API key 时回退到原逻辑
+    if (not GEMINI_API_KEY and not GROQ_API_KEY) or not news_items:
+        return news_items
 
     titles = "\n".join(
         f"{i+1}. {n.get('title_cn', n['title'])}" for i, n in enumerate(news_items[:10])
@@ -905,45 +929,23 @@ def _ai_filter_urgent_news(news_items: list[dict]) -> list[dict]:
 
 请只返回值得推送的新闻序号（从1开始），用逗号分隔。如果都不值得推送，返回"无"。"""
 
-    payload = json.dumps({
-        "model": "llama-3.3-70b-versatile",
-        "max_tokens": 100,
-        "temperature": 0.1,
-        "messages": [{"role": "user", "content": prompt}],
-    }).encode("utf-8")
-
-    req = Request(
-        "https://api.groq.com/openai/v1/chat/completions",
-        data=payload,
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {GROQ_API_KEY}",
-        },
-        method="POST",
-    )
-
-    try:
-        with urlopen(req, timeout=30) as resp:
-            result = json.loads(resp.read().decode())
-            text = result["choices"][0]["message"]["content"].strip()
-            print(f"[AI] 紧急新闻过滤结果: {text}")
-
-            if "无" in text or text == "0":
-                return []
-
-            # 解析序号
-            indices = []
-            for part in re.findall(r"\d+", text):
-                idx = int(part) - 1  # 转为0索引
-                if 0 <= idx < len(news_items):
-                    indices.append(idx)
-
-            filtered = [news_items[i] for i in indices]
-            print(f"[AI] 保留 {len(filtered)}/{len(news_items)} 条紧急新闻")
-            return filtered
-    except Exception as e:
-        print(f"[ERROR] AI 过滤失败，回退原逻辑: {e}")
+    text = _ai_call(prompt, max_tokens=100, temperature=0.1)
+    if not text:
         return news_items
+
+    print(f"[AI] 紧急新闻过滤结果: {text}")
+    if "无" in text or text == "0":
+        return []
+
+    indices = []
+    for part in re.findall(r"\d+", text):
+        idx = int(part) - 1
+        if 0 <= idx < len(news_items):
+            indices.append(idx)
+
+    filtered = [news_items[i] for i in indices]
+    print(f"[AI] 保留 {len(filtered)}/{len(news_items)} 条紧急新闻")
+    return filtered
 
 
 # ── RSS 新闻 ─────────────────────────────────────────────────────
@@ -1562,8 +1564,8 @@ def _ema(data: list[float], period: int) -> float:
 
 
 def generate_ai_strategy(indicators: dict, fng: dict, funding: dict) -> str:
-    """用 Groq AI 分析策略指标，输出交易研判"""
-    if not GROQ_API_KEY or not indicators:
+    """AI 分析策略指标，输出交易研判"""
+    if (not GEMINI_API_KEY and not GROQ_API_KEY) or not indicators:
         return ""
 
     lines = []
@@ -1600,32 +1602,7 @@ def generate_ai_strategy(indicators: dict, fng: dict, funding: dict) -> str:
 - 风格：专业简洁，像交易员的盘前笔记
 - 用中文回答"""
 
-    payload = json.dumps({
-        "model": "llama-3.3-70b-versatile",
-        "max_tokens": 400,
-        "temperature": 0.3,
-        "messages": [{"role": "user", "content": prompt}],
-    }).encode("utf-8")
-
-    req = Request(
-        "https://api.groq.com/openai/v1/chat/completions",
-        data=payload,
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {GROQ_API_KEY}",
-        },
-        method="POST",
-    )
-
-    try:
-        with urlopen(req, timeout=30) as resp:
-            result = json.loads(resp.read().decode())
-            text = result["choices"][0]["message"]["content"]
-            print(f"[OK] AI 策略分析完成 ({len(text)} 字)")
-            return text
-    except Exception as e:
-        print(f"[ERROR] AI 策略分析失败: {e}")
-        return ""
+    return _ai_call(prompt, max_tokens=400, temperature=0.3)
 
 
 def _build_strategy_html(indicators: dict, ai_analysis: str = "") -> str:
