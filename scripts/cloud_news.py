@@ -109,7 +109,17 @@ GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 #  工具函数
 # ══════════════════════════════════════════════════════════════════
 
+_last_cg_ts = 0  # CoinGecko 全局速率控制
+
 def fetch_json(url: str, timeout: int = 30):
+    global _last_cg_ts
+    # CoinGecko 免费版限流：自动间隔 2s
+    if "coingecko.com" in url:
+        import time as _t
+        elapsed = _t.time() - _last_cg_ts
+        if elapsed < 2:
+            _t.sleep(2 - elapsed)
+        _last_cg_ts = _t.time()
     req = Request(url, headers={"User-Agent": "MarketBot/2.0"})
     try:
         with urlopen(req, timeout=timeout) as resp:
@@ -227,44 +237,74 @@ def fetch_funding_rates() -> dict:
 
 # ── 宏观数据 ──────────────────────────────────────────────────────
 
+FRED_API_KEY = os.environ.get("FRED_API_KEY", "")
+
+def _fetch_yield_fred(series_id: str, api_key: str) -> dict | None:
+    """从 FRED 获取国债收益率"""
+    data = fetch_json(
+        f"https://api.stlouisfed.org/fred/series/observations"
+        f"?series_id={series_id}&api_key={api_key}&file_type=json"
+        f"&sort_order=desc&limit=2"
+    )
+    if data and "observations" in data:
+        obs = [o for o in data["observations"] if o["value"] != "."]
+        if len(obs) >= 2:
+            return {"value": float(obs[0]["value"]), "prev": float(obs[1]["value"])}
+        elif len(obs) == 1:
+            return {"value": float(obs[0]["value"]), "prev": None}
+    return None
+
+
+def _fetch_yield_yahoo(ticker: str) -> dict | None:
+    """Yahoo Finance 兜底获取国债收益率"""
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{quote(ticker)}?range=5d&interval=1d"
+    req = Request(url, headers={
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    })
+    try:
+        with urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode())
+        closes = data["chart"]["result"][0]["indicators"]["quote"][0]["close"]
+        valid = [c for c in closes if c is not None]
+        if len(valid) >= 2:
+            return {"value": valid[-1], "prev": valid[-2]}
+        elif valid:
+            return {"value": valid[-1], "prev": None}
+    except Exception as e:
+        print(f"[WARN] Yahoo Finance {ticker} 失败: {e}")
+    return None
+
+
 def fetch_macro_yields() -> dict:
-    """获取美国10年期国债 + 日本10年期国债收益率"""
+    """获取美国10年期国债 + 日本10年期国债收益率（FRED → Yahoo Finance 兜底）"""
     result = {}
+    fred_key = FRED_API_KEY
 
-    # US 10Y - FRED API (DEMO_KEY 有限额但够用)
-    us_data = fetch_json(
-        "https://api.stlouisfed.org/fred/series/observations"
-        "?series_id=DGS10&api_key=DEMO_KEY&file_type=json"
-        "&sort_order=desc&limit=2"
-    )
-    if us_data and "observations" in us_data:
-        obs = [o for o in us_data["observations"] if o["value"] != "."]
-        if len(obs) >= 2:
-            result["US10Y"] = {"value": float(obs[0]["value"]),
-                               "prev": float(obs[1]["value"])}
-        elif len(obs) == 1:
-            result["US10Y"] = {"value": float(obs[0]["value"]), "prev": None}
+    # US 10Y
+    if fred_key:
+        us = _fetch_yield_fred("DGS10", fred_key)
+        if us:
+            result["US10Y"] = us
+    if "US10Y" not in result:
+        us = _fetch_yield_yahoo("^TNX")
+        if us:
+            result["US10Y"] = us
 
-    # JP 10Y - FRED series: IRLTLT01JPM156N (月度) 太慢
-    # 用 investing.com 不现实，改用 FRED 的日本长期利率
-    jp_data = fetch_json(
-        "https://api.stlouisfed.org/fred/series/observations"
-        "?series_id=IRLTLT01JPM156N&api_key=DEMO_KEY&file_type=json"
-        "&sort_order=desc&limit=2"
-    )
-    if jp_data and "observations" in jp_data:
-        obs = [o for o in jp_data["observations"] if o["value"] != "."]
-        if len(obs) >= 2:
-            result["JP10Y"] = {"value": float(obs[0]["value"]),
-                               "prev": float(obs[1]["value"])}
-        elif len(obs) == 1:
-            result["JP10Y"] = {"value": float(obs[0]["value"]), "prev": None}
+    # JP 10Y
+    if fred_key:
+        jp = _fetch_yield_fred("IRLTLT01JPM156N", fred_key)
+        if jp:
+            result["JP10Y"] = jp
+    if "JP10Y" not in result:
+        jp = _fetch_yield_yahoo("^JGBS")
+        if jp:
+            result["JP10Y"] = jp
 
     return result
 
 
 def fetch_forex() -> dict:
-    """获取 USD/JPY, USD/CNY 汇率及变动方向"""
+    """获取 USD/JPY, USD/CNY, 100JPY/CNY 汇率"""
     data = fetch_json("https://open.er-api.com/v6/latest/USD")
     if not data or not data.get("rates"):
         return {}
@@ -273,6 +313,10 @@ def fetch_forex() -> dict:
     for pair, code in [("USD/JPY", "JPY"), ("USD/CNY", "CNY")]:
         if code in rates:
             result[pair] = rates[code]
+    # 100日元兑人民币 — 用 JPY 基准直接获取
+    jpy_data = fetch_json("https://open.er-api.com/v6/latest/JPY")
+    if jpy_data and jpy_data.get("rates", {}).get("CNY"):
+        result["100JPY/CNY"] = jpy_data["rates"]["CNY"] * 100
     return result
 
 
@@ -994,7 +1038,7 @@ STYLE = """<style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{
   font-family:-apple-system,'SF Pro Display','Helvetica Neue','PingFang SC',sans-serif;
-  background:#faf9f6;
+  background:#f5f5f7;
   color:#1d1d1f;padding:24px 16px;
   -webkit-font-smoothing:antialiased
 }
@@ -1002,68 +1046,68 @@ body{
   max-width:560px;margin:0 auto;
   background:#ffffff;
   border-radius:24px;overflow:hidden;
-  border:1px solid #f0ede6;
-  box-shadow:0 8px 40px rgba(0,0,0,0.06),0 1px 3px rgba(0,0,0,0.04)
+  border:1px solid #e5e5ea;
+  box-shadow:0 12px 48px rgba(0,0,0,0.08),0 2px 6px rgba(0,0,0,0.04)
 }
 .hd{
   padding:36px 32px 20px;
-  background:#fffcf5;
-  border-bottom:1px solid rgba(0,0,0,0.04);
+  background:#ffffff;
+  border-bottom:1px solid #e5e5ea;
   color:#1d1d1f
 }
 .hd h1{font-size:22px;font-weight:700;letter-spacing:-.5px;margin-bottom:4px;color:#1a1a1a}
-.hd .sub{font-size:11px;color:#999;font-weight:400;letter-spacing:1.5px;text-transform:uppercase}
-.hd .t{font-size:12px;color:#888;margin-top:8px;font-variant-numeric:tabular-nums}
-.s{padding:24px 32px;border-top:1px solid rgba(0,0,0,0.04)}
+.hd .sub{font-size:11px;color:#86868b;font-weight:400;letter-spacing:1.5px;text-transform:uppercase}
+.hd .t{font-size:12px;color:#86868b;margin-top:8px;font-variant-numeric:tabular-nums}
+.s{padding:24px 32px;border-top:1px solid #f0f0f0}
 .st{
-  font-size:10px;font-weight:600;color:#b0a898;
+  font-size:10px;font-weight:600;color:#86868b;
   text-transform:uppercase;letter-spacing:1.5px;
   margin-bottom:14px;
   padding-left:10px;
-  border-left:3px solid #c9b99a
+  border-left:3px solid #86868b
 }
 .r{
   padding:8px 0;font-size:13px;line-height:1.4;overflow:hidden
 }
 .r .l{color:#6e6e73;font-weight:400;float:left}
 .r .v{font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.2px;color:#1d1d1f;float:right;text-align:right}
-.up{color:#34a853}.dn{color:#ea4335}.nt{color:#b0b0b0}
+.up{color:#34c759;font-weight:700}.dn{color:#ff3b30;font-weight:700}.nt{color:#b0b0b0}
 .tg{
   display:inline-block;font-size:9px;font-weight:600;
   padding:3px 8px;border-radius:6px;margin-left:6px;
   letter-spacing:.3px;text-transform:uppercase
 }
-.tg-r{background:#fef0ef;color:#ea4335}
-.tg-b{background:#eef3fe;color:#4285f4}
-.tg-g{background:#eef8f0;color:#34a853}
-.tg-y{background:#f8f3e8;color:#b8960c}
-.dv{height:1px;background:rgba(0,0,0,0.04);margin:6px 0}
+.tg-r{background:#fff2f1;color:#ff3b30}
+.tg-b{background:#eef3fe;color:#007aff}
+.tg-g{background:#eef8f0;color:#34c759}
+.tg-y{background:#fff8ec;color:#ff9500}
+.dv{height:1px;background:#f0f0f0;margin:6px 0}
 .ab{
   margin:8px 0;padding:14px 16px;border-radius:14px;
   font-size:12px;line-height:1.6
 }
-.ab-d{background:#fef0ef;border:1px solid #fcd9d6}
-.ab-i{background:#f8f5ee;border:1px solid #e8e0ce}
+.ab-d{background:#fff2f1;border:1px solid #fcd9d6}
+.ab-i{background:#f5f5f7;border:1px solid #e5e5ea}
 .sb{
-  background:#faf8f2;
-  border:1px solid #e8e0ce;
+  background:#f5f5f7;
+  border:1px solid #e5e5ea;
   border-radius:14px;padding:16px 18px;margin-top:10px;
   font-size:12px;line-height:1.8;color:#48484a
 }
 .ni{
   padding:12px 16px;margin:8px 0;font-size:12px;line-height:1.6;
-  background:#faf8f2;border-radius:12px;
-  border-left:3px solid #d4c5a9
+  background:#f5f5f7;border-radius:12px;
+  border-left:3px solid #d1d1d6
 }
 .ni a{color:#1d1d1f;text-decoration:none;font-weight:500}
 .ni a:hover{text-decoration:underline}
-.ni .sm{color:#999;font-size:11px;margin-top:2px}
+.ni .sm{color:#86868b;font-size:11px;margin-top:2px}
 .ft{
   padding:20px 32px;text-align:center;
-  font-size:10px;color:#c7c2b8;letter-spacing:.3px;
-  border-top:1px solid rgba(0,0,0,0.03)
+  font-size:10px;color:#aeaeb2;letter-spacing:.3px;
+  border-top:1px solid #f0f0f0
 }
-.ft span{color:#b0a898;font-weight:600}
+.ft span{color:#86868b;font-weight:600}
 </style>"""
 
 
@@ -1080,9 +1124,10 @@ def _p(price: float) -> str:
 
 def _c(change: float) -> str:
     """格式化涨跌幅"""
-    sign = "+" if change >= 0 else ""
-    cls = "up" if change >= 0 else "dn"
-    return f'<span class="{cls}">{sign}{change:.1f}%</span>'
+    if change >= 0:
+        return f'<span class="up">▲ +{change:.1f}%</span>'
+    else:
+        return f'<span class="dn">▼ {change:.1f}%</span>'
 
 
 def _mc(value: float) -> str:
@@ -1120,17 +1165,17 @@ def _vis_gauge(value: int, label: str, max_val: int = 100) -> str:
     """横条仪表盘（恐贪指数等 0-100 值）— 邮件兼容 table 布局"""
     pct = max(0, min(100, value / max_val * 100))
     remain = 100 - pct
-    # 颜色：红(恐惧) → 橙 → 黄(中性) → 绿(贪婪)
+    # 颜色：Apple 系统色 — 红(极度恐惧) → 橙(恐惧) → 灰(中性) → 蓝(贪婪) → 靛蓝(极度贪婪)
     if pct <= 25:
-        color = "#ea4335"
+        color = "#ff3b30"
     elif pct <= 45:
-        color = "#f4a261"
+        color = "#ff9500"
     elif pct <= 55:
-        color = "#e9c46a"
+        color = "#86868b"
     elif pct <= 75:
-        color = "#87c38f"
+        color = "#007aff"
     else:
-        color = "#34a853"
+        color = "#5856d6"
 
     return f'''<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:12px 0 8px">
 <tr>
@@ -1138,7 +1183,7 @@ def _vis_gauge(value: int, label: str, max_val: int = 100) -> str:
   <table width="100%" cellpadding="0" cellspacing="0" border="0">
   <tr>
     <td style="width:{pct:.0f}%;height:10px;border-radius:5px 0 0 5px" bgcolor="{color}"></td>
-    <td style="width:{remain:.0f}%;height:10px;border-radius:0 5px 5px 0" bgcolor="#ededed"></td>
+    <td style="width:{remain:.0f}%;height:10px;border-radius:0 5px 5px 0" bgcolor="#e5e5ea"></td>
     <td style="width:90px;padding-left:10px;font-size:18px;font-weight:700;color:#1d1d1f;white-space:nowrap;vertical-align:middle" rowspan="1">{value} · <span style="font-size:11px;font-weight:600;color:{color}">{label}</span></td>
   </tr>
   </table>
@@ -1229,7 +1274,7 @@ def _vis_timeline(expiries: list[dict], currency: str) -> str:
         elif days <= 7:
             color = "#f4a261"
         else:
-            color = "#c9b99a"
+            color = "#86868b"
         star = " ★" if exp["is_major"] else ""
         nv = _mc(notional)
         rows += f'''<tr>
@@ -1245,7 +1290,7 @@ def _vis_timeline(expiries: list[dict], currency: str) -> str:
 </tr>'''
 
     return f'''<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 12px">
-<tr><td colspan="4" style="font-size:10px;color:#b0a898;padding-bottom:6px;font-weight:600">{currency} 到期时间轴</td></tr>
+<tr><td colspan="4" style="font-size:10px;color:#86868b;padding-bottom:6px;font-weight:600">{currency} 到期时间轴</td></tr>
 {rows}
 </table>'''
 
@@ -1258,7 +1303,7 @@ def _vis_holdings_bars(companies: list[dict], max_items: int = 5) -> str:
     if total == 0:
         return ""
 
-    colors = ["#c9b99a", "#b0a898", "#d4c5a9", "#a89880", "#e0d5c1"]
+    colors = ["#007aff", "#5856d6", "#34c759", "#ff9500", "#af52de"]
     cells = ""
     for i, comp in enumerate(companies[:max_items]):
         pct = comp["value_usd"] / total * 100
@@ -1285,7 +1330,7 @@ def _vis_rsi_bar(rsi_value: float, symbol: str) -> str:
         color = "#ea4335"
         tag = "超买"
     else:
-        color = "#c9b99a"
+        color = "#86868b"
         tag = ""
     tag_html = f' <span style="font-size:9px;font-weight:600;color:{color}">{tag}</span>' if tag else ""
     return f'''<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:4px 0 8px">
@@ -1294,7 +1339,7 @@ def _vis_rsi_bar(rsi_value: float, symbol: str) -> str:
 <td style="padding-bottom:3px">
   <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
     <td style="width:{rsi:.0f}%;height:7px;border-radius:4px 0 0 4px" bgcolor="{color}"></td>
-    <td style="width:{remain:.0f}%;height:7px;border-radius:0 4px 4px 0" bgcolor="#ededed"></td>
+    <td style="width:{remain:.0f}%;height:7px;border-radius:0 4px 4px 0" bgcolor="#e5e5ea"></td>
   </tr></table>
 </td>
 <td style="font-size:12px;font-weight:600;color:#1d1d1f;padding-bottom:3px;padding-left:8px;width:60px;text-align:right;white-space:nowrap">{rsi:.0f}{tag_html}</td>
@@ -1337,8 +1382,8 @@ def _vis_funding_heatmap(funding: dict) -> str:
 </td>'''
         cells_bottom += f'<td style="font-size:9px;color:#999;text-align:center;padding:0 6px">({tag})</td>'
 
-    return f'''<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 10px;background:#faf8f2;border:1px solid #f0ede6;border-radius:8px">
-<tr><td colspan="3" style="font-size:10px;color:#b0a898;padding:8px 10px 4px;font-weight:600">费率热力图</td></tr>
+    return f'''<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 10px;background:#f5f5f7;border:1px solid #e5e5ea;border-radius:8px">
+<tr><td colspan="3" style="font-size:10px;color:#86868b;padding:8px 10px 4px;font-weight:600">费率热力图</td></tr>
 <tr>{cells_top}</tr>
 <tr>{cells_bottom}</tr>
 <tr><td colspan="3" style="height:6px"></td></tr>
@@ -1357,7 +1402,7 @@ def _vis_mini_sparkline(rates: list, trend_label: str, trend_cls: str = "b") -> 
     for r in rates:
         h = 2 + int((r - min_r) / rng * 14)
         # 颜色：正值金色，负值蓝色
-        color = "#c9b99a" if r >= 0 else "#4285f4"
+        color = "#007aff" if r >= 0 else "#5856d6"
         cells += f'<td style="vertical-align:bottom;padding:0 1px"><div style="width:6px;height:{h}px;border-radius:1px;background:{color}"></div></td>'
 
     tag = _ftag(trend_label, trend_cls)
@@ -1588,67 +1633,149 @@ def _build_strategy_html(indicators: dict, ai_analysis: str = "") -> str:
     if not indicators:
         return ""
 
-    h = '<div class="s"><p class="st">交易策略指标</p>'
+    h = '<div class="s"><p class="st" style="border-left-color:#007aff">交易策略指标</p>'
 
     # AI 策略研判（放在最前面）
     if ai_analysis:
         h += f'<div class="sb">{ai_analysis.replace(chr(10), "<br>")}</div>'
-        h += '<div class="dv"></div>'
 
     for sym in ["BTC", "ETH"]:
         if sym not in indicators:
             continue
         ind = indicators[sym]
-        h += f'<div style="font-size:12px;font-weight:600;color:#1d1d1f;margin:8px 0 6px">{sym}</div>'
-
-        # MA 位置可视化 — 价格在区间中的位置
-        price_pos = ind.get("price_vs_range", 50)
+        price = ind.get("price", 0)
         ma_sig = ind.get("ma_signal", "—")
         ma_cls = ind.get("ma_class", "b")
-        h += f'''<div class="r"><span class="l">均线</span><span class="v">{_ftag(ma_sig, ma_cls)}</span></div>'''
 
-        # MA 数值
+        # ── 币种卡片 ──
+        h += f'''<div style="background:#f5f5f7;border:1px solid #e5e5ea;border-radius:14px;padding:16px 18px;margin-top:12px">'''
+
+        # 卡片标题行：币种 + 当前价格 + 均线信号标签
+        h += f'''<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td style="font-size:15px;font-weight:700;color:#1d1d1f">{sym} <span style="font-weight:400;color:#86868b;font-size:12px">{_p(price)}</span></td>
+<td style="text-align:right">{_ftag(ma_sig, ma_cls)}</td>
+</tr></table>'''
+
+        # ── 均线矩阵 ──
         ma7 = ind.get("ma7", 0)
         ma25 = ind.get("ma25", 0)
-        h += f'<div style="font-size:10px;color:#999;padding:0 0 4px">MA7 {_p(ma7)} · MA25 {_p(ma25)}'
-        if ind.get("ma50"):
-            h += f' · MA50 {_p(ind["ma50"])}'
-        h += '</div>'
+        ma50 = ind.get("ma50")
 
-        # 价格位置进度条（30天区间）
+        # 判断价格与各 MA 的关系
+        def _ma_rel(p, ma):
+            if ma == 0:
+                return "#86868b"
+            return "#34c759" if p >= ma else "#ff3b30"
+
+        ma7_color = _ma_rel(price, ma7)
+        ma25_color = _ma_rel(price, ma25)
+
+        ma_cols = f'''<td style="width:33%;text-align:center;padding:8px 4px">
+<div style="font-size:9px;color:#86868b;text-transform:uppercase;letter-spacing:1px">MA7</div>
+<div style="font-size:13px;font-weight:700;color:#1d1d1f;margin-top:2px">{_p(ma7)}</div>
+<div style="font-size:9px;font-weight:600;color:{ma7_color};margin-top:1px">{'▲ 上方' if price >= ma7 else '▼ 下方'}</div>
+</td>
+<td style="width:33%;text-align:center;padding:8px 4px;border-left:1px solid #e5e5ea;border-right:1px solid #e5e5ea">
+<div style="font-size:9px;color:#86868b;text-transform:uppercase;letter-spacing:1px">MA25</div>
+<div style="font-size:13px;font-weight:700;color:#1d1d1f;margin-top:2px">{_p(ma25)}</div>
+<div style="font-size:9px;font-weight:600;color:{ma25_color};margin-top:1px">{'▲ 上方' if price >= ma25 else '▼ 下方'}</div>
+</td>'''
+
+        if ma50:
+            ma50_color = _ma_rel(price, ma50)
+            ma_cols += f'''<td style="width:34%;text-align:center;padding:8px 4px">
+<div style="font-size:9px;color:#86868b;text-transform:uppercase;letter-spacing:1px">MA50</div>
+<div style="font-size:13px;font-weight:700;color:#1d1d1f;margin-top:2px">{_p(ma50)}</div>
+<div style="font-size:9px;font-weight:600;color:{ma50_color};margin-top:1px">{'▲ 上方' if price >= ma50 else '▼ 下方'}</div>
+</td>'''
+        else:
+            ma_cols += '<td style="width:34%"></td>'
+
+        h += f'''<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:10px;background:#ffffff;border-radius:10px;border:1px solid #e5e5ea">
+<tr>{ma_cols}</tr></table>'''
+
+        # ── 30天价格区间进度条 ──
         support = ind.get("support", 0)
         resist = ind.get("resistance", 0)
+        price_pos = ind.get("price_vs_range", 50)
         remain_pos = 100 - price_pos
-        h += f'''<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:4px 0 8px">
-<tr><td style="font-size:9px;color:#999">支撑 {_p(support)}</td><td style="font-size:9px;color:#999;text-align:right">阻力 {_p(resist)}</td></tr>
-<tr><td colspan="2" style="padding-top:2px">
-  <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-    <td style="width:{price_pos:.0f}%;height:6px;border-radius:3px 0 0 3px" bgcolor="#e9c46a"></td>
-    <td style="width:{remain_pos:.0f}%;height:6px;border-radius:0 3px 3px 0" bgcolor="#ededed"></td>
-  </tr></table>
-</td></tr></table>'''
+        # 价格位置颜色：靠近支撑红、靠近阻力绿、中间蓝
+        if price_pos <= 30:
+            pos_color = "#ff3b30"
+        elif price_pos >= 70:
+            pos_color = "#34c759"
+        else:
+            pos_color = "#007aff"
 
-        # MACD
+        h += f'''<div style="margin-top:12px">
+<div style="font-size:10px;color:#86868b;margin-bottom:4px;font-weight:600">30天价格区间 · 当前位置 <span style="color:{pos_color};font-weight:700">{price_pos:.0f}%</span></div>
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr><td colspan="2" style="padding:0">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+    <td style="width:{price_pos:.0f}%;height:8px;border-radius:4px 0 0 4px" bgcolor="{pos_color}"></td>
+    <td style="width:{remain_pos:.0f}%;height:8px;border-radius:0 4px 4px 0" bgcolor="#e5e5ea"></td>
+  </tr></table>
+</td></tr>
+<tr>
+<td style="font-size:9px;color:#aeaeb2;padding-top:3px">支撑 {_p(support)}</td>
+<td style="font-size:9px;color:#aeaeb2;padding-top:3px;text-align:right">阻力 {_p(resist)}</td>
+</tr></table>
+</div>'''
+
+        # ── MACD + 成交量 并排指标行 ──
+        macd_html = ""
+        vol_html = ""
+
         if "macd_signal" in ind:
             macd_cls = ind.get("macd_class", "b")
-            h += f'<div class="r"><span class="l">MACD</span><span class="v">{_ftag(ind["macd_signal"], macd_cls)}</span></div>'
+            macd_sig = ind["macd_signal"]
+            dif = ind.get("macd_dif", 0)
+            dea = ind.get("macd_dea", 0)
+            hist = ind.get("macd_hist", 0)
+            hist_color = "#34c759" if hist >= 0 else "#ff3b30"
+            macd_html = f'''<td style="width:50%;padding:10px 12px;vertical-align:top">
+<div style="font-size:9px;color:#86868b;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">MACD</div>
+<div style="margin-bottom:4px">{_ftag(macd_sig, macd_cls)}</div>
+<div style="font-size:10px;color:#636366;line-height:1.6">DIF <span style="font-weight:600">{dif:.2f}</span></div>
+<div style="font-size:10px;color:#636366;line-height:1.6">DEA <span style="font-weight:600">{dea:.2f}</span></div>
+<div style="font-size:10px;color:{hist_color};font-weight:600;line-height:1.6">柱 {hist:+.2f}</div>
+</td>'''
 
-        # 成交量
         if "vol_signal" in ind:
             vol_cls = ind.get("vol_class", "b")
             vol_chg = ind.get("vol_change", 0)
-            h += f'<div class="r"><span class="l">成交量(7d)</span><span class="v">{_ftag(ind["vol_signal"], vol_cls)} {vol_chg:+.0f}%</span></div>'
+            vol_avg = ind.get("vol_7d_avg", 0)
+            vol_arrow = "▲" if vol_chg >= 0 else "▼"
+            vol_color = "#34c759" if vol_chg >= 0 else "#ff3b30"
+            vol_avg_str = _mc(vol_avg) if vol_avg else "—"
+            vol_html = f'''<td style="width:50%;padding:10px 12px;vertical-align:top;border-left:1px solid #e5e5ea">
+<div style="font-size:9px;color:#86868b;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">成交量 7D</div>
+<div style="margin-bottom:4px">{_ftag(ind["vol_signal"], vol_cls)}</div>
+<div style="font-size:10px;color:#636366;line-height:1.6">均量 <span style="font-weight:600">{vol_avg_str}</span></div>
+<div style="font-size:10px;color:{vol_color};font-weight:600;line-height:1.6">{vol_arrow} {vol_chg:+.0f}% vs 前周</div>
+</td>'''
 
-        # 资金费率趋势（迷你柱状图）
+        if macd_html or vol_html:
+            if not macd_html:
+                macd_html = '<td style="width:50%"></td>'
+            if not vol_html:
+                vol_html = '<td style="width:50%"></td>'
+            h += f'''<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:10px;background:#ffffff;border-radius:10px;border:1px solid #e5e5ea">
+<tr>{macd_html}{vol_html}</tr></table>'''
+
+        # ── 资金费率趋势 ──
         if "funding_trend" in ind:
             ft_cls = ind.get("funding_trend_class", "b")
             rates = ind.get("funding_rates", [])
+            h += '<div style="margin-top:10px">'
             if rates:
                 h += _vis_mini_sparkline(rates, ind["funding_trend"], ft_cls)
             else:
                 h += f'<div class="r"><span class="l">费率趋势</span><span class="v">{_ftag(ind["funding_trend"], ft_cls)}</span></div>'
+            h += '</div>'
 
-        h += '<div class="dv"></div>'
+        h += '</div>'  # 关闭卡片
 
     h += '</div>'
     return h
@@ -1702,32 +1829,41 @@ def build_daily_html(data: dict) -> str:
     eth_price = eth.get('price', 0)
     eth_btc = eth_price / btc_price if btc_price > 0 else 0
 
+    # 生成 BTC/ETH 卡片颜色
+    btc_chg = btc.get('change', 0)
+    eth_chg = eth.get('change', 0)
+    btc_bg = '#f0faf2' if btc_chg >= 0 else '#fef2f1'
+    btc_border = '#34c759' if btc_chg >= 0 else '#ff3b30'
+    btc_arrow = '▲' if btc_chg >= 0 else '▼'
+    btc_sign = '+' if btc_chg >= 0 else ''
+    eth_bg = '#f0faf2' if eth_chg >= 0 else '#fef2f1'
+    eth_border = '#34c759' if eth_chg >= 0 else '#ff3b30'
+    eth_arrow = '▲' if eth_chg >= 0 else '▼'
+    eth_sign = '+' if eth_chg >= 0 else ''
+
     h += f"""<div class="hd">
       <p class="sub">DAILY BRIEFING</p>
       <h1>Market Digest</h1>
       <p class="t">{d} · {t} CST</p>
-      <table style="width:100%;margin-top:16px;color:#1d1d1f;font-size:13px;border-collapse:collapse">
+      <table style="width:100%;margin-top:16px;border-collapse:separate;border-spacing:8px 0">
         <tr>
-          <td style="padding:6px 0"><b>BTC</b></td>
-          <td style="text-align:right">{_p(btc.get('price', 0))}</td>
-          <td style="text-align:right;width:70px;opacity:0.8">{'+' if btc.get('change', 0) >= 0 else ''}{btc.get('change', 0):.1f}%</td>
+          <td style="width:50%;padding:14px 16px;border-radius:12px;background:{btc_bg};border:1px solid {btc_border}20">
+            <div style="font-size:11px;font-weight:600;color:#86868b;margin-bottom:4px">BTC</div>
+            <div style="font-size:18px;font-weight:700;color:#1d1d1f">{_p(btc.get('price', 0))}</div>
+            <div style="font-size:13px;font-weight:700;color:{btc_border};margin-top:2px">{btc_arrow} {btc_sign}{btc_chg:.1f}%</div>
+          </td>
+          <td style="width:50%;padding:14px 16px;border-radius:12px;background:{eth_bg};border:1px solid {eth_border}20">
+            <div style="font-size:11px;font-weight:600;color:#86868b;margin-bottom:4px">ETH</div>
+            <div style="font-size:18px;font-weight:700;color:#1d1d1f">{_p(eth.get('price', 0))}</div>
+            <div style="font-size:13px;font-weight:700;color:{eth_border};margin-top:2px">{eth_arrow} {eth_sign}{eth_chg:.1f}%</div>
+          </td>
         </tr>
-        <tr>
-          <td style="padding:6px 0"><b>ETH</b></td>
-          <td style="text-align:right">{_p(eth.get('price', 0))}</td>
-          <td style="text-align:right;opacity:0.8">{'+' if eth.get('change', 0) >= 0 else ''}{eth.get('change', 0):.1f}%</td>
-        </tr>
-        <tr>
-          <td style="padding:6px 0"><b>ETH/BTC</b></td>
-          <td style="text-align:right">{eth_btc:.6f}</td>
-          <td></td>
-        </tr>
-        <tr><td colspan="3" style="padding:8px 0 4px;border-top:1px solid rgba(0,0,0,0.06)">
-          <span style="opacity:0.7">趋势</span> <b>{score}</b>/100 · {slabel}
-          &nbsp;&nbsp;
-          <span style="opacity:0.7">恐贪</span> <b>{fng_val}</b> · {fng_tag}
-        </td></tr>
       </table>
+      <div style="font-size:12px;color:#86868b;margin-top:12px">ETH/BTC <span style="font-weight:600;color:#1d1d1f">{eth_btc:.6f}</span></div>
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <span style="display:inline-block;padding:6px 14px;border-radius:20px;background:#f5f5f7;font-size:12px;color:#1d1d1f;font-weight:500">趋势 <b>{score}</b>/100 · {slabel}</span>
+        <span style="display:inline-block;padding:6px 14px;border-radius:20px;background:#f5f5f7;font-size:12px;color:#1d1d1f;font-weight:500">恐贪 <b>{fng_val}</b> · {fng_tag}</span>
+      </div>
     </div>"""
 
     # ═══ 恐贪仪表盘 ═══
@@ -1736,7 +1872,7 @@ def build_daily_html(data: dict) -> str:
     # ═══ 一、AI 今日要点（最重要，放最前面）═══
     ai_summary = data.get("ai_summary", "")
     if ai_summary:
-        h += '<div class="s"><p class="st">AI 今日要点</p>'
+        h += '<div class="s"><p class="st" style="border-left-color:#007aff">AI 今日要点</p>'
         h += f'<div class="sb">{ai_summary.replace(chr(10), "<br>")}</div>'
         h += '</div>'
 
@@ -1746,7 +1882,7 @@ def build_daily_html(data: dict) -> str:
         h += _build_strategy_html(strategy, data.get("ai_strategy", ""))
 
     # ═══ 二、风险仪表盘（合并：衍生品+清算+多空+Gas）═══
-    h += '<div class="s"><p class="st">风险仪表盘</p>'
+    h += '<div class="s"><p class="st" style="border-left-color:#ff3b30">风险仪表盘</p>'
 
     # 资金费率热力图
     if funding:
@@ -1806,7 +1942,7 @@ def build_daily_html(data: dict) -> str:
     # ═══ 期权交割日历 (含时间轴可视化) ═══
     options = data.get("options_expiry", {})
     if options:
-        h += '<div class="s"><p class="st">期权交割日历</p>'
+        h += '<div class="s"><p class="st" style="border-left-color:#ff9500">期权交割日历</p>'
         for currency in ["BTC", "ETH"]:
             if currency not in options or not options[currency]:
                 continue
@@ -1829,7 +1965,7 @@ def build_daily_html(data: dict) -> str:
     # ═══ 机构持仓 · 大额动向 (含比例条可视化) ═══
     holdings = data.get("institutional", {})
     if holdings:
-        h += '<div class="s"><p class="st">机构持仓 · 大额动向</p>'
+        h += '<div class="s"><p class="st" style="border-left-color:#af52de">机构持仓 · 大额动向</p>'
         for sym in ["BTC", "ETH"]:
             if sym not in holdings:
                 continue
@@ -1849,7 +1985,7 @@ def build_daily_html(data: dict) -> str:
         h += '</div>'
 
     # ═══ 三、资金 & 宏观（合并：稳定币+市值+国债+汇率+TVL）═══
-    h += '<div class="s"><p class="st">资金 & 宏观</p>'
+    h += '<div class="s"><p class="st" style="border-left-color:#34c759">资金 & 宏观</p>'
 
     # 稳定币（只显示有变动的）
     for sym in ["USDT", "USDC"]:
@@ -1874,13 +2010,13 @@ def build_daily_html(data: dict) -> str:
     if "JP10Y" in yields:
         y = yields["JP10Y"]
         h += f'<div class="r"><span class="l">JP 10Y</span><span class="v">{y["value"]:.2f}% {_arrow(y["value"], y.get("prev"))}</span></div>'
-    for pair in ["USD/JPY", "USD/CNY"]:
+    for pair in ["USD/JPY", "USD/CNY", "100JPY/CNY"]:
         if pair in forex:
             h += f'<div class="r"><span class="l">{pair}</span><span class="v">{forex[pair]:.2f}</span></div>'
     h += '</div>'
 
     # ═══ 四、行情 + 涨跌榜（合并）═══
-    h += '<div class="s"><p class="st">行情一览</p>'
+    h += '<div class="s"><p class="st" style="border-left-color:#5856d6">行情一览</p>'
 
     # 涨跌榜标签先行
     by_change = sorted(prices.items(), key=lambda x: x[1]["change"], reverse=True)
@@ -1906,7 +2042,7 @@ def build_daily_html(data: dict) -> str:
     screening = data.get("screening", {})
     if screening and screening.get("outperformers"):
         bn_count = screening.get("binance_count", 0)
-        h += '<div class="s"><p class="st">涨幅筛选 · 跑赢BTC</p>'
+        h += '<div class="s"><p class="st" style="border-left-color:#34c759">涨幅筛选 · 跑赢BTC</p>'
 
         bench = screening.get("btc_benchmark", {})
         bn_label = f" · Binance {bn_count}币" if bn_count else ""
@@ -1923,7 +2059,7 @@ def build_daily_html(data: dict) -> str:
             after200 = [c for c in bn_ops if c["rank"] > 200]
 
             h += '<div class="dv"></div>'
-            h += f'<p style="font-size:11px;color:#b0a898;margin:8px 0 4px;font-weight:600">{label} · 前200 ({len(top200)}个)</p>'
+            h += f'<p style="font-size:11px;color:#86868b;margin:8px 0 4px;font-weight:600">{label} · 前200 ({len(top200)}个)</p>'
             # 条形图可视化
             h += _vis_bar_chart(top200[:5], "vs_btc", "symbol", 5)
             for coin in top200[:3]:
@@ -1934,7 +2070,7 @@ def build_daily_html(data: dict) -> str:
 
             if after200:
                 h += '<div class="dv"></div>'
-                h += f'<p style="font-size:11px;color:#b0a898;margin:8px 0 4px;font-weight:600">{label} · 200名后 ({len(after200)}个)</p>'
+                h += f'<p style="font-size:11px;color:#86868b;margin:8px 0 4px;font-weight:600">{label} · 200名后 ({len(after200)}个)</p>'
                 for coin in after200[:3]:
                     h += f'<div class="r"><span class="l">#{coin["rank"]} {coin["symbol"]}</span>'
                     h += f'<span class="v">{coin["change"]:+.1f}% <span style="font-size:10px;color:#34a853">+{coin["vs_btc"]:.1f}%</span></span></div>'
@@ -1946,7 +2082,7 @@ def build_daily_html(data: dict) -> str:
     # ═══ 关注币种动态 ═══
     watchlist_news = data.get("watchlist_news", {})
     if watchlist_news:
-        h += '<div class="s"><p class="st">关注币种动态</p>'
+        h += '<div class="s"><p class="st" style="border-left-color:#ff9500">关注币种动态</p>'
         for sym, news_list in watchlist_news.items():
             for n in news_list[:2]:  # 每币最多2条
                 title = n.get("title_cn", n["title"])
@@ -1963,7 +2099,7 @@ def build_daily_html(data: dict) -> str:
         h += '</div>'
 
     # ═══ 六、新闻 + 决策参考（合并）═══
-    h += '<div class="s"><p class="st">新闻 & 研判</p>'
+    h += '<div class="s"><p class="st" style="border-left-color:#ff9500">新闻 & 研判</p>'
 
     # 决策参考放前面（最重要）
     summary = _generate_summary(data)
@@ -1976,13 +2112,15 @@ def build_daily_html(data: dict) -> str:
             link = item.get("link", "")
             source = item.get("source", "")
             urgent_tag = _ftag("重要", "r") if item.get("urgent") else ""
-            h += '<div class="ni">'
+            # 重要新闻加浅红高亮背景
+            ni_style = ' style="background:#fff2f1;border-left-color:#ff3b30"' if item.get("urgent") else ""
+            h += f'<div class="ni"{ni_style}>'
             if link:
                 h += f'<a href="{link}">{title}</a>{urgent_tag}'
             else:
                 h += f'{title}{urgent_tag}'
             if source:
-                h += f'<span class="sm">{source}</span>'
+                h += f'<span class="sm" style="display:inline-block;padding:2px 8px;border-radius:4px;background:#e5e5ea;color:#636366;margin-top:4px">{source}</span>'
             h += '</div>'
     h += '</div>'
 
@@ -2075,10 +2213,11 @@ def build_alert_html(alerts: list[dict]) -> str:
     ts = now.strftime("%Y-%m-%d %H:%M")
 
     h = f'<!DOCTYPE html><html><head><meta charset="utf-8">{STYLE}</head><body><div class="c">'
-    h += f'<div class="hd" style="border-left:3px solid #ea4335"><p class="sub">TRIGGER ALERT</p><h1>Alert</h1><p class="t">{ts} CST</p></div>'
+    h += f'<div style="height:4px;background:linear-gradient(90deg,#ff3b30,#ff9500)"></div>'
+    h += f'<div class="hd"><p class="sub">TRIGGER ALERT</p><h1>Alert</h1><p class="t">{ts} CST</p></div>'
 
     for section in alerts:
-        h += f'<div class="s"><p class="st">{section["title"]}</p>'
+        h += f'<div class="s"><p class="st" style="border-left-color:#ff3b30">{section["title"]}</p>'
         for item in section["items"]:
             cls = "ab-d" if section.get("danger") else "ab-i"
             h += f'<div class="ab {cls}">{item}</div>'
@@ -2373,7 +2512,7 @@ def run_weekly():
     # 市场概览
     btc = prices.get("BTC", {})
     eth = prices.get("ETH", {})
-    h += '<div class="s"><p class="st">市场概览</p>'
+    h += '<div class="s"><p class="st" style="border-left-color:#5856d6">市场概览</p>'
     h += f'<div class="r"><span class="l">BTC</span><span class="v">{_p(btc.get("price", 0))} {_c(btc.get("change", 0))}</span></div>'
     h += f'<div class="r"><span class="l">ETH</span><span class="v">{_p(eth.get("price", 0))} {_c(eth.get("change", 0))}</span></div>'
     fng_val = fng.get("value", 0)
@@ -2385,7 +2524,7 @@ def run_weekly():
 
     # 期权交割日历（含时间轴可视化）
     if options:
-        h += '<div class="s"><p class="st">期权交割日历</p>'
+        h += '<div class="s"><p class="st" style="border-left-color:#ff9500">期权交割日历</p>'
         for currency in ["BTC", "ETH"]:
             if currency not in options or not options[currency]:
                 continue
@@ -2403,7 +2542,7 @@ def run_weekly():
 
     # BTC/ETH 逐币持仓
     if coin_liq:
-        h += '<div class="s"><p class="st">BTC/ETH 衍生品持仓</p>'
+        h += '<div class="s"><p class="st" style="border-left-color:#ff3b30">BTC/ETH 衍生品持仓</p>'
         for coin in ["BTC", "ETH"]:
             if coin not in coin_liq:
                 continue
@@ -2419,7 +2558,7 @@ def run_weekly():
 
     # 机构持仓
     if institutional:
-        h += '<div class="s"><p class="st">机构持仓 · 大额动向</p>'
+        h += '<div class="s"><p class="st" style="border-left-color:#af52de">机构持仓 · 大额动向</p>'
         for sym in ["BTC", "ETH"]:
             if sym not in institutional:
                 continue
@@ -2440,7 +2579,7 @@ def run_weekly():
 
     # 涨幅筛选（全量展示，周报核心内容）
     if screening and screening.get("outperformers"):
-        h += '<div class="s"><p class="st">涨幅筛选 · 跑赢BTC (全量)</p>'
+        h += '<div class="s"><p class="st" style="border-left-color:#34c759">涨幅筛选 · 跑赢BTC (全量)</p>'
 
         bench = screening.get("btc_benchmark", {})
         h += f'<div class="ab ab-i">BTC基准: 周 {bench.get("7d",0):+.1f}% · 月 {bench.get("30d",0):+.1f}% · 年 {bench.get("1y",0):+.1f}% &nbsp;(市值前{screening.get("total_coins", 200)})</div>'
