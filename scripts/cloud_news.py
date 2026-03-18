@@ -222,17 +222,33 @@ def fetch_global_data() -> dict:
 
 
 def fetch_funding_rates() -> dict:
-    """Binance 永续合约资金费率"""
+    """永续合约资金费率（Binance → Bybit 兜底）"""
+    # Binance
     data = fetch_json("https://fapi.binance.com/fapi/v1/premiumIndex")
-    if not data:
+    if data:
+        targets = {"BTCUSDT", "ETHUSDT", "SOLUSDT"}
+        result = {}
+        for item in data:
+            sym = item.get("symbol", "")
+            if sym in targets:
+                rate = float(item.get("lastFundingRate", 0)) * 100
+                result[sym.replace("USDT", "")] = rate
+        if result:
+            return result
+
+    # Bybit 兜底
+    data = fetch_json("https://api.bybit.com/v5/market/tickers?category=linear")
+    if not data or "result" not in data:
         return {}
-    targets = {"BTCUSDT", "ETHUSDT", "SOLUSDT"}
     result = {}
-    for item in data:
+    targets = {"BTCUSDT": "BTC", "ETHUSDT": "ETH", "SOLUSDT": "SOL"}
+    for item in data["result"].get("list", []):
         sym = item.get("symbol", "")
         if sym in targets:
-            rate = float(item.get("lastFundingRate", 0)) * 100
-            result[sym.replace("USDT", "")] = rate
+            rate = float(item.get("fundingRate", 0)) * 100
+            result[targets[sym]] = rate
+    if result:
+        print(f"[INFO] 资金费率使用 Bybit 备用源")
     return result
 
 
@@ -350,16 +366,30 @@ def fetch_rsi(coin_id: str = "bitcoin", days: int = 30) -> float | None:
 # ── 多空持仓比 (Binance) ─────────────────────────────────────────
 
 def fetch_long_short_ratio() -> dict:
-    """Binance 全网多空持仓人数比"""
+    """全网多空持仓人数比（Binance → Bybit 兜底）"""
     result = {}
-    for symbol in ["BTCUSDT", "ETHUSDT", "SOLUSDT"]:
-        url = f"https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol={symbol}&period=1h&limit=1"
-        data = fetch_json(url)
+    targets = {"BTCUSDT": "BTC", "ETHUSDT": "ETH", "SOLUSDT": "SOL"}
+
+    # Binance
+    for symbol, name in targets.items():
+        data = fetch_json(f"https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol={symbol}&period=1h&limit=1")
         if data and len(data) > 0:
-            name = symbol.replace("USDT", "")
-            ratio = float(data[0].get("longShortRatio", 1))
-            long_pct = float(data[0].get("longAccount", 0.5)) * 100
-            result[name] = {"ratio": ratio, "long_pct": long_pct}
+            result[name] = {
+                "ratio": float(data[0].get("longShortRatio", 1)),
+                "long_pct": float(data[0].get("longAccount", 0.5)) * 100,
+            }
+    if result:
+        return result
+
+    # Bybit 兜底
+    for symbol, name in targets.items():
+        data = fetch_json(f"https://api.bybit.com/v5/market/account-ratio?category=linear&symbol={symbol}&period=1h&limit=1")
+        if data and data.get("result", {}).get("list"):
+            item = data["result"]["list"][0]
+            buy = float(item.get("buyRatio", 0.5))
+            result[name] = {"ratio": buy / (1 - buy) if buy < 1 else 1, "long_pct": buy * 100}
+    if result:
+        print(f"[INFO] 多空比使用 Bybit 备用源")
     return result
 
 
@@ -475,46 +505,58 @@ def fetch_options_expiry() -> dict:
 # ── 逐币爆仓/持仓数据 (Binance) ──────────────────────────────────
 
 def fetch_coin_liquidations() -> dict:
-    """获取 BTC/ETH 独立的未平仓量、买卖比、多空比"""
+    """获取 BTC/ETH 独立的未平仓量、买卖比、多空比（Binance → Bybit 兜底）"""
     import time as _time
     result = {}
+
     for symbol in ["BTCUSDT", "ETHUSDT"]:
         coin = symbol.replace("USDT", "")
         info = {}
 
-        # 当前未平仓量
+        # ── 尝试 Binance ──
         oi_data = fetch_json(f"https://fapi.binance.com/fapi/v1/openInterest?symbol={symbol}")
         if oi_data:
             info["open_interest"] = float(oi_data.get("openInterest", 0))
 
-        # 未平仓量历史 (计算变动)
-        oi_hist = fetch_json(
-            f"https://fapi.binance.com/futures/data/openInterestHist"
-            f"?symbol={symbol}&period=1d&limit=2"
-        )
-        if oi_hist and len(oi_hist) >= 2:
-            curr_oi = float(oi_hist[-1].get("sumOpenInterestValue", 0))
-            prev_oi = float(oi_hist[-2].get("sumOpenInterestValue", 0))
-            info["oi_value_usd"] = curr_oi
-            info["oi_change_pct"] = ((curr_oi - prev_oi) / prev_oi * 100) if prev_oi > 0 else 0
+            oi_hist = fetch_json(f"https://fapi.binance.com/futures/data/openInterestHist?symbol={symbol}&period=1d&limit=2")
+            if oi_hist and len(oi_hist) >= 2:
+                curr_oi = float(oi_hist[-1].get("sumOpenInterestValue", 0))
+                prev_oi = float(oi_hist[-2].get("sumOpenInterestValue", 0))
+                info["oi_value_usd"] = curr_oi
+                info["oi_change_pct"] = ((curr_oi - prev_oi) / prev_oi * 100) if prev_oi > 0 else 0
 
-        # 主动买卖比 (清算方向代理)
-        taker = fetch_json(
-            f"https://fapi.binance.com/futures/data/takerlongshortRatio"
-            f"?symbol={symbol}&period=1d&limit=1"
-        )
-        if taker and len(taker) > 0:
-            info["buy_vol"] = float(taker[0].get("buyVol", 0))
-            info["sell_vol"] = float(taker[0].get("sellVol", 0))
-            info["buy_sell_ratio"] = float(taker[0].get("buySellRatio", 1))
+            taker = fetch_json(f"https://fapi.binance.com/futures/data/takerlongshortRatio?symbol={symbol}&period=1d&limit=1")
+            if taker and len(taker) > 0:
+                info["buy_sell_ratio"] = float(taker[0].get("buySellRatio", 1))
 
-        # 多空持仓人数比
-        ls = fetch_json(
-            f"https://fapi.binance.com/futures/data/globalLongShortAccountRatio"
-            f"?symbol={symbol}&period=1d&limit=1"
-        )
-        if ls and len(ls) > 0:
-            info["long_ratio"] = float(ls[0].get("longAccount", 0.5)) * 100
+            ls = fetch_json(f"https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol={symbol}&period=1d&limit=1")
+            if ls and len(ls) > 0:
+                info["long_ratio"] = float(ls[0].get("longAccount", 0.5)) * 100
+
+        # ── Bybit 兜底 ──
+        if not info:
+            oi_data = fetch_json(f"https://api.bybit.com/v5/market/open-interest?category=linear&symbol={symbol}&intervalTime=1h&limit=2")
+            if oi_data and oi_data.get("result", {}).get("list"):
+                items = oi_data["result"]["list"]
+                curr_oi = float(items[0].get("openInterest", 0))
+                info["open_interest"] = curr_oi
+                # Bybit OI 是币本位，获取价格换算 USD
+                ticker = fetch_json(f"https://api.bybit.com/v5/market/tickers?category=linear&symbol={symbol}")
+                if ticker and ticker.get("result", {}).get("list"):
+                    price = float(ticker["result"]["list"][0].get("lastPrice", 0))
+                    info["oi_value_usd"] = curr_oi * price
+                    if len(items) >= 2:
+                        prev_oi = float(items[1].get("openInterest", 0))
+                        info["oi_change_pct"] = ((curr_oi - prev_oi) / prev_oi * 100) if prev_oi > 0 else 0
+
+            ls = fetch_json(f"https://api.bybit.com/v5/market/account-ratio?category=linear&symbol={symbol}&period=1d&limit=1")
+            if ls and ls.get("result", {}).get("list"):
+                buy = float(ls["result"]["list"][0].get("buyRatio", 0.5))
+                info["long_ratio"] = buy * 100
+                info["buy_sell_ratio"] = buy / (1 - buy) if buy < 1 else 1
+
+            if info:
+                print(f"[INFO] {coin} 持仓数据使用 Bybit 备用源")
 
         if info:
             result[coin] = info
@@ -556,16 +598,29 @@ def fetch_institutional_holdings() -> dict:
 # ── Top 200 涨幅筛选 vs BTC (CoinGecko) ─────────────────────────
 
 def _fetch_binance_symbols() -> set:
-    """获取 Binance 现货上市的所有币种符号"""
+    """获取 Binance 现货上市的所有币种符号（Bybit 兜底）"""
+    # Binance
     data = fetch_json("https://api.binance.com/api/v3/exchangeInfo")
-    if not data or "symbols" not in data:
-        return set()
-    symbols = set()
-    for s in data["symbols"]:
-        if s.get("quoteAsset") == "USDT" and s.get("status") == "TRADING":
-            symbols.add(s["baseAsset"].upper())
-    print(f"[INFO] Binance 上市币种: {len(symbols)}")
-    return symbols
+    if data and "symbols" in data:
+        symbols = set()
+        for s in data["symbols"]:
+            if s.get("quoteAsset") == "USDT" and s.get("status") == "TRADING":
+                symbols.add(s["baseAsset"].upper())
+        if symbols:
+            print(f"[INFO] Binance 上市币种: {len(symbols)}")
+            return symbols
+
+    # Bybit 兜底
+    data = fetch_json("https://api.bybit.com/v5/market/tickers?category=spot")
+    if data and data.get("result", {}).get("list"):
+        symbols = set()
+        for item in data["result"]["list"]:
+            sym = item.get("symbol", "")
+            if sym.endswith("USDT"):
+                symbols.add(sym.replace("USDT", ""))
+        print(f"[INFO] Bybit 上市币种(备用): {len(symbols)}")
+        return symbols
+    return set()
 
 
 def fetch_top200_vs_btc() -> dict:
@@ -806,23 +861,21 @@ def fetch_liquidations() -> dict:
 
 
 def _fetch_liquidations_binance() -> dict:
-    """备用：从 Binance 获取近期大额清算订单估算"""
-    # Binance 没有直接的清算汇总 API，用强平订单流估算
-    url = "https://fapi.binance.com/fapi/v1/allForceOrders?limit=100"
-    data = fetch_json(url)
-    if not data:
-        return {}
-    total = sum(float(o.get("origQty", 0)) * float(o.get("price", 0)) for o in data)
-    longs = sum(float(o.get("origQty", 0)) * float(o.get("price", 0))
-                for o in data if o.get("side") == "SELL")  # 多头被清算=卖出
-    shorts = total - longs
-    return {
-        "total_24h": total,
-        "long_24h": longs,
-        "short_24h": shorts,
-        "long_ratio": (longs / total * 100) if total > 0 else 50,
-        "source": "binance_sample",
-    }
+    """备用清算数据：Binance → Bybit"""
+    # Binance
+    data = fetch_json("https://fapi.binance.com/fapi/v1/allForceOrders?limit=100")
+    if data:
+        total = sum(float(o.get("origQty", 0)) * float(o.get("price", 0)) for o in data)
+        longs = sum(float(o.get("origQty", 0)) * float(o.get("price", 0))
+                    for o in data if o.get("side") == "SELL")
+        shorts = total - longs
+        return {
+            "total_24h": total, "long_24h": longs, "short_24h": shorts,
+            "long_ratio": (longs / total * 100) if total > 0 else 50,
+            "source": "binance_sample",
+        }
+    # 清算数据无可靠免费备用源，返回空
+    return {}
 
 
 # ── AI 新闻摘要 (Claude API) ────────────────────────────────────
@@ -1530,13 +1583,25 @@ def fetch_strategy_indicators() -> dict:
         result[symbol] = info
         _time.sleep(1)
 
-    # 获取资金费率历史趋势（Binance 近3次费率）
+    # 获取资金费率历史趋势（Binance → Bybit 兜底）
     for symbol in ["BTCUSDT", "ETHUSDT"]:
         coin = symbol.replace("USDT", "")
-        url = f"https://fapi.binance.com/fapi/v1/fundingRate?symbol={symbol}&limit=3"
-        fr_data = fetch_json(url)
-        if fr_data and len(fr_data) >= 2 and coin in result:
+        if coin not in result:
+            continue
+
+        # Binance
+        fr_data = fetch_json(f"https://fapi.binance.com/fapi/v1/fundingRate?symbol={symbol}&limit=3")
+        rates = None
+        if fr_data and len(fr_data) >= 2:
             rates = [float(r.get("fundingRate", 0)) * 100 for r in fr_data]
+
+        # Bybit 兜底
+        if not rates:
+            bybit_data = fetch_json(f"https://api.bybit.com/v5/market/funding/history?category=linear&symbol={symbol}&limit=3")
+            if bybit_data and bybit_data.get("result", {}).get("list"):
+                rates = [float(r.get("fundingRate", 0)) * 100 for r in reversed(bybit_data["result"]["list"])]
+
+        if rates and len(rates) >= 2:
             result[coin]["funding_rates"] = rates
             trend = rates[-1] - rates[0]
             if trend > 0.005:
@@ -2037,22 +2102,19 @@ def build_daily_html(data: dict) -> str:
 
             h += '<div class="dv"></div>'
             h += f'<p style="font-size:11px;color:#86868b;margin:8px 0 4px;font-weight:600">{label} · 前200 ({len(top200)}个)</p>'
-            # 条形图可视化
+            # 条形图可视化（Top 5）
             h += _vis_bar_chart(top200[:5], "vs_btc", "symbol", 5)
-            for coin in top200[:3]:
+            # 全部展开
+            for coin in top200:
                 h += f'<div class="r"><span class="l">#{coin["rank"]} {coin["symbol"]}</span>'
                 h += f'<span class="v">{coin["change"]:+.1f}% <span style="font-size:10px;color:#34a853">+{coin["vs_btc"]:.1f}%</span></span></div>'
-            if len(top200) > 3:
-                h += f'<p style="font-size:10px;color:#c7c7cc;text-align:center">...及其余 {len(top200)-3} 个</p>'
 
             if after200:
                 h += '<div class="dv"></div>'
                 h += f'<p style="font-size:11px;color:#86868b;margin:8px 0 4px;font-weight:600">{label} · 200名后 ({len(after200)}个)</p>'
-                for coin in after200[:3]:
+                for coin in after200:
                     h += f'<div class="r"><span class="l">#{coin["rank"]} {coin["symbol"]}</span>'
                     h += f'<span class="v">{coin["change"]:+.1f}% <span style="font-size:10px;color:#34a853">+{coin["vs_btc"]:.1f}%</span></span></div>'
-                if len(after200) > 3:
-                    h += f'<p style="font-size:10px;color:#c7c7cc;text-align:center">...及其余 {len(after200)-3} 个</p>'
 
         h += '</div>'
 
@@ -2568,11 +2630,9 @@ def run_weekly():
                 continue
             h += '<div class="dv"></div>'
             h += f'<p style="font-size:11px;color:#8e8e93;margin:8px 0 4px;font-weight:600">{label} 跑赢BTC ({len(ops)}个)</p>'
-            for coin in ops[:20]:  # 周报展示 top 20
+            for coin in ops:
                 h += f'<div class="r"><span class="l">#{coin["rank"]} {coin["symbol"]}</span>'
                 h += f'<span class="v">{coin["change"]:+.1f}% <span style="font-size:10px;color:#34a853">+{coin["vs_btc"]:.1f}%</span></span></div>'
-            if len(ops) > 20:
-                h += f'<p style="font-size:10px;color:#c7c7cc;text-align:center">...及其余 {len(ops)-20} 个币种</p>'
 
         h += '</div>'
 
