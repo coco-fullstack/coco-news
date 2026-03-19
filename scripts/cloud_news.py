@@ -48,6 +48,31 @@ WATCHLIST_COINS = {
 
 STABLECOINS = {"tether": "USDT", "usd-coin": "USDC"}
 
+# ── CoinGecko 兜底源 ID 映射 ─────────────────────────────────────
+COINPAPRIKA_IDS = {
+    "bitcoin": "btc-bitcoin", "ethereum": "eth-ethereum",
+    "solana": "sol-solana", "binancecoin": "bnb-binance-coin",
+    "ripple": "xrp-xrp", "dogecoin": "doge-dogecoin",
+    "cardano": "ada-cardano", "avalanche-2": "avax-avalanche",
+    "polkadot": "dot-polkadot", "chainlink": "link-chainlink",
+    "sui": "sui-sui", "pepe": "pepe-pepe", "shiba-inu": "shib-shiba-inu",
+    "uniswap": "uni-uniswap", "bittensor": "tao-bittensor",
+    "tether": "usdt-tether", "usd-coin": "usdc-usd-coin",
+    "pancakeswap-token": "cake-pancakeswap",
+}
+
+BINANCE_SYMBOLS = {
+    "bitcoin": "BTCUSDT", "ethereum": "ETHUSDT",
+    "solana": "SOLUSDT", "binancecoin": "BNBUSDT",
+    "ripple": "XRPUSDT", "dogecoin": "DOGEUSDT",
+    "cardano": "ADAUSDT", "avalanche-2": "AVAXUSDT",
+    "polkadot": "DOTUSDT", "chainlink": "LINKUSDT",
+    "sui": "SUIUSDT", "pepe": "PEPEUSDT", "shiba-inu": "SHIBUSDT",
+    "uniswap": "UNIUSDT", "bittensor": "TAOUSDT",
+}
+
+CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "cache")
+
 # ── 阈值 ─────────────────────────────────────────────────────────
 PRICE_ALERTS = {
     "BTC": {"above": 120000, "below": 60000},
@@ -172,14 +197,31 @@ def fetch_prices() -> dict:
     ids = ",".join(all_coins.keys())
     url = f"{COINGECKO}/simple/price?ids={ids}&vs_currencies=usd&include_24hr_change=true"
     data = fetch_json(url)
-    if not data:
+    if data:
+        result = {}
+        for coin_id, symbol in all_coins.items():
+            if coin_id in data:
+                result[symbol] = {
+                    "price": data[coin_id]["usd"],
+                    "change": data[coin_id].get("usd_24h_change", 0) or 0,
+                }
+        if result:
+            return result
+
+    # CoinPaprika 兜底
+    print("[WARN] CoinGecko fetch_prices 失败，使用 CoinPaprika 兜底")
+    pp_data = fetch_json("https://api.coinpaprika.com/v1/tickers")
+    if not pp_data:
         return {}
+    pp_by_id = {t["id"]: t for t in pp_data}
     result = {}
     for coin_id, symbol in all_coins.items():
-        if coin_id in data:
+        pp_id = COINPAPRIKA_IDS.get(coin_id)
+        if pp_id and pp_id in pp_by_id:
+            q = pp_by_id[pp_id].get("quotes", {}).get("USD", {})
             result[symbol] = {
-                "price": data[coin_id]["usd"],
-                "change": data[coin_id].get("usd_24h_change", 0) or 0,
+                "price": q.get("price") or 0,
+                "change": q.get("percent_change_24h") or 0,
             }
     return result
 
@@ -188,15 +230,31 @@ def fetch_stablecoin_mcap() -> dict:
     ids = ",".join(STABLECOINS.keys())
     url = f"{COINGECKO}/coins/markets?vs_currency=usd&ids={ids}&price_change_percentage=24h"
     data = fetch_json(url)
-    if not data:
-        return {}
+    if data:
+        result = {}
+        for coin in data:
+            symbol = STABLECOINS.get(coin["id"], coin["symbol"].upper())
+            result[symbol] = {
+                "mcap": coin.get("market_cap", 0),
+                "mcap_change_pct": coin.get("market_cap_change_percentage_24h", 0) or 0,
+            }
+        if result:
+            return result
+
+    # CoinPaprika 兜底
+    print("[WARN] CoinGecko fetch_stablecoin_mcap 失败，使用 CoinPaprika 兜底")
     result = {}
-    for coin in data:
-        symbol = STABLECOINS.get(coin["id"], coin["symbol"].upper())
-        result[symbol] = {
-            "mcap": coin.get("market_cap", 0),
-            "mcap_change_pct": coin.get("market_cap_change_percentage_24h", 0) or 0,
-        }
+    for coin_id, symbol in STABLECOINS.items():
+        pp_id = COINPAPRIKA_IDS.get(coin_id)
+        if not pp_id:
+            continue
+        pp = fetch_json(f"https://api.coinpaprika.com/v1/tickers/{pp_id}")
+        if pp:
+            q = pp.get("quotes", {}).get("USD", {})
+            result[symbol] = {
+                "mcap": q.get("market_cap") or 0,
+                "mcap_change_pct": q.get("market_cap_change_24h") or 0,
+            }
     return result
 
 
