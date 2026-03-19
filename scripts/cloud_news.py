@@ -450,7 +450,7 @@ def calculate_rsi(prices_list: list[float], period: int = 14) -> float | None:
 def fetch_rsi(coin_id: str = "bitcoin", days: int = 30) -> float | None:
     url = f"{COINGECKO}/coins/{coin_id}/market_chart?vs_currency=usd&days={days}&interval=daily"
     data = fetch_json(url)
-    if data and "prices" in data:
+    if data and "prices" in data and len(data["prices"]) >= 14:
         return calculate_rsi([p[1] for p in data["prices"]])
 
     # Binance Klines 兜底
@@ -1662,10 +1662,10 @@ def fetch_strategy_indicators() -> dict:
         data = fetch_json(url)
         closes = None
         volumes = None
-        if data and "prices" in data:
+        if data and "prices" in data and len(data["prices"]) >= 30:
             closes = [p[1] for p in data["prices"]]
             volumes = [v[1] for v in data.get("total_volumes", [])]
-        else:
+        if not closes or len(closes) < 30:
             binance_sym = BINANCE_SYMBOLS.get(coin_id)
             if binance_sym:
                 print(f"[WARN] CoinGecko fetch_strategy_indicators({coin_id}) 失败，使用 Binance 兜底")
