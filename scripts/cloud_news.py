@@ -1095,8 +1095,8 @@ def _fetch_liquidations_binance() -> dict:
 
 # ── AI 新闻摘要 (Claude API) ────────────────────────────────────
 
-def _ai_call(prompt: str, max_tokens: int = 300, temperature: float = 0.3) -> str:
-    """统一 AI 调用：Gemini 优先 → Groq 兜底"""
+def _ai_call(prompt: str, max_tokens: int = 300, temperature: float = 0.3) -> tuple[str, str]:
+    """统一 AI 调用：Gemini 优先 → Groq 兜底。返回 (text, engine_name)"""
     # ── Gemini ──
     if GEMINI_API_KEY:
         url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
@@ -1114,7 +1114,7 @@ def _ai_call(prompt: str, max_tokens: int = 300, temperature: float = 0.3) -> st
                 result = json.loads(resp.read().decode())
                 text = result["candidates"][0]["content"]["parts"][0]["text"]
                 print(f"[OK] Gemini 响应 ({len(text)} 字)")
-                return text
+                return text, "Gemini 2.0 Flash"
         except Exception as e:
             print(f"[WARN] Gemini 调用失败: {e}，尝试 Groq 兜底")
 
@@ -1139,7 +1139,7 @@ def _ai_call(prompt: str, max_tokens: int = 300, temperature: float = 0.3) -> st
                 result = json.loads(resp.read().decode())
                 text = result["choices"][0]["message"]["content"]
                 print(f"[OK] Groq 响应 ({len(text)} 字)")
-                return text
+                return text, "Llama 3.3 70B"
         except Exception as e:
             body = ""
             if hasattr(e, "read"):
@@ -1150,14 +1150,14 @@ def _ai_call(prompt: str, max_tokens: int = 300, temperature: float = 0.3) -> st
             print(f"[ERROR] Groq 调用失败: {e} {body}")
 
     print("[SKIP] AI 未配置 (需要 GEMINI_API_KEY 或 GROQ_API_KEY)")
-    return ""
+    return "", ""
 
 
-def generate_ai_summary(news: list[dict], prices: dict, fng: dict) -> str:
-    """AI 生成 3 句话的今日要点"""
+def generate_ai_summary(news: list[dict], prices: dict, fng: dict) -> tuple[str, str]:
+    """AI 生成 3 句话的今日要点，返回 (text, engine)"""
     if not GEMINI_API_KEY and not GROQ_API_KEY:
         print("[SKIP] AI 未配置，跳过摘要")
-        return ""
+        return "", ""
 
     titles = [item.get("title_cn", item["title"]) for item in news[:15]]
     titles_text = "\n".join(f"- {t}" for t in titles)
@@ -1204,7 +1204,7 @@ def _ai_filter_urgent_news(news_items: list[dict]) -> list[dict]:
 
 请只返回值得推送的新闻序号（从1开始），用逗号分隔。如果都不值得推送，返回"无"。"""
 
-    text = _ai_call(prompt, max_tokens=100, temperature=0.1)
+    text, _ = _ai_call(prompt, max_tokens=100, temperature=0.1)
     if not text:
         return news_items
 
@@ -1893,10 +1893,10 @@ def _ema(data: list[float], period: int) -> float:
     return ema
 
 
-def generate_ai_strategy(indicators: dict, fng: dict, funding: dict) -> str:
-    """AI 分析策略指标，输出交易研判"""
+def generate_ai_strategy(indicators: dict, fng: dict, funding: dict) -> tuple[str, str]:
+    """AI 分析策略指标，输出交易研判，返回 (text, engine)"""
     if (not GEMINI_API_KEY and not GROQ_API_KEY) or not indicators:
-        return ""
+        return "", ""
 
     lines = []
     for sym in ["BTC", "ETH"]:
@@ -1935,12 +1935,13 @@ def generate_ai_strategy(indicators: dict, fng: dict, funding: dict) -> str:
     return _ai_call(prompt, max_tokens=400, temperature=0.3)
 
 
-def _build_strategy_html(indicators: dict, ai_analysis: str = "") -> str:
+def _build_strategy_html(indicators: dict, ai_analysis: str = "", ai_engine: str = "") -> str:
     """构建交易策略指标 HTML 区块"""
     if not indicators:
         return ""
 
-    h = '<div class="s"><p class="st" style="border-left-color:#007aff">交易策略指标</p>'
+    engine_tag = f' <span style="font-size:9px;color:#aeaeb2;font-weight:400;letter-spacing:0;text-transform:none">· {ai_engine}</span>' if ai_engine else ""
+    h = f'<div class="s"><p class="st" style="border-left-color:#007aff">交易策略指标{engine_tag}</p>'
 
     # AI 策略研判（放在最前面）
     if ai_analysis:
@@ -2252,14 +2253,17 @@ def build_daily_html(data: dict) -> str:
     # ═══ 一、AI 今日要点（最重要，放最前面）═══
     ai_summary = data.get("ai_summary", "")
     if ai_summary:
-        h += '<div class="s"><p class="st" style="border-left-color:#007aff">AI 今日要点</p>'
+        ai_engine = data.get("ai_engine", "")
+        engine_tag = f' <span style="font-size:9px;color:#aeaeb2;font-weight:400;letter-spacing:0;text-transform:none">· {ai_engine}</span>' if ai_engine else ""
+        h += f'<div class="s"><p class="st" style="border-left-color:#007aff">AI 今日要点{engine_tag}</p>'
         h += f'<div class="sb">{ai_summary.replace(chr(10), "<br>")}</div>'
         h += '</div>'
 
     # ═══ 交易策略指标（风险仪表盘上方）═══
     strategy = data.get("strategy_indicators", {})
     if strategy:
-        h += _build_strategy_html(strategy, data.get("ai_strategy", ""))
+        ai_strat_engine = data.get("ai_strategy_engine", "")
+        h += _build_strategy_html(strategy, data.get("ai_strategy", ""), ai_strat_engine)
 
     # ═══ 二、风险仪表盘（合并：衍生品+清算+多空+Gas）═══
     h += '<div class="s"><p class="st" style="border-left-color:#ff3b30">风险仪表盘</p>'
@@ -2735,7 +2739,6 @@ def run_daily():
         "gas_fee": fetch_gas_fee(),
         "defi_tvl": fetch_defi_tvl(),
         "news": news,
-        "ai_summary": generate_ai_summary(news, prices, fng),
         "options_expiry": _safe_fetch(fetch_options_expiry, {}),
         "coin_liquidations": _safe_fetch(fetch_coin_liquidations, {}),
         "screening": _safe_fetch(fetch_top200_vs_btc, {}),
@@ -2744,14 +2747,21 @@ def run_daily():
         "watchlist_news": _safe_fetch(fetch_watchlist_news, {}),
     }
 
+    # AI 摘要
+    ai_text, ai_engine = generate_ai_summary(news, prices, fng)
+    data["ai_summary"] = ai_text
+    data["ai_engine"] = ai_engine
+
     # 趋势评分
     data["trend_score"] = calculate_trend_score(data)
 
     # AI 策略分析
-    data["ai_strategy"] = generate_ai_strategy(
+    strategy_text, strategy_engine = generate_ai_strategy(
         data.get("strategy_indicators", {}),
         fng, data.get("funding", {}),
     )
+    data["ai_strategy"] = strategy_text
+    data["ai_strategy_engine"] = strategy_engine
 
     liq_total = data["liquidations"].get("total_24h", 0)
     screening = data.get("screening", {})
@@ -2878,7 +2888,7 @@ def run_weekly():
     coin_liq = _safe_fetch(fetch_coin_liquidations, {})
     institutional = _safe_fetch(fetch_institutional_holdings, {})
     strategy = _safe_fetch(fetch_strategy_indicators, {})
-    ai_strategy = generate_ai_strategy(strategy, fng, funding)
+    ai_strategy, ai_strat_engine = generate_ai_strategy(strategy, fng, funding)
 
     # 构建周报 HTML
     now = datetime.now(JST)
@@ -2957,7 +2967,7 @@ def run_weekly():
 
     # 交易策略指标 + AI 分析
     if strategy:
-        h += _build_strategy_html(strategy, ai_strategy)
+        h += _build_strategy_html(strategy, ai_strategy, ai_strat_engine)
 
     # 涨幅筛选（全量展示，周报核心内容）
     if screening and screening.get("outperformers"):
