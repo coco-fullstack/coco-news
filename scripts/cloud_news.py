@@ -762,14 +762,28 @@ def fetch_institutional_holdings() -> dict:
 def _fetch_binance_symbols() -> set:
     """获取 Binance 现货上市的所有币种符号"""
     data = fetch_json("https://api.binance.com/api/v3/exchangeInfo")
-    if not data or "symbols" not in data:
-        return set()
-    symbols = set()
-    for s in data["symbols"]:
-        if s.get("quoteAsset") == "USDT" and s.get("status") == "TRADING":
-            symbols.add(s["baseAsset"].upper())
-    print(f"[INFO] Binance 上市币种: {len(symbols)}")
-    return symbols
+    if data and "symbols" in data:
+        symbols = set()
+        for s in data["symbols"]:
+            if s.get("quoteAsset") == "USDT" and s.get("status") == "TRADING":
+                symbols.add(s["baseAsset"].upper())
+        if symbols:
+            print(f"[INFO] Binance 上市币种: {len(symbols)}")
+            return symbols
+    # Binance 被屏蔽(451)时，使用已知主流币种列表兜底
+    print("[WARN] Binance exchangeInfo 失败，使用已知币种列表兜底")
+    fallback = {
+        "BTC", "ETH", "BNB", "SOL", "XRP", "DOGE", "ADA", "AVAX", "DOT", "LINK",
+        "SUI", "PEPE", "SHIB", "UNI", "TAO", "NEAR", "APT", "ARB", "OP", "SEI",
+        "TIA", "JUP", "WIF", "BONK", "FET", "RENDER", "INJ", "STX", "IMX", "MKR",
+        "AAVE", "LDO", "CRV", "SNX", "COMP", "SUSHI", "1INCH", "CAKE", "FIL", "ICP",
+        "ATOM", "ALGO", "MATIC", "FTM", "MANA", "SAND", "AXS", "GALA", "ENJ", "CHZ",
+        "LTC", "BCH", "ETC", "XLM", "VET", "HBAR", "EOS", "XTZ", "THETA", "NEO",
+        "EGLD", "FLOW", "KAVA", "ZEC", "DASH", "WAVES", "ENS", "GRT", "BAT", "ZRX",
+        "RNDR", "MASK", "GMT", "APE", "BLUR", "PENDLE", "TRX", "TON", "WLD", "PYTH",
+    }
+    print(f"[INFO] 已知币种列表: {len(fallback)}")
+    return fallback
 
 
 def fetch_top200_vs_btc() -> dict:
@@ -1270,7 +1284,7 @@ def fetch_news() -> list[dict]:
             item["title_cn"] = translate_to_chinese(item["title"])
             desc = strip_html(item["description"]).replace("\n", " ")
             if len(desc) > 80:
-                desc = desc[:80] + "..."
+                desc = desc[:80]
             item["summary_cn"] = translate_to_chinese(desc) if desc else ""
             item["urgent"] = any(kw.lower() in combined for kw in URGENT_KEYWORDS)
             filtered.append(item)
@@ -2231,8 +2245,6 @@ def build_daily_html(data: dict) -> str:
             h += _vis_holdings_bars(hd["top_companies"], 5)
             for comp in hd["top_companies"][:5]:
                 name = comp["name"]
-                if len(name) > 18:
-                    name = name[:16] + ".."
                 val = comp["value_usd"]
                 pct = comp["pct_supply"]
                 h += f'<div class="r"><span class="l" style="padding-left:12px">{name}</span>'
@@ -2832,8 +2844,6 @@ def run_weekly():
             h += f'<div class="r"><span class="l">{sym} 机构总持仓</span><span class="v">{_mc(hd["total_value_usd"])}</span></div>'
             for comp in hd["top_companies"][:5]:
                 name = comp["name"]
-                if len(name) > 18:
-                    name = name[:16] + ".."
                 h += f'<div class="r"><span class="l" style="padding-left:12px">{name}</span>'
                 h += f'<span class="v">{_mc(comp["value_usd"])} ({comp["pct_supply"]:.2f}%)</span></div>'
             h += '<div class="dv"></div>'
