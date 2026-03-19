@@ -48,6 +48,31 @@ WATCHLIST_COINS = {
 
 STABLECOINS = {"tether": "USDT", "usd-coin": "USDC"}
 
+# ── CoinGecko 兜底源 ID 映射 ─────────────────────────────────────
+COINPAPRIKA_IDS = {
+    "bitcoin": "btc-bitcoin", "ethereum": "eth-ethereum",
+    "solana": "sol-solana", "binancecoin": "bnb-binance-coin",
+    "ripple": "xrp-xrp", "dogecoin": "doge-dogecoin",
+    "cardano": "ada-cardano", "avalanche-2": "avax-avalanche",
+    "polkadot": "dot-polkadot", "chainlink": "link-chainlink",
+    "sui": "sui-sui", "pepe": "pepe-pepe", "shiba-inu": "shib-shiba-inu",
+    "uniswap": "uni-uniswap", "bittensor": "tao-bittensor",
+    "tether": "usdt-tether", "usd-coin": "usdc-usd-coin",
+    "pancakeswap-token": "cake-pancakeswap",
+}
+
+BINANCE_SYMBOLS = {
+    "bitcoin": "BTCUSDT", "ethereum": "ETHUSDT",
+    "solana": "SOLUSDT", "binancecoin": "BNBUSDT",
+    "ripple": "XRPUSDT", "dogecoin": "DOGEUSDT",
+    "cardano": "ADAUSDT", "avalanche-2": "AVAXUSDT",
+    "polkadot": "DOTUSDT", "chainlink": "LINKUSDT",
+    "sui": "SUIUSDT", "pepe": "PEPEUSDT", "shiba-inu": "SHIBUSDT",
+    "uniswap": "UNIUSDT", "bittensor": "TAOUSDT",
+}
+
+CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "cache")
+
 # ── 阈值 ─────────────────────────────────────────────────────────
 PRICE_ALERTS = {
     "BTC": {"above": 120000, "below": 60000},
@@ -163,6 +188,45 @@ def _safe_fetch(func, default=None):
         return default
 
 
+def _save_cache(filename: str, data):
+    """保存数据到本地缓存"""
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    cache_path = os.path.join(CACHE_DIR, filename)
+    payload = {"timestamp": datetime.now(timezone.utc).isoformat(), "data": data}
+    try:
+        with open(cache_path, "w") as f:
+            json.dump(payload, f, ensure_ascii=False)
+    except Exception as e:
+        print(f"[WARN] 缓存写入失败 {filename}: {e}")
+
+
+def _load_cache(filename: str, max_age_hours: int = 24):
+    """读取本地缓存，超过 max_age_hours 则返回 None"""
+    cache_path = os.path.join(CACHE_DIR, filename)
+    if not os.path.exists(cache_path):
+        return None
+    try:
+        with open(cache_path) as f:
+            payload = json.load(f)
+        ts = datetime.fromisoformat(payload["timestamp"])
+        if datetime.now(timezone.utc) - ts > timedelta(hours=max_age_hours):
+            return None
+        return payload["data"]
+    except Exception:
+        return None
+
+
+def _fetch_binance_klines(symbol: str, interval: str = "1d", limit: int = 60):
+    """从 Binance 获取 K线数据，返回 (closes, volumes) 或 (None, None)"""
+    url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
+    data = fetch_json(url)
+    if not data:
+        return None, None
+    closes = [float(k[4]) for k in data]   # index 4 = close
+    volumes = [float(k[5]) for k in data]  # index 5 = volume
+    return closes, volumes
+
+
 # ══════════════════════════════════════════════════════════════════
 #  数据获取层
 # ══════════════════════════════════════════════════════════════════
@@ -172,14 +236,31 @@ def fetch_prices() -> dict:
     ids = ",".join(all_coins.keys())
     url = f"{COINGECKO}/simple/price?ids={ids}&vs_currencies=usd&include_24hr_change=true"
     data = fetch_json(url)
-    if not data:
+    if data:
+        result = {}
+        for coin_id, symbol in all_coins.items():
+            if coin_id in data:
+                result[symbol] = {
+                    "price": data[coin_id]["usd"],
+                    "change": data[coin_id].get("usd_24h_change", 0) or 0,
+                }
+        if result:
+            return result
+
+    # CoinPaprika 兜底
+    print("[WARN] CoinGecko fetch_prices 失败，使用 CoinPaprika 兜底")
+    pp_data = fetch_json("https://api.coinpaprika.com/v1/tickers")
+    if not pp_data:
         return {}
+    pp_by_id = {t["id"]: t for t in pp_data}
     result = {}
     for coin_id, symbol in all_coins.items():
-        if coin_id in data:
+        pp_id = COINPAPRIKA_IDS.get(coin_id)
+        if pp_id and pp_id in pp_by_id:
+            q = pp_by_id[pp_id].get("quotes", {}).get("USD", {})
             result[symbol] = {
-                "price": data[coin_id]["usd"],
-                "change": data[coin_id].get("usd_24h_change", 0) or 0,
+                "price": q.get("price") or 0,
+                "change": q.get("percent_change_24h") or 0,
             }
     return result
 
@@ -188,15 +269,31 @@ def fetch_stablecoin_mcap() -> dict:
     ids = ",".join(STABLECOINS.keys())
     url = f"{COINGECKO}/coins/markets?vs_currency=usd&ids={ids}&price_change_percentage=24h"
     data = fetch_json(url)
-    if not data:
-        return {}
+    if data:
+        result = {}
+        for coin in data:
+            symbol = STABLECOINS.get(coin["id"], coin["symbol"].upper())
+            result[symbol] = {
+                "mcap": coin.get("market_cap", 0),
+                "mcap_change_pct": coin.get("market_cap_change_percentage_24h", 0) or 0,
+            }
+        if result:
+            return result
+
+    # CoinPaprika 兜底
+    print("[WARN] CoinGecko fetch_stablecoin_mcap 失败，使用 CoinPaprika 兜底")
     result = {}
-    for coin in data:
-        symbol = STABLECOINS.get(coin["id"], coin["symbol"].upper())
-        result[symbol] = {
-            "mcap": coin.get("market_cap", 0),
-            "mcap_change_pct": coin.get("market_cap_change_percentage_24h", 0) or 0,
-        }
+    for coin_id, symbol in STABLECOINS.items():
+        pp_id = COINPAPRIKA_IDS.get(coin_id)
+        if not pp_id:
+            continue
+        pp = fetch_json(f"https://api.coinpaprika.com/v1/tickers/{pp_id}")
+        if pp:
+            q = pp.get("quotes", {}).get("USD", {})
+            result[symbol] = {
+                "mcap": q.get("market_cap") or 0,
+                "mcap_change_pct": q.get("market_cap_change_24h") or 0,
+            }
     return result
 
 
@@ -210,14 +307,25 @@ def fetch_fear_greed() -> dict:
 
 def fetch_global_data() -> dict:
     data = fetch_json(f"{COINGECKO}/global")
-    if not data or "data" not in data:
+    if data and "data" in data:
+        gd = data["data"]
+        return {
+            "btc_dominance": gd["market_cap_percentage"].get("btc", 0),
+            "eth_dominance": gd["market_cap_percentage"].get("eth", 0),
+            "total_market_cap": gd["total_market_cap"].get("usd", 0),
+            "total_volume": gd["total_volume"].get("usd", 0),
+        }
+
+    # CoinPaprika 兜底
+    print("[WARN] CoinGecko fetch_global_data 失败，使用 CoinPaprika 兜底")
+    pp = fetch_json("https://api.coinpaprika.com/v1/global")
+    if not pp:
         return {}
-    gd = data["data"]
     return {
-        "btc_dominance": gd["market_cap_percentage"].get("btc", 0),
-        "eth_dominance": gd["market_cap_percentage"].get("eth", 0),
-        "total_market_cap": gd["total_market_cap"].get("usd", 0),
-        "total_volume": gd["total_volume"].get("usd", 0),
+        "btc_dominance": pp.get("bitcoin_dominance_percentage", 0),
+        "eth_dominance": 0,  # CoinPaprika 无 ETH dominance
+        "total_market_cap": pp.get("market_cap_usd", 0),
+        "total_volume": pp.get("volume_24h_usd", 0),
     }
 
 
@@ -342,9 +450,18 @@ def calculate_rsi(prices_list: list[float], period: int = 14) -> float | None:
 def fetch_rsi(coin_id: str = "bitcoin", days: int = 30) -> float | None:
     url = f"{COINGECKO}/coins/{coin_id}/market_chart?vs_currency=usd&days={days}&interval=daily"
     data = fetch_json(url)
-    if not data or "prices" not in data:
+    if data and "prices" in data:
+        return calculate_rsi([p[1] for p in data["prices"]])
+
+    # Binance Klines 兜底
+    binance_sym = BINANCE_SYMBOLS.get(coin_id)
+    if not binance_sym:
         return None
-    return calculate_rsi([p[1] for p in data["prices"]])
+    print(f"[WARN] CoinGecko fetch_rsi({coin_id}) 失败，使用 Binance 兜底")
+    closes, _ = _fetch_binance_klines(binance_sym, "1d", max(days, 30))
+    if closes:
+        return calculate_rsi(closes)
+    return None
 
 
 # ── 多空持仓比 (Binance) ─────────────────────────────────────────
@@ -593,7 +710,15 @@ def fetch_institutional_holdings() -> dict:
             "top_companies": companies,
         }
         _time.sleep(1)
-    return result
+
+    if result:
+        _save_cache("institutional.json", result)
+        return result
+
+    # 本地缓存兜底（无免费替代 API）
+    print("[WARN] CoinGecko fetch_institutional_holdings 失败，使用本地缓存兜底")
+    cached = _load_cache("institutional.json", max_age_hours=24)
+    return cached if cached else {}
 
 
 # ── Top 200 涨幅筛选 vs BTC (CoinGecko) ─────────────────────────
@@ -633,7 +758,57 @@ def fetch_top200_vs_btc() -> dict:
         _time.sleep(2)
 
     if not all_coins:
-        return {}
+        # CoinPaprika 兜底
+        print("[WARN] CoinGecko fetch_top200_vs_btc 失败，使用 CoinPaprika 兜底")
+        pp_data = fetch_json("https://api.coinpaprika.com/v1/tickers?quotes=USD")
+        if not pp_data:
+            return {}
+        pp_coins = sorted(pp_data, key=lambda x: x.get("rank", 9999))[:300]
+        btc_pp = next((c for c in pp_coins if c.get("id") == "btc-bitcoin"), None)
+        if not btc_pp:
+            return {}
+        btc_q = btc_pp.get("quotes", {}).get("USD", {})
+        btc_7d = btc_q.get("percent_change_7d") or 0
+        btc_30d = btc_q.get("percent_change_30d") or 0
+        btc_1y = btc_q.get("percent_change_1y") or 0
+
+        stable_syms = {"USDT", "USDC", "DAI", "FDUSD", "USDE", "USDS", "TUSD", "USDP", "FRAX", "USDD", "BUSD", "PYUSD"}
+        result = {
+            "btc_benchmark": {"7d": btc_7d, "30d": btc_30d, "1y": btc_1y},
+            "outperformers": {"7d": [], "30d": [], "1y": []},
+            "total_coins": 0,
+            "binance_count": len(binance_coins),
+        }
+        filtered = [c for c in pp_coins if c.get("symbol", "") not in stable_syms][:300]
+        result["total_coins"] = len(filtered)
+
+        for coin in filtered:
+            if coin.get("id") == "btc-bitcoin":
+                continue
+            sym = coin.get("symbol", "").upper()
+            name = coin.get("name", "")
+            rank = coin.get("rank", 0)
+            on_binance = sym in binance_coins if binance_coins else True
+            q = coin.get("quotes", {}).get("USD", {})
+            c7d = q.get("percent_change_7d") or 0
+            c30d = q.get("percent_change_30d") or 0
+            c1y = q.get("percent_change_1y") or 0
+            entry = {
+                "symbol": sym, "name": name, "rank": rank,
+                "price": q.get("price", 0),
+                "mcap": q.get("market_cap", 0),
+                "binance": on_binance,
+            }
+            if c7d > btc_7d:
+                result["outperformers"]["7d"].append({**entry, "change": c7d, "vs_btc": c7d - btc_7d})
+            if c30d > btc_30d:
+                result["outperformers"]["30d"].append({**entry, "change": c30d, "vs_btc": c30d - btc_30d})
+            if c1y > btc_1y:
+                result["outperformers"]["1y"].append({**entry, "change": c1y, "vs_btc": c1y - btc_1y})
+
+        for period in ["7d", "30d", "1y"]:
+            result["outperformers"][period].sort(key=lambda x: x["vs_btc"], reverse=True)
+        return result
 
     btc_data = next((c for c in all_coins if c["id"] == "bitcoin"), None)
     if not btc_data:
@@ -1485,13 +1660,18 @@ def fetch_strategy_indicators() -> dict:
         # 获取 60天价格数据，计算 MA、MACD、成交量趋势
         url = f"{COINGECKO}/coins/{coin_id}/market_chart?vs_currency=usd&days=60&interval=daily"
         data = fetch_json(url)
-        if not data or "prices" not in data:
-            continue
+        closes = None
+        volumes = None
+        if data and "prices" in data:
+            closes = [p[1] for p in data["prices"]]
+            volumes = [v[1] for v in data.get("total_volumes", [])]
+        else:
+            binance_sym = BINANCE_SYMBOLS.get(coin_id)
+            if binance_sym:
+                print(f"[WARN] CoinGecko fetch_strategy_indicators({coin_id}) 失败，使用 Binance 兜底")
+                closes, volumes = _fetch_binance_klines(binance_sym, "1d", 60)
 
-        closes = [p[1] for p in data["prices"]]
-        volumes = [v[1] for v in data.get("total_volumes", [])]
-
-        if len(closes) < 30:
+        if not closes or len(closes) < 30:
             continue
 
         current_price = closes[-1]

@@ -48,10 +48,7 @@ jobs:
             echo "No snapshot to commit"
           else
             git commit -m "data: $(date -u -d '+8 hours' +%Y-%m-%d) market snapshot"
-            git fetch origin main
-            git reset --soft origin/main
-            git add data/snapshots/ 2>/dev/null || true
-            git diff --cached --quiet || git commit -m "data: $(date -u -d '+8 hours' +%Y-%m-%d) market snapshot"
+            git pull --rebase origin main || true
             git push || echo "Snapshot push skipped"
           fi
 
