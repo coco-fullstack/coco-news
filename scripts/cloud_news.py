@@ -23,7 +23,7 @@ from html import unescape
 #  配置
 # ══════════════════════════════════════════════════════════════════
 
-CST = timezone(timedelta(hours=8))
+JST = timezone(timedelta(hours=9))
 COINGECKO = "https://api.coingecko.com/api/v3"
 
 # ── 追踪币种 ──────────────────────────────────────────────────────
@@ -184,7 +184,9 @@ def _safe_fetch(func, default=None):
     try:
         return func()
     except Exception as e:
+        import traceback
         print(f"[ERROR] {func.__name__} 失败: {e}")
+        traceback.print_exc()
         return default
 
 
@@ -717,7 +719,15 @@ def fetch_institutional_holdings() -> dict:
 
     # 本地缓存兜底（无免费替代 API）
     print("[WARN] CoinGecko fetch_institutional_holdings 失败，使用本地缓存兜底")
-    cached = _load_cache("institutional.json", max_age_hours=24)
+    cached = _load_cache("institutional.json", max_age_hours=72)
+    if cached:
+        print(f"[OK] 缓存命中: {list(cached.keys())}")
+    else:
+        print(f"[WARN] 缓存未命中或已过期，cache_dir={CACHE_DIR}")
+        # 最后手段：尝试无 TTL 限制加载
+        cached = _load_cache("institutional.json", max_age_hours=8760)
+        if cached:
+            print(f"[OK] 使用过期缓存兜底: {list(cached.keys())}")
     return cached if cached else {}
 
 
@@ -974,13 +984,13 @@ def trend_label(score: int) -> tuple[str, str]:
 
 def archive_snapshot(data: dict):
     """保存当日数据快照为 JSON"""
-    today = datetime.now(CST).strftime("%Y-%m-%d")
+    today = datetime.now(JST).strftime("%Y-%m-%d")
     archive_dir = "data/snapshots"
     os.makedirs(archive_dir, exist_ok=True)
 
     snapshot = {
         "date": today,
-        "timestamp": datetime.now(CST).isoformat(),
+        "timestamp": datetime.now(JST).isoformat(),
         "btc_price": data.get("prices", {}).get("BTC", {}).get("price"),
         "eth_price": data.get("prices", {}).get("ETH", {}).get("price"),
         "fng": data.get("fng", {}).get("value"),
@@ -1655,6 +1665,7 @@ def fetch_strategy_indicators() -> dict:
     result = {}
 
     for coin_id, symbol in [("bitcoin", "BTC"), ("ethereum", "ETH")]:
+      try:
         info = {}
 
         # 获取 60天价格数据，计算 MA、MACD、成交量趋势
@@ -1665,13 +1676,16 @@ def fetch_strategy_indicators() -> dict:
         if data and "prices" in data and len(data["prices"]) >= 30:
             closes = [p[1] for p in data["prices"]]
             volumes = [v[1] for v in data.get("total_volumes", [])]
+            print(f"[INFO] fetch_strategy_indicators({coin_id}): CoinGecko OK, {len(closes)} points")
         if not closes or len(closes) < 30:
             binance_sym = BINANCE_SYMBOLS.get(coin_id)
             if binance_sym:
                 print(f"[WARN] CoinGecko fetch_strategy_indicators({coin_id}) 失败，使用 Binance 兜底")
                 closes, volumes = _fetch_binance_klines(binance_sym, "1d", 60)
+                print(f"[INFO] Binance 兜底 {coin_id}: closes={len(closes) if closes else None}, volumes={len(volumes) if volumes else None}")
 
         if not closes or len(closes) < 30:
+            print(f"[WARN] fetch_strategy_indicators({coin_id}): 无足够数据，跳过")
             continue
 
         current_price = closes[-1]
@@ -1760,7 +1774,12 @@ def fetch_strategy_indicators() -> dict:
         info["price_vs_range"] = (current_price - low_30d) / (high_30d - low_30d) * 100 if high_30d != low_30d else 50
 
         result[symbol] = info
+        print(f"[OK] fetch_strategy_indicators({coin_id}): ma={info.get('ma_signal')}, macd={info.get('macd_signal')}")
         _time.sleep(1)
+      except Exception as e:
+        import traceback
+        print(f"[ERROR] fetch_strategy_indicators({coin_id}) 内部异常: {e}")
+        traceback.print_exc()
 
     # 获取资金费率历史趋势（Binance 近3次费率）
     for symbol in ["BTCUSDT", "ETHUSDT"]:
@@ -1995,7 +2014,7 @@ def _build_strategy_html(indicators: dict, ai_analysis: str = "") -> str:
 # ══════════════════════════════════════════════════════════════════
 
 def build_daily_html(data: dict) -> str:
-    now = datetime.now(CST)
+    now = datetime.now(JST)
     d, t = now.strftime("%Y-%m-%d"), now.strftime("%H:%M")
 
     prices = data.get("prices", {})
@@ -2053,7 +2072,7 @@ def build_daily_html(data: dict) -> str:
     h += f"""<div class="hd">
       <p class="sub">DAILY BRIEFING</p>
       <h1>Market Digest</h1>
-      <p class="t">{d} · {t} CST</p>
+      <p class="t">{d} · {t} JST</p>
       <table style="width:100%;margin-top:16px;border-collapse:separate;border-spacing:8px 0">
         <tr>
           <td style="width:50%;padding:14px 16px;border-radius:12px;background:{btc_bg};border:1px solid {btc_border}20">
@@ -2420,12 +2439,12 @@ def _generate_summary(data: dict) -> str:
 # ══════════════════════════════════════════════════════════════════
 
 def build_alert_html(alerts: list[dict]) -> str:
-    now = datetime.now(CST)
+    now = datetime.now(JST)
     ts = now.strftime("%Y-%m-%d %H:%M")
 
     h = f'<!DOCTYPE html><html><head><meta charset="utf-8">{STYLE}</head><body><div class="c">'
     h += f'<div style="height:4px;background:linear-gradient(90deg,#ff3b30,#ff9500)"></div>'
-    h += f'<div class="hd"><p class="sub">TRIGGER ALERT</p><h1>Alert</h1><p class="t">{ts} CST</p></div>'
+    h += f'<div class="hd"><p class="sub">TRIGGER ALERT</p><h1>Alert</h1><p class="t">{ts} JST</p></div>'
 
     for section in alerts:
         h += f'<div class="s"><p class="st" style="border-left-color:#ff3b30">{section["title"]}</p>'
@@ -2541,7 +2560,7 @@ def push_all(title: str, html_body: str):
 # ══════════════════════════════════════════════════════════════════
 
 def run_daily():
-    today = datetime.now(CST).strftime("%Y-%m-%d")
+    today = datetime.now(JST).strftime("%Y-%m-%d")
     print("[INFO] === 每日晨报 ===")
 
     print("[INFO] 获取数据...")
@@ -2695,7 +2714,7 @@ def run_alert():
 
 def run_weekly():
     """周报：涨幅筛选（全量展示） + 期权交割 + 市场总结"""
-    today = datetime.now(CST).strftime("%Y-%m-%d")
+    today = datetime.now(JST).strftime("%Y-%m-%d")
     print("[INFO] === 周报 ===")
 
     prices = fetch_prices()
@@ -2710,14 +2729,14 @@ def run_weekly():
     ai_strategy = generate_ai_strategy(strategy, fng, funding)
 
     # 构建周报 HTML
-    now = datetime.now(CST)
+    now = datetime.now(JST)
     d, t = now.strftime("%Y-%m-%d"), now.strftime("%H:%M")
 
     h = f'<!DOCTYPE html><html><head><meta charset="utf-8">{STYLE}</head><body><div class="c">'
     h += f"""<div class="hd">
       <p class="sub">WEEKLY REPORT</p>
       <h1>周报 · Performance Review</h1>
-      <p class="t">{d} · {t} CST</p>
+      <p class="t">{d} · {t} JST</p>
     </div>"""
 
     # 市场概览
