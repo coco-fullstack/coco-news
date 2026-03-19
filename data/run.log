@@ -1,0 +1,55 @@
+[INFO] === 每日晨报 ===
+[INFO] 获取数据...
+[INFO] 抓取: https://cointelegraph.com/rss
+[INFO] 30 条
+[INFO] 抓取: https://feeds.feedburner.com/CoinDesk
+[INFO] 25 条
+[INFO] 抓取: https://www.theblock.co/rss.xml
+[INFO] 19 条
+[INFO] 抓取: https://36kr.com/feed
+[INFO] 30 条
+[ERROR] https://fapi.binance.com/fapi/v1/premiumIndex... → HTTP Error 451: 
+[WARN] Yahoo Finance ^JGBS 失败: 'close'
+[ERROR] https://open-api.coinglass.com/public/v2/liquidation/info?time_type=1... → HTTP Error 500: Internal Server Error
+[ERROR] https://open-api-v3.coinglass.com/api/futures/liquidation/info?time_type=1... → HTTP Error 500: Internal Server Error
+[WARN] 清算数据获取失败，使用 Binance 备用
+[ERROR] https://fapi.binance.com/fapi/v1/allForceOrders?limit=100... → HTTP Error 451: 
+[ERROR] https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=BTCUSDT... → HTTP Error 451: 
+[ERROR] https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=ETHUSDT... → HTTP Error 451: 
+[ERROR] https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=SOLUSDT... → HTTP Error 451: 
+[ERROR] https://ethereum-rpc.publicnode.com... → Expecting value: line 1 column 1 (char 0)
+[WARN] Gemini 调用失败: HTTP Error 429: Too Many Requests，尝试 Groq 兜底
+[OK] Groq 响应 (138 字)
+[ERROR] https://fapi.binance.com/fapi/v1/openInterest?symbol=BTCUSDT... → HTTP Error 451: 
+[ERROR] https://fapi.binance.com/futures/data/openInterestHist?symbol=BTCUSDT&period=1d&... → HTTP Error 451: 
+[ERROR] https://fapi.binance.com/futures/data/takerlongshortRatio?symbol=BTCUSDT&period=... → HTTP Error 451: 
+[ERROR] https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=BTCUSDT... → HTTP Error 451: 
+[ERROR] https://fapi.binance.com/fapi/v1/openInterest?symbol=ETHUSDT... → HTTP Error 451: 
+[ERROR] https://fapi.binance.com/futures/data/openInterestHist?symbol=ETHUSDT&period=1d&... → HTTP Error 451: 
+[ERROR] https://fapi.binance.com/futures/data/takerlongshortRatio?symbol=ETHUSDT&period=... → HTTP Error 451: 
+[ERROR] https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=ETHUSDT... → HTTP Error 451: 
+[ERROR] https://api.binance.com/api/v3/exchangeInfo... → HTTP Error 451: 
+[ERROR] https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days... → HTTP Error 429: Too Many Requests
+[WARN] CoinGecko fetch_strategy_indicators(bitcoin) 失败，使用 Binance 兜底
+[ERROR] https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=60... → HTTP Error 451: 
+[INFO] Binance 兜底 bitcoin: closes=None, volumes=None
+[WARN] fetch_strategy_indicators(bitcoin): 无足够数据，跳过
+[ERROR] https://api.coingecko.com/api/v3/coins/ethereum/market_chart?vs_currency=usd&day... → HTTP Error 429: Too Many Requests
+[WARN] CoinGecko fetch_strategy_indicators(ethereum) 失败，使用 Binance 兜底
+[ERROR] https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=1d&limit=60... → HTTP Error 451: 
+[INFO] Binance 兜底 ethereum: closes=None, volumes=None
+[WARN] fetch_strategy_indicators(ethereum): 无足够数据，跳过
+[ERROR] https://fapi.binance.com/fapi/v1/fundingRate?symbol=BTCUSDT&limit=3... → HTTP Error 451: 
+[ERROR] https://fapi.binance.com/fapi/v1/fundingRate?symbol=ETHUSDT&limit=3... → HTTP Error 451: 
+[INFO] 抓取: https://cointelegraph.com/rss
+[INFO] 30 条
+[INFO] 抓取: https://feeds.feedburner.com/CoinDesk
+[INFO] 25 条
+[INFO] 抓取: https://www.theblock.co/rss.xml
+[INFO] 19 条
+[INFO] 抓取: https://36kr.com/feed
+[INFO] 30 条
+[INFO] 币价:20 费率:0 宏观:1 清算:$0 多空:0 Gas:? TVL:$96.6B 趋势:30 新闻:68 期权到期:5 跑赢BTC:345个 策略:0币
+[OK] 微信推送: token=df520032...
+[OK] 邮件已发送: wangwangjiahang3@gmail.com, YishuaiGao2000@outlook.com
+[OK] 快照已保存: data/snapshots/2026-03-19.json
