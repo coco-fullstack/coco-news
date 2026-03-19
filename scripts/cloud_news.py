@@ -1840,6 +1840,45 @@ def fetch_strategy_indicators() -> dict:
                 result[coin]["funding_trend"] = "平稳"
                 result[coin]["funding_trend_class"] = "b"
 
+    # ── ETH/BTC 汇率趋势分析 ──
+    if "BTC" in result and "ETH" in result:
+      try:
+        btc_closes, _ = _fetch_binance_klines("BTCUSDT", "1d", 60)
+        eth_closes, _ = _fetch_binance_klines("ETHUSDT", "1d", 60)
+        if btc_closes and eth_closes:
+            min_len = min(len(btc_closes), len(eth_closes))
+            ratios = [eth_closes[i] / btc_closes[i] for i in range(min_len) if btc_closes[i] > 0]
+            if len(ratios) >= 30:
+                curr = ratios[-1]
+                ma7 = sum(ratios[-7:]) / 7
+                ma25 = sum(ratios[-25:]) / 25
+                high_30d = max(ratios[-30:])
+                low_30d = min(ratios[-30:])
+                chg_7d = (ratios[-1] - ratios[-7]) / ratios[-7] * 100 if ratios[-7] > 0 else 0
+                chg_30d = (ratios[-1] - ratios[-30]) / ratios[-30] * 100 if ratios[-30] > 0 else 0
+                pos = (curr - low_30d) / (high_30d - low_30d) * 100 if high_30d != low_30d else 50
+
+                if curr > ma7 > ma25:
+                    signal, cls = "ETH 走强", "g"
+                elif curr < ma7 < ma25:
+                    signal, cls = "ETH 走弱", "r"
+                elif curr > ma25:
+                    signal, cls = "偏强", "g"
+                else:
+                    signal, cls = "偏弱", "r"
+
+                result["ETH_BTC"] = {
+                    "ratio": curr,
+                    "ma7": ma7, "ma25": ma25,
+                    "high_30d": high_30d, "low_30d": low_30d,
+                    "chg_7d": chg_7d, "chg_30d": chg_30d,
+                    "position": pos,
+                    "signal": signal, "signal_class": cls,
+                }
+                print(f"[OK] ETH/BTC 汇率分析: {curr:.6f}, {signal}")
+      except Exception as e:
+        print(f"[WARN] ETH/BTC 分析失败: {e}")
+
     return result
 
 
@@ -2044,6 +2083,79 @@ def _build_strategy_html(indicators: dict, ai_analysis: str = "") -> str:
             h += '</div>'
 
         h += '</div>'  # 关闭卡片
+
+    # ── ETH/BTC 汇率分析卡片 ──
+    eb = indicators.get("ETH_BTC")
+    if eb:
+        ratio = eb["ratio"]
+        sig = eb["signal"]
+        sig_cls = eb["signal_class"]
+        pos = eb["position"]
+        chg7 = eb["chg_7d"]
+        chg30 = eb["chg_30d"]
+        pos_color = "#ff3b30" if pos <= 30 else "#34c759" if pos >= 70 else "#007aff"
+        remain = 100 - pos
+
+        h += f'''<div style="background:#f5f5f7;border:1px solid #e5e5ea;border-radius:14px;padding:16px 18px;margin-top:12px">'''
+        h += f'''<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td style="font-size:15px;font-weight:700;color:#1d1d1f">ETH/BTC <span style="font-weight:400;color:#86868b;font-size:12px">{ratio:.6f}</span></td>
+<td style="text-align:right">{_ftag(sig, sig_cls)}</td>
+</tr></table>'''
+
+        # MA7 / MA25
+        ma7 = eb["ma7"]
+        ma25 = eb["ma25"]
+        ma7_color = "#34c759" if ratio >= ma7 else "#ff3b30"
+        ma25_color = "#34c759" if ratio >= ma25 else "#ff3b30"
+        h += f'''<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:10px;background:#ffffff;border-radius:10px;border:1px solid #e5e5ea">
+<tr>
+<td style="width:50%;text-align:center;padding:8px 4px">
+<div style="font-size:9px;color:#86868b;text-transform:uppercase;letter-spacing:1px">MA7</div>
+<div style="font-size:13px;font-weight:700;color:#1d1d1f;margin-top:2px">{ma7:.6f}</div>
+<div style="font-size:9px;font-weight:600;color:{ma7_color};margin-top:1px">{'▲ 上方' if ratio >= ma7 else '▼ 下方'}</div>
+</td>
+<td style="width:50%;text-align:center;padding:8px 4px;border-left:1px solid #e5e5ea">
+<div style="font-size:9px;color:#86868b;text-transform:uppercase;letter-spacing:1px">MA25</div>
+<div style="font-size:13px;font-weight:700;color:#1d1d1f;margin-top:2px">{ma25:.6f}</div>
+<div style="font-size:9px;font-weight:600;color:{ma25_color};margin-top:1px">{'▲ 上方' if ratio >= ma25 else '▼ 下方'}</div>
+</td>
+</tr></table>'''
+
+        # 30天区间
+        h += f'''<div style="margin-top:12px">
+<div style="font-size:10px;color:#86868b;margin-bottom:4px;font-weight:600">30天区间 · 当前位置 <span style="color:{pos_color};font-weight:700">{pos:.0f}%</span></div>
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr><td colspan="2" style="padding:0">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+    <td style="width:{pos:.0f}%;height:8px;border-radius:4px 0 0 4px" bgcolor="{pos_color}"></td>
+    <td style="width:{remain:.0f}%;height:8px;border-radius:0 4px 4px 0" bgcolor="#e5e5ea"></td>
+  </tr></table>
+</td></tr>
+<tr>
+<td style="font-size:9px;color:#aeaeb2;padding-top:3px">低点 {eb["low_30d"]:.6f}</td>
+<td style="font-size:9px;color:#aeaeb2;padding-top:3px;text-align:right">高点 {eb["high_30d"]:.6f}</td>
+</tr></table>
+</div>'''
+
+        # 7d / 30d 涨跌
+        chg7_color = "#34c759" if chg7 >= 0 else "#ff3b30"
+        chg30_color = "#34c759" if chg30 >= 0 else "#ff3b30"
+        chg7_arrow = "▲" if chg7 >= 0 else "▼"
+        chg30_arrow = "▲" if chg30 >= 0 else "▼"
+        h += f'''<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:10px;background:#ffffff;border-radius:10px;border:1px solid #e5e5ea">
+<tr>
+<td style="width:50%;text-align:center;padding:8px 4px">
+<div style="font-size:9px;color:#86868b;text-transform:uppercase;letter-spacing:1px">7D 变化</div>
+<div style="font-size:13px;font-weight:700;color:{chg7_color};margin-top:2px">{chg7_arrow} {chg7:+.1f}%</div>
+</td>
+<td style="width:50%;text-align:center;padding:8px 4px;border-left:1px solid #e5e5ea">
+<div style="font-size:9px;color:#86868b;text-transform:uppercase;letter-spacing:1px">30D 变化</div>
+<div style="font-size:13px;font-weight:700;color:{chg30_color};margin-top:2px">{chg30_arrow} {chg30:+.1f}%</div>
+</td>
+</tr></table>'''
+
+        h += '</div>'  # 关闭 ETH/BTC 卡片
 
     h += '</div>'
     return h
