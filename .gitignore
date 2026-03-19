@@ -3,6 +3,3 @@
 
 .obsidian/graph.json
 .trash/
-
-# 数据缓存（兜底源本地缓存）
-data/cache/
