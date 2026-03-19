@@ -423,8 +423,33 @@ def fetch_defi_tvl() -> dict:
 
 # ── 期权交割日 (Deribit) ──────────────────────────────────────────
 
+def _calc_max_pain(strikes_data: dict) -> float | None:
+    """计算 Max Pain（最大痛点价格）
+    strikes_data: {strike: {"call_oi": float, "put_oi": float}}
+    """
+    if not strikes_data:
+        return None
+    all_strikes = sorted(strikes_data.keys())
+    if len(all_strikes) < 2:
+        return None
+
+    min_pain = float("inf")
+    max_pain_strike = None
+    for settle in all_strikes:
+        total = 0.0
+        for strike, ois in strikes_data.items():
+            # Call holders lose when settle > strike
+            total += max(0, settle - strike) * ois.get("call_oi", 0)
+            # Put holders lose when settle < strike
+            total += max(0, strike - settle) * ois.get("put_oi", 0)
+        if total < min_pain:
+            min_pain = total
+            max_pain_strike = settle
+    return max_pain_strike
+
+
 def fetch_options_expiry() -> dict:
-    """获取 BTC/ETH 期权到期日及未平仓量 (Deribit 公开 API)"""
+    """获取 BTC/ETH 期权到期日及未平仓量 + Max Pain (Deribit 公开 API)"""
     result = {}
     for currency in ["BTC", "ETH"]:
         url = f"https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency={currency}&kind=option"
@@ -432,8 +457,9 @@ def fetch_options_expiry() -> dict:
         if not data or "result" not in data:
             continue
 
-        # 按到期日汇总未平仓量
+        # 按到期日汇总未平仓量 + 按行权价记录 call/put OI
         expiry_oi = {}
+        expiry_strikes = {}  # {expiry_str: {strike: {"call_oi": x, "put_oi": y}}}
         for item in data["result"]:
             name = item.get("instrument_name", "")
             oi = float(item.get("open_interest", 0))
@@ -441,11 +467,26 @@ def fetch_options_expiry() -> dict:
             if oi <= 0:
                 continue
             parts = name.split("-")
-            if len(parts) >= 2:
+            if len(parts) >= 4:
                 expiry_str = parts[1]
+                try:
+                    strike = float(parts[2])
+                except ValueError:
+                    continue
+                opt_type = parts[3]  # "C" or "P"
+
                 if expiry_str not in expiry_oi:
                     expiry_oi[expiry_str] = {"oi_coins": 0, "underlying": underlying}
                 expiry_oi[expiry_str]["oi_coins"] += oi
+
+                if expiry_str not in expiry_strikes:
+                    expiry_strikes[expiry_str] = {}
+                if strike not in expiry_strikes[expiry_str]:
+                    expiry_strikes[expiry_str][strike] = {"call_oi": 0, "put_oi": 0}
+                if opt_type == "C":
+                    expiry_strikes[expiry_str][strike]["call_oi"] += oi
+                else:
+                    expiry_strikes[expiry_str][strike]["put_oi"] += oi
 
         expiries = []
         for exp_str, info in expiry_oi.items():
@@ -457,6 +498,7 @@ def fetch_options_expiry() -> dict:
             days_left = (exp_date - datetime.now()).days
             if days_left < 0:
                 continue
+            max_pain = _calc_max_pain(expiry_strikes.get(exp_str, {}))
             expiries.append({
                 "date": exp_str,
                 "date_fmt": exp_date.strftime("%Y-%m-%d"),
@@ -464,6 +506,7 @@ def fetch_options_expiry() -> dict:
                 "oi_coins": info["oi_coins"],
                 "notional_usd": notional,
                 "is_major": notional >= 1_000_000_000,
+                "max_pain": max_pain,
             })
 
         expiries.sort(key=lambda x: x["days_left"])
@@ -862,7 +905,8 @@ def _ai_call(prompt: str, max_tokens: int = 300, temperature: float = 0.3) -> st
             "https://api.groq.com/openai/v1/chat/completions",
             data=payload,
             headers={"Content-Type": "application/json",
-                     "Authorization": f"Bearer {GROQ_API_KEY}"},
+                     "Authorization": f"Bearer {GROQ_API_KEY}",
+                     "User-Agent": "Mozilla/5.0"},
             method="POST",
         )
         try:
@@ -872,7 +916,13 @@ def _ai_call(prompt: str, max_tokens: int = 300, temperature: float = 0.3) -> st
                 print(f"[OK] Groq 响应 ({len(text)} 字)")
                 return text
         except Exception as e:
-            print(f"[ERROR] Groq 调用失败: {e}")
+            body = ""
+            if hasattr(e, "read"):
+                try:
+                    body = e.read().decode()
+                except Exception:
+                    pass
+            print(f"[ERROR] Groq 调用失败: {e} {body}")
 
     print("[SKIP] AI 未配置 (需要 GEMINI_API_KEY 或 GROQ_API_KEY)")
     return ""
@@ -1279,6 +1329,8 @@ def _vis_timeline(expiries: list[dict], currency: str) -> str:
             color = "#86868b"
         star = " ★" if exp["is_major"] else ""
         nv = _mc(notional)
+        mp = exp.get("max_pain")
+        mp_html = f'<span style="color:#ff9500;font-size:9px"> MP{_p(mp)}</span>' if mp else ""
         rows += f'''<tr>
 <td style="font-size:11px;color:#6e6e73;padding:3px 0;white-space:nowrap;width:50px">{exp["date_fmt"]}</td>
 <td style="font-size:10px;color:#999;padding:3px 6px;white-space:nowrap;width:40px;text-align:right">{days}天</td>
@@ -1288,7 +1340,7 @@ def _vis_timeline(expiries: list[dict], currency: str) -> str:
     <td style="width:{remain_pct}%;height:8px" bgcolor="#f5f5f5"></td>
   </tr></table>
 </td>
-<td style="font-size:11px;font-weight:600;color:#1d1d1f;padding:3px 0 3px 8px;white-space:nowrap;width:80px;text-align:right">{nv}{star}</td>
+<td style="font-size:11px;font-weight:600;color:#1d1d1f;padding:3px 0 3px 8px;white-space:nowrap;width:80px;text-align:right">{nv}{star}{mp_html}</td>
 </tr>'''
 
     return f'''<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 12px">
@@ -1935,7 +1987,9 @@ def build_daily_html(data: dict) -> str:
                     tag += _ftag(f"⚠ {days}天后", "r")
                 elif days <= 7:
                     tag += _ftag(f"{days}天后", "y")
-                h += f'<div class="r"><span class="l">{currency} {exp["date_fmt"]}</span>'
+                mp = exp.get("max_pain")
+                mp_str = f" · MP {_p(mp)}" if mp else ""
+                h += f'<div class="r"><span class="l">{currency} {exp["date_fmt"]}{mp_str}</span>'
                 h += f'<span class="v">{_mc(exp["notional_usd"])} ({exp["oi_coins"]:,.0f}枚) {tag}</span></div>'
         h += '</div>'
 
@@ -2513,7 +2567,9 @@ def run_weekly():
                     tag += _ftag(f"⚠ {days}天后", "r")
                 elif days <= 7:
                     tag += _ftag(f"{days}天后", "y")
-                h += f'<div class="r"><span class="l">{currency} {exp["date_fmt"]}</span>'
+                mp = exp.get("max_pain")
+                mp_str = f" · MP {_p(mp)}" if mp else ""
+                h += f'<div class="r"><span class="l">{currency} {exp["date_fmt"]}{mp_str}</span>'
                 h += f'<span class="v">{_mc(exp["notional_usd"])} ({exp["oi_coins"]:,.0f}枚) {tag}</span></div>'
         h += '</div>'
 
