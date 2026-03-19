@@ -1114,7 +1114,7 @@ def _ai_call(prompt: str, max_tokens: int = 300, temperature: float = 0.3) -> tu
                 result = json.loads(resp.read().decode())
                 text = result["candidates"][0]["content"]["parts"][0]["text"]
                 print(f"[OK] Gemini 响应 ({len(text)} 字)")
-                return text, "Gemini 2.0 Flash"
+                return text, "Gemini"
         except Exception as e:
             print(f"[WARN] Gemini 调用失败: {e}，尝试 Groq 兜底")
 
@@ -1139,7 +1139,7 @@ def _ai_call(prompt: str, max_tokens: int = 300, temperature: float = 0.3) -> tu
                 result = json.loads(resp.read().decode())
                 text = result["choices"][0]["message"]["content"]
                 print(f"[OK] Groq 响应 ({len(text)} 字)")
-                return text, "Llama 3.3 70B"
+                return text, "Groq"
         except Exception as e:
             body = ""
             if hasattr(e, "read"):
