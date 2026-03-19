@@ -219,14 +219,40 @@ def _load_cache(filename: str, max_age_hours: int = 24):
 
 
 def _fetch_binance_klines(symbol: str, interval: str = "1d", limit: int = 60):
-    """从 Binance 获取 K线数据，返回 (closes, volumes) 或 (None, None)"""
+    """从 Binance 获取 K线数据，返回 (closes, volumes) 或 (None, None)
+    Binance 被美国 IP 屏蔽(451)时自动用 CoinPaprika OHLCV 兜底"""
     url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
     data = fetch_json(url)
-    if not data:
+    if data and isinstance(data, list) and len(data) > 0:
+        try:
+            closes = [float(k[4]) for k in data]
+            volumes = [float(k[5]) for k in data]
+            return closes, volumes
+        except (IndexError, ValueError, TypeError):
+            pass
+
+    # Binance 失败（美国 IP 451）→ CryptoCompare histoday 兜底
+    sym_map = {"BTCUSDT": "BTC", "ETHUSDT": "ETH", "SOLUSDT": "SOL",
+               "BNBUSDT": "BNB", "XRPUSDT": "XRP", "DOGEUSDT": "DOGE",
+               "ADAUSDT": "ADA", "AVAXUSDT": "AVAX", "DOTUSDT": "DOT",
+               "LINKUSDT": "LINK", "SUIUSDT": "SUI", "PEPEUSDT": "PEPE",
+               "SHIBUSDT": "SHIB", "UNIUSDT": "UNI", "TAOUSDT": "TAO"}
+    fsym = sym_map.get(symbol)
+    if not fsym:
         return None, None
-    closes = [float(k[4]) for k in data]   # index 4 = close
-    volumes = [float(k[5]) for k in data]  # index 5 = volume
-    return closes, volumes
+    print(f"[WARN] Binance {symbol} 被屏蔽，使用 CryptoCompare 兜底")
+    cc_url = f"https://min-api.cryptocompare.com/data/v2/histoday?fsym={fsym}&tsym=USD&limit={limit}"
+    cc_data = fetch_json(cc_url)
+    if not cc_data or "Data" not in cc_data:
+        return None, None
+    entries = cc_data.get("Data", {}).get("Data", [])
+    if not entries:
+        return None, None
+    closes = [float(e["close"]) for e in entries if e.get("close")]
+    volumes = [float(e.get("volumeto", 0)) for e in entries]
+    if closes:
+        print(f"[OK] CryptoCompare {fsym}: {len(closes)} 天数据")
+    return (closes, volumes) if closes else (None, None)
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -2296,7 +2322,11 @@ def build_daily_html(data: dict) -> str:
                 h += f'<div class="r"><span class="l">#{coin["rank"]} {coin["symbol"]}</span>'
                 h += f'<span class="v">{coin["change"]:+.1f}% <span style="font-size:10px;color:#34a853">+{coin["vs_btc"]:.1f}%</span></span></div>'
             if len(top200) > 3:
-                h += f'<p style="font-size:10px;color:#c7c7cc;text-align:center">...及其余 {len(top200)-3} 个</p>'
+                h += f'<details style="margin:4px 0"><summary style="font-size:10px;color:#007aff;text-align:center;cursor:pointer;list-style:none">▶ 展开其余 {len(top200)-3} 个</summary>'
+                for coin in top200[3:]:
+                    h += f'<div class="r"><span class="l">#{coin["rank"]} {coin["symbol"]}</span>'
+                    h += f'<span class="v">{coin["change"]:+.1f}% <span style="font-size:10px;color:#34a853">+{coin["vs_btc"]:.1f}%</span></span></div>'
+                h += '</details>'
 
             if after200:
                 h += '<div class="dv"></div>'
@@ -2305,7 +2335,11 @@ def build_daily_html(data: dict) -> str:
                     h += f'<div class="r"><span class="l">#{coin["rank"]} {coin["symbol"]}</span>'
                     h += f'<span class="v">{coin["change"]:+.1f}% <span style="font-size:10px;color:#34a853">+{coin["vs_btc"]:.1f}%</span></span></div>'
                 if len(after200) > 3:
-                    h += f'<p style="font-size:10px;color:#c7c7cc;text-align:center">...及其余 {len(after200)-3} 个</p>'
+                    h += f'<details style="margin:4px 0"><summary style="font-size:10px;color:#007aff;text-align:center;cursor:pointer;list-style:none">▶ 展开其余 {len(after200)-3} 个</summary>'
+                    for coin in after200[3:]:
+                        h += f'<div class="r"><span class="l">#{coin["rank"]} {coin["symbol"]}</span>'
+                        h += f'<span class="v">{coin["change"]:+.1f}% <span style="font-size:10px;color:#34a853">+{coin["vs_btc"]:.1f}%</span></span></div>'
+                    h += '</details>'
 
         h += '</div>'
 
@@ -2827,7 +2861,11 @@ def run_weekly():
                 h += f'<div class="r"><span class="l">#{coin["rank"]} {coin["symbol"]}</span>'
                 h += f'<span class="v">{coin["change"]:+.1f}% <span style="font-size:10px;color:#34a853">+{coin["vs_btc"]:.1f}%</span></span></div>'
             if len(ops) > 20:
-                h += f'<p style="font-size:10px;color:#c7c7cc;text-align:center">...及其余 {len(ops)-20} 个币种</p>'
+                h += f'<details style="margin:4px 0"><summary style="font-size:10px;color:#007aff;text-align:center;cursor:pointer;list-style:none">▶ 展开其余 {len(ops)-20} 个币种</summary>'
+                for coin in ops[20:]:
+                    h += f'<div class="r"><span class="l">#{coin["rank"]} {coin["symbol"]}</span>'
+                    h += f'<span class="v">{coin["change"]:+.1f}% <span style="font-size:10px;color:#34a853">+{coin["vs_btc"]:.1f}%</span></span></div>'
+                h += '</details>'
 
         h += '</div>'
 
