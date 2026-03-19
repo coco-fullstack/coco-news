@@ -19,7 +19,7 @@
 [ERROR] https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=SOLUSDT... → HTTP Error 451: 
 [ERROR] https://ethereum-rpc.publicnode.com... → Expecting value: line 1 column 1 (char 0)
 [WARN] Gemini 调用失败: HTTP Error 429: Too Many Requests，尝试 Groq 兜底
-[OK] Groq 响应 (138 字)
+[OK] Groq 响应 (161 字)
 [ERROR] https://fapi.binance.com/fapi/v1/openInterest?symbol=BTCUSDT... → HTTP Error 451: 
 [ERROR] https://fapi.binance.com/futures/data/openInterestHist?symbol=BTCUSDT&period=1d&... → HTTP Error 451: 
 [ERROR] https://fapi.binance.com/futures/data/takerlongshortRatio?symbol=BTCUSDT&period=... → HTTP Error 451: 
@@ -29,18 +29,37 @@
 [ERROR] https://fapi.binance.com/futures/data/takerlongshortRatio?symbol=ETHUSDT&period=... → HTTP Error 451: 
 [ERROR] https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=ETHUSDT... → HTTP Error 451: 
 [ERROR] https://api.binance.com/api/v3/exchangeInfo... → HTTP Error 451: 
+[WARN] Binance exchangeInfo 失败，使用已知币种列表兜底
+[INFO] 已知币种列表: 80
+[ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
+[ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
+[ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin... → HTTP Error 429: Too Many Requests
+[ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/ethereum... → HTTP Error 429: Too Many Requests
+[WARN] CoinGecko fetch_institutional_holdings 失败，使用本地缓存兜底
+[OK] 缓存命中: ['BTC', 'ETH']
 [ERROR] https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days... → HTTP Error 429: Too Many Requests
 [WARN] CoinGecko fetch_strategy_indicators(bitcoin) 失败，使用 Binance 兜底
 [ERROR] https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=60... → HTTP Error 451: 
-[INFO] Binance 兜底 bitcoin: closes=None, volumes=None
-[WARN] fetch_strategy_indicators(bitcoin): 无足够数据，跳过
+[WARN] Binance BTCUSDT 被屏蔽，使用 CryptoCompare 兜底
+[OK] CryptoCompare BTC: 61 天数据
+[INFO] Binance 兜底 bitcoin: closes=61, volumes=61
+[OK] fetch_strategy_indicators(bitcoin): ma=偏多, macd=金叉+红柱
 [ERROR] https://api.coingecko.com/api/v3/coins/ethereum/market_chart?vs_currency=usd&day... → HTTP Error 429: Too Many Requests
 [WARN] CoinGecko fetch_strategy_indicators(ethereum) 失败，使用 Binance 兜底
 [ERROR] https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=1d&limit=60... → HTTP Error 451: 
-[INFO] Binance 兜底 ethereum: closes=None, volumes=None
-[WARN] fetch_strategy_indicators(ethereum): 无足够数据，跳过
+[WARN] Binance ETHUSDT 被屏蔽，使用 CryptoCompare 兜底
+[OK] CryptoCompare ETH: 61 天数据
+[INFO] Binance 兜底 ethereum: closes=61, volumes=61
+[OK] fetch_strategy_indicators(ethereum): ma=偏多, macd=金叉+红柱
 [ERROR] https://fapi.binance.com/fapi/v1/fundingRate?symbol=BTCUSDT&limit=3... → HTTP Error 451: 
 [ERROR] https://fapi.binance.com/fapi/v1/fundingRate?symbol=ETHUSDT&limit=3... → HTTP Error 451: 
+[ERROR] https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=60... → HTTP Error 451: 
+[WARN] Binance BTCUSDT 被屏蔽，使用 CryptoCompare 兜底
+[OK] CryptoCompare BTC: 61 天数据
+[ERROR] https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=1d&limit=60... → HTTP Error 451: 
+[WARN] Binance ETHUSDT 被屏蔽，使用 CryptoCompare 兜底
+[OK] CryptoCompare ETH: 61 天数据
+[OK] ETH/BTC 汇率分析: 0.030873, ETH 走强
 [INFO] 抓取: https://cointelegraph.com/rss
 [INFO] 30 条
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
@@ -49,7 +68,9 @@
 [INFO] 19 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
-[INFO] 币价:20 费率:0 宏观:1 清算:$0 多空:0 Gas:? TVL:$96.6B 趋势:30 新闻:68 期权到期:5 跑赢BTC:345个 策略:0币
+[WARN] Gemini 调用失败: HTTP Error 429: Too Many Requests，尝试 Groq 兜底
+[OK] Groq 响应 (261 字)
+[INFO] 币价:20 费率:0 宏观:1 清算:$0 多空:0 Gas:? TVL:$96.2B 趋势:30 新闻:68 期权到期:5 跑赢BTC:116个 策略:3币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, YishuaiGao2000@outlook.com
 [OK] 快照已保存: data/snapshots/2026-03-19.json
