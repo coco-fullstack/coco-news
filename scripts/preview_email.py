@@ -78,6 +78,7 @@ mock_data = {
         },
     },
     "ai_summary": "BTC 在 83K 附近震荡整理，ETH 相对偏弱，ETH/BTC 汇率持续走低。<br>· 期权市场：本周五 BTC 85亿美元期权到期，为重大交割日，需关注 pin 风险<br>· 资金费率中性偏低，做多热情有限<br>· 恐贪指数回落至恐惧区间，短期市场情绪偏谨慎<br>· 建议：观望为主，关注 83K 支撑和 85K 阻力位",
+    "ai_engine": "Gemini",
     "strategy_indicators": {
         "BTC": {
             "price": 83542.0,
@@ -103,6 +104,7 @@ mock_data = {
         },
     },
     "ai_strategy": "BTC 技术面偏中性，MACD 空头收敛暗示短期可能变盘。<br>ETH 相对弱势，MA20 下方运行，建议等待企稳信号。<br>策略建议：轻仓观望，BTC 82K-85K 区间等待方向选择。",
+    "ai_strategy_engine": "Gemini",
     "screening": {
         "btc_benchmark": {"7d": 3.2, "30d": -5.1, "1y": 62.5},
         "binance_count": 380,
