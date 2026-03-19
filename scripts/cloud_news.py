@@ -2442,28 +2442,22 @@ def build_daily_html(data: dict) -> str:
             h += f'<p style="font-size:11px;color:#86868b;margin:8px 0 4px;font-weight:600">{label} · 前200 ({len(top200)}个)</p>'
             # 条形图可视化
             h += _vis_bar_chart(top200[:5], "vs_btc", "symbol", 5)
-            for coin in top200[:3]:
+            for coin in top200[:5]:
                 h += f'<div class="r"><span class="l">#{coin["rank"]} {coin["symbol"]}</span>'
                 h += f'<span class="v">{coin["change"]:+.1f}% <span style="font-size:10px;color:#34a853">+{coin["vs_btc"]:.1f}%</span></span></div>'
-            if len(top200) > 3:
-                h += f'<details style="margin:4px 0"><summary style="font-size:10px;color:#007aff;text-align:center;cursor:pointer;list-style:none">▶ 展开其余 {len(top200)-3} 个</summary>'
-                for coin in top200[3:]:
-                    h += f'<div class="r"><span class="l">#{coin["rank"]} {coin["symbol"]}</span>'
-                    h += f'<span class="v">{coin["change"]:+.1f}% <span style="font-size:10px;color:#34a853">+{coin["vs_btc"]:.1f}%</span></span></div>'
-                h += '</details>'
+            if len(top200) > 5:
+                rest = " · ".join(f'{c["symbol"]} +{c["vs_btc"]:.0f}%' for c in top200[5:])
+                h += f'<div style="font-size:10px;color:#86868b;line-height:1.8;margin:4px 0;padding:8px 12px;background:#f5f5f7;border-radius:8px">{rest}</div>'
 
             if after200:
                 h += '<div class="dv"></div>'
                 h += f'<p style="font-size:11px;color:#86868b;margin:8px 0 4px;font-weight:600">{label} · 200名后 ({len(after200)}个)</p>'
-                for coin in after200[:3]:
+                for coin in after200[:5]:
                     h += f'<div class="r"><span class="l">#{coin["rank"]} {coin["symbol"]}</span>'
                     h += f'<span class="v">{coin["change"]:+.1f}% <span style="font-size:10px;color:#34a853">+{coin["vs_btc"]:.1f}%</span></span></div>'
-                if len(after200) > 3:
-                    h += f'<details style="margin:4px 0"><summary style="font-size:10px;color:#007aff;text-align:center;cursor:pointer;list-style:none">▶ 展开其余 {len(after200)-3} 个</summary>'
-                    for coin in after200[3:]:
-                        h += f'<div class="r"><span class="l">#{coin["rank"]} {coin["symbol"]}</span>'
-                        h += f'<span class="v">{coin["change"]:+.1f}% <span style="font-size:10px;color:#34a853">+{coin["vs_btc"]:.1f}%</span></span></div>'
-                    h += '</details>'
+                if len(after200) > 5:
+                    rest = " · ".join(f'{c["symbol"]} +{c["vs_btc"]:.0f}%' for c in after200[5:])
+                    h += f'<div style="font-size:10px;color:#86868b;line-height:1.8;margin:4px 0;padding:8px 12px;background:#f5f5f7;border-radius:8px">{rest}</div>'
 
         h += '</div>'
 
@@ -2983,11 +2977,8 @@ def run_weekly():
                 h += f'<div class="r"><span class="l">#{coin["rank"]} {coin["symbol"]}</span>'
                 h += f'<span class="v">{coin["change"]:+.1f}% <span style="font-size:10px;color:#34a853">+{coin["vs_btc"]:.1f}%</span></span></div>'
             if len(ops) > 20:
-                h += f'<details style="margin:4px 0"><summary style="font-size:10px;color:#007aff;text-align:center;cursor:pointer;list-style:none">▶ 展开其余 {len(ops)-20} 个币种</summary>'
-                for coin in ops[20:]:
-                    h += f'<div class="r"><span class="l">#{coin["rank"]} {coin["symbol"]}</span>'
-                    h += f'<span class="v">{coin["change"]:+.1f}% <span style="font-size:10px;color:#34a853">+{coin["vs_btc"]:.1f}%</span></span></div>'
-                h += '</details>'
+                rest = " · ".join(f'{c["symbol"]} +{c["vs_btc"]:.0f}%' for c in ops[20:])
+                h += f'<div style="font-size:10px;color:#86868b;line-height:1.8;margin:4px 0;padding:8px 12px;background:#f5f5f7;border-radius:8px">{rest}</div>'
 
         h += '</div>'
 
