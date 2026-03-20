@@ -18,8 +18,6 @@
 [ERROR] https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=ETHUSDT... → HTTP Error 451: 
 [ERROR] https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=SOLUSDT... → HTTP Error 451: 
 [ERROR] https://ethereum-rpc.publicnode.com... → Expecting value: line 1 column 1 (char 0)
-[WARN] Gemini 调用失败: HTTP Error 429: Too Many Requests，尝试 Groq 兜底
-[OK] Groq 响应 (161 字)
 [ERROR] https://fapi.binance.com/fapi/v1/openInterest?symbol=BTCUSDT... → HTTP Error 451: 
 [ERROR] https://fapi.binance.com/futures/data/openInterestHist?symbol=BTCUSDT&period=1d&... → HTTP Error 451: 
 [ERROR] https://fapi.binance.com/futures/data/takerlongshortRatio?symbol=BTCUSDT&period=... → HTTP Error 451: 
@@ -59,7 +57,7 @@
 [ERROR] https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=1d&limit=60... → HTTP Error 451: 
 [WARN] Binance ETHUSDT 被屏蔽，使用 CryptoCompare 兜底
 [OK] CryptoCompare ETH: 61 天数据
-[OK] ETH/BTC 汇率分析: 0.030873, ETH 走强
+[OK] ETH/BTC 汇率分析: 0.030459, 偏强
 [INFO] 抓取: https://cointelegraph.com/rss
 [INFO] 30 条
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
@@ -69,8 +67,10 @@
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
 [WARN] Gemini 调用失败: HTTP Error 429: Too Many Requests，尝试 Groq 兜底
-[OK] Groq 响应 (261 字)
-[INFO] 币价:20 费率:0 宏观:1 清算:$0 多空:0 Gas:? TVL:$96.2B 趋势:30 新闻:68 期权到期:5 跑赢BTC:116个 策略:3币
+[OK] Groq 响应 (182 字)
+[WARN] Gemini 调用失败: HTTP Error 429: Too Many Requests，尝试 Groq 兜底
+[OK] Groq 响应 (272 字)
+[INFO] 币价:20 费率:0 宏观:1 清算:$0 多空:0 Gas:? TVL:$95.0B 趋势:38 新闻:70 期权到期:5 跑赢BTC:124个 策略:3币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, YishuaiGao2000@outlook.com
-[OK] 快照已保存: data/snapshots/2026-03-19.json
+[OK] 快照已保存: data/snapshots/2026-03-20.json
