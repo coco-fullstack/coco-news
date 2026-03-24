@@ -34,7 +34,11 @@ TRACKED_COINS = {
     "polkadot": "DOT", "chainlink": "LINK", "sui": "SUI",
     "pepe": "PEPE", "shiba-inu": "SHIB",
     "uniswap": "UNI", "bittensor": "TAO",
+    "bio-protocol": "BIO", "kiteai": "KITE",
 }
+
+# ── 重点关注（价格表高亮 + 置顶）─────────────────────────────────
+FOCUS_COINS = {"UNI", "TAO", "BIO", "KITE"}
 
 WATCHLIST_COINS = {
     "uniswap": "UNI",
@@ -2413,12 +2417,17 @@ def build_daily_html(data: dict) -> str:
         tags = " ".join(_ftag(f'{s} {d_["change"]:.1f}%', "r") for s, d_ in losers)
         h += f'<p style="margin:0 0 8px;font-size:12px">Bottom {tags}</p>'
 
-    # 价格表（去掉 BTC/ETH，Header 已展示）
+    # 价格表（去掉 BTC/ETH，Header 已展示；重点关注币置顶高亮）
     h += '<div class="dv"></div>'
     sorted_prices = sorted(prices.items(), key=lambda x: abs(x[1]["change"]), reverse=True)
-    for sym, d_ in sorted_prices:
-        if sym in ("BTC", "ETH"):
-            continue
+    focus = [(s, d_) for s, d_ in sorted_prices if s in FOCUS_COINS and s not in ("BTC", "ETH")]
+    others = [(s, d_) for s, d_ in sorted_prices if s not in FOCUS_COINS and s not in ("BTC", "ETH")]
+    if focus:
+        h += '<p style="font-size:10px;color:#ff9500;margin:6px 0 2px;font-weight:600">★ 重点关注</p>'
+        for sym, d_ in focus:
+            h += f'<div class="r" style="background:#fff8ef;border-radius:6px;padding:2px 8px;margin:2px 0"><span class="l" style="font-weight:700;color:#ff9500">{sym}</span><span class="v">{_p(d_["price"])} {_c(d_["change"])}</span></div>'
+        h += '<div class="dv"></div>'
+    for sym, d_ in others:
         h += f'<div class="r"><span class="l">{sym}</span><span class="v">{_p(d_["price"])} {_c(d_["change"])}</span></div>'
     h += '</div>'
 
