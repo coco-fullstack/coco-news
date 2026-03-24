@@ -5,7 +5,7 @@
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
 [INFO] 25 条
 [INFO] 抓取: https://www.theblock.co/rss.xml
-[INFO] 19 条
+[INFO] 20 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
 [ERROR] https://fapi.binance.com/fapi/v1/premiumIndex... → HTTP Error 451: 
@@ -29,6 +29,12 @@
 [ERROR] https://api.binance.com/api/v3/exchangeInfo... → HTTP Error 451: 
 [WARN] Binance exchangeInfo 失败，使用已知币种列表兜底
 [INFO] 已知币种列表: 80
+[ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
+[ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
+[ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin... → HTTP Error 429: Too Many Requests
+[ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/ethereum... → HTTP Error 429: Too Many Requests
+[WARN] CoinGecko fetch_institutional_holdings 失败，使用本地缓存兜底
+[OK] 缓存命中: ['BTC', 'ETH']
 [ERROR] https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days... → HTTP Error 429: Too Many Requests
 [WARN] CoinGecko fetch_strategy_indicators(bitcoin) 失败，使用 Binance 兜底
 [ERROR] https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=60... → HTTP Error 451: 
@@ -51,20 +57,20 @@
 [ERROR] https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=1d&limit=60... → HTTP Error 451: 
 [WARN] Binance ETHUSDT 被屏蔽，使用 CryptoCompare 兜底
 [OK] CryptoCompare ETH: 61 天数据
-[OK] ETH/BTC 汇率分析: 0.030321, 偏强
+[OK] ETH/BTC 汇率分析: 0.030529, ETH 走强
 [INFO] 抓取: https://cointelegraph.com/rss
 [INFO] 30 条
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
 [INFO] 25 条
 [INFO] 抓取: https://www.theblock.co/rss.xml
-[INFO] 19 条
+[INFO] 20 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
 [WARN] Gemini 调用失败: HTTP Error 429: Too Many Requests，尝试 Groq 兜底
-[OK] Groq 响应 (156 字)
+[OK] Groq 响应 (158 字)
 [WARN] Gemini 调用失败: HTTP Error 429: Too Many Requests，尝试 Groq 兜底
-[OK] Groq 响应 (217 字)
-[INFO] 币价:20 费率:0 宏观:1 清算:$0 多空:0 Gas:? TVL:$95.3B 趋势:46 新闻:63 期权到期:5 跑赢BTC:368个 策略:3币
+[OK] Groq 响应 (223 字)
+[INFO] 币价:20 费率:0 宏观:1 清算:$0 多空:0 Gas:? TVL:$95.7B 趋势:38 新闻:72 期权到期:5 跑赢BTC:128个 策略:3币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, YishuaiGao2000@outlook.com
-[OK] 快照已保存: data/snapshots/2026-03-24.json
+[OK] 快照已保存: data/snapshots/2026-03-25.json
