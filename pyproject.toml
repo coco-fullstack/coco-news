@@ -1,6 +1,0 @@
-[project]
-name = "coco-news"
-version = "1.0.0"
-description = "CineVerse - Movie/TV/Anime browser"
-requires-python = ">=3.9"
-dependencies = []
