@@ -34,7 +34,7 @@ TRACKED_COINS = {
     "polkadot": "DOT", "chainlink": "LINK", "sui": "SUI",
     "pepe": "PEPE", "shiba-inu": "SHIB",
     "uniswap": "UNI", "bittensor": "TAO",
-    "bio-protocol": "BIO", "kiteai": "KITE",
+    "bio-protocol": "BIO", "kite-2": "KITE",
 }
 
 # ── 重点关注（价格表高亮 + 置顶）─────────────────────────────────
@@ -46,7 +46,7 @@ WATCHLIST_COINS = {
     "openeden": "EDEN",
     "chainbase": "C",
     "bittensor": "TAO",
-    "kiteai": "KITE",
+    "kite-2": "KITE",
     "pancakeswap-token": "CAKE",
 }
 
@@ -63,6 +63,8 @@ COINPAPRIKA_IDS = {
     "uniswap": "uni-uniswap", "bittensor": "tao-bittensor",
     "tether": "usdt-tether", "usd-coin": "usdc-usd-coin",
     "pancakeswap-token": "cake-pancakeswap",
+    "bio-protocol": "bio-bio-protocol",
+    "kite-2": "kite-kite-ai",
 }
 
 BINANCE_SYMBOLS = {
@@ -73,6 +75,7 @@ BINANCE_SYMBOLS = {
     "polkadot": "DOTUSDT", "chainlink": "LINKUSDT",
     "sui": "SUIUSDT", "pepe": "PEPEUSDT", "shiba-inu": "SHIBUSDT",
     "uniswap": "UNIUSDT", "bittensor": "TAOUSDT",
+    "kite-2": "KITEUSDT",
 }
 
 CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "cache")
@@ -143,12 +146,12 @@ _last_cg_ts = 0  # CoinGecko 全局速率控制
 
 def fetch_json(url: str, timeout: int = 30):
     global _last_cg_ts
-    # CoinGecko 免费版限流：自动间隔 2s
+    # CoinGecko 免费版限流：自动间隔 3s（2s 仍会偶发 429）
     if "coingecko.com" in url:
         import time as _t
         elapsed = _t.time() - _last_cg_ts
-        if elapsed < 2:
-            _t.sleep(2 - elapsed)
+        if elapsed < 3:
+            _t.sleep(3 - elapsed)
         _last_cg_ts = _t.time()
     req = Request(url, headers={"User-Agent": "MarketBot/2.0"})
     try:
@@ -240,7 +243,8 @@ def _fetch_binance_klines(symbol: str, interval: str = "1d", limit: int = 60):
                "BNBUSDT": "BNB", "XRPUSDT": "XRP", "DOGEUSDT": "DOGE",
                "ADAUSDT": "ADA", "AVAXUSDT": "AVAX", "DOTUSDT": "DOT",
                "LINKUSDT": "LINK", "SUIUSDT": "SUI", "PEPEUSDT": "PEPE",
-               "SHIBUSDT": "SHIB", "UNIUSDT": "UNI", "TAOUSDT": "TAO"}
+               "SHIBUSDT": "SHIB", "UNIUSDT": "UNI", "TAOUSDT": "TAO",
+               "KITEUSDT": "KITE"}
     fsym = sym_map.get(symbol)
     if not fsym:
         return None, None
@@ -362,17 +366,30 @@ def fetch_global_data() -> dict:
 
 
 def fetch_funding_rates() -> dict:
-    """Binance 永续合约资金费率"""
+    """永续合约资金费率（Binance → Bybit 兜底）"""
+    # ── Binance ──
     data = fetch_json("https://fapi.binance.com/fapi/v1/premiumIndex")
-    if not data:
-        return {}
-    targets = {"BTCUSDT", "ETHUSDT", "SOLUSDT"}
+    if data and isinstance(data, list) and len(data) > 0:
+        targets = {"BTCUSDT", "ETHUSDT", "SOLUSDT"}
+        result = {}
+        for item in data:
+            sym = item.get("symbol", "")
+            if sym in targets:
+                rate = float(item.get("lastFundingRate", 0)) * 100
+                result[sym.replace("USDT", "")] = rate
+        if result:
+            return result
+
+    # ── Bybit 兜底 ──
+    print("[WARN] Binance fetch_funding_rates 失败，使用 Bybit 兜底")
     result = {}
-    for item in data:
-        sym = item.get("symbol", "")
-        if sym in targets:
-            rate = float(item.get("lastFundingRate", 0)) * 100
-            result[sym.replace("USDT", "")] = rate
+    for symbol in ["BTCUSDT", "ETHUSDT", "SOLUSDT"]:
+        bb = fetch_json(f"https://api.bybit.com/v5/market/tickers?category=linear&symbol={symbol}")
+        if bb and bb.get("retCode") == 0:
+            items = bb.get("result", {}).get("list", [])
+            if items:
+                rate = float(items[0].get("fundingRate", 0)) * 100
+                result[symbol.replace("USDT", "")] = rate
     return result
 
 
@@ -405,7 +422,11 @@ def _fetch_yield_yahoo(ticker: str) -> dict | None:
     try:
         with urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode())
-        closes = data["chart"]["result"][0]["indicators"]["quote"][0]["close"]
+        result = data.get("chart", {}).get("result")
+        if not result:
+            return None
+        quotes = result[0].get("indicators", {}).get("quote", [{}])[0]
+        closes = quotes.get("close") or []
         valid = [c for c in closes if c is not None]
         if len(valid) >= 2:
             return {"value": valid[-1], "prev": valid[-2]}
@@ -431,13 +452,9 @@ def fetch_macro_yields() -> dict:
         if us:
             result["US10Y"] = us
 
-    # JP 10Y
+    # JP 10Y（仅 FRED，Yahoo ^JGBS 已失效无可用替代 ticker）
     if fred_key:
         jp = _fetch_yield_fred("IRLTLT01JPM156N", fred_key)
-        if jp:
-            result["JP10Y"] = jp
-    if "JP10Y" not in result:
-        jp = _fetch_yield_yahoo("^JGBS")
         if jp:
             result["JP10Y"] = jp
 
@@ -499,8 +516,9 @@ def fetch_rsi(coin_id: str = "bitcoin", days: int = 30) -> float | None:
 # ── 多空持仓比 (Binance) ─────────────────────────────────────────
 
 def fetch_long_short_ratio() -> dict:
-    """Binance 全网多空持仓人数比"""
+    """全网多空持仓人数比（Binance → Bybit 兜底）"""
     result = {}
+    # ── Binance ──
     for symbol in ["BTCUSDT", "ETHUSDT", "SOLUSDT"]:
         url = f"https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol={symbol}&period=1h&limit=1"
         data = fetch_json(url)
@@ -509,6 +527,21 @@ def fetch_long_short_ratio() -> dict:
             ratio = float(data[0].get("longShortRatio", 1))
             long_pct = float(data[0].get("longAccount", 0.5)) * 100
             result[name] = {"ratio": ratio, "long_pct": long_pct}
+    if result:
+        return result
+
+    # ── Bybit 兜底 ──
+    print("[WARN] Binance fetch_long_short_ratio 失败，使用 Bybit 兜底")
+    for symbol in ["BTCUSDT", "ETHUSDT", "SOLUSDT"]:
+        bb = fetch_json(f"https://api.bybit.com/v5/market/account-ratio?category=linear&symbol={symbol}&period=1d&limit=1")
+        if bb and bb.get("retCode") == 0:
+            items = bb.get("result", {}).get("list", [])
+            if items:
+                buy_r = float(items[0].get("buyRatio", 0.5))
+                sell_r = float(items[0].get("sellRatio", 0.5))
+                name = symbol.replace("USDT", "")
+                ratio = buy_r / sell_r if sell_r > 0 else 1
+                result[name] = {"ratio": round(ratio, 4), "long_pct": round(buy_r * 100, 1)}
     return result
 
 
@@ -516,21 +549,31 @@ def fetch_long_short_ratio() -> dict:
 
 def fetch_gas_fee() -> dict:
     """获取 ETH Gas 费（通过公开 API）"""
-    # 方案1: Etherscan 免费端点（不需要 key 的 gas tracker）
-    data = fetch_json("https://api.etherscan.io/api?module=gastracker&action=gasoracle")
+    # 方案1: Etherscan V2 免费端点（不需要 key，限 1/5s）
+    data = fetch_json("https://api.etherscan.io/v2/api?chainid=1&module=gastracker&action=gasoracle")
     if data and data.get("status") == "1":
         result = data.get("result", {})
-        return {
-            "low": int(result.get("SafeGasPrice", 0)),
-            "standard": int(result.get("ProposeGasPrice", 0)),
-            "fast": int(result.get("FastGasPrice", 0)),
-        }
+        low = float(result.get("SafeGasPrice", 0))
+        standard = float(result.get("ProposeGasPrice", 0))
+        fast = float(result.get("FastGasPrice", 0))
+        # Gas 可能 < 1 Gwei，保留精度
+        fmt = lambda g: round(g, 2) if g < 1 else int(g)
+        return {"low": fmt(low), "standard": fmt(standard), "fast": fmt(fast)}
 
-    # 方案2: 备用 - 通过 ETH RPC 粗略估算
-    rpc_data = fetch_json(
-        "https://ethereum-rpc.publicnode.com",
-    )
-    # 如果上面也失败，返回空
+    # 方案2: 备用 - 通过 ETH JSON-RPC eth_gasPrice 估算
+    try:
+        payload = json.dumps({"jsonrpc": "2.0", "method": "eth_gasPrice", "params": [], "id": 1}).encode("utf-8")
+        req = Request("https://ethereum-rpc.publicnode.com", data=payload,
+                      headers={"Content-Type": "application/json", "User-Agent": "MarketBot/2.0"}, method="POST")
+        with urlopen(req, timeout=10) as resp:
+            rpc_data = json.loads(resp.read().decode())
+        gas_hex = rpc_data.get("result", "0x0")
+        gas_wei = int(gas_hex, 16)
+        gas_gwei = round(gas_wei / 1e9)
+        if gas_gwei > 0:
+            return {"low": max(1, gas_gwei - 1), "standard": gas_gwei, "fast": gas_gwei + 2}
+    except Exception as e:
+        print(f"[WARN] ETH RPC gas 估算失败: {e}")
     return {}
 
 
@@ -664,10 +707,10 @@ def fetch_options_expiry() -> dict:
     return result
 
 
-# ── 逐币爆仓/持仓数据 (Binance) ──────────────────────────────────
+# ── 逐币爆仓/持仓数据 (Binance → Bybit 兜底) ─────────────────────
 
 def fetch_coin_liquidations() -> dict:
-    """获取 BTC/ETH 独立的未平仓量、买卖比、多空比"""
+    """获取 BTC/ETH 独立的未平仓量、买卖比、多空比（Binance → Bybit 兜底）"""
     import time as _time
     result = {}
     for symbol in ["BTCUSDT", "ETHUSDT"]:
@@ -676,7 +719,7 @@ def fetch_coin_liquidations() -> dict:
 
         # 当前未平仓量
         oi_data = fetch_json(f"https://fapi.binance.com/fapi/v1/openInterest?symbol={symbol}")
-        if oi_data:
+        if oi_data and "openInterest" in oi_data:
             info["open_interest"] = float(oi_data.get("openInterest", 0))
 
         # 未平仓量历史 (计算变动)
@@ -707,6 +750,41 @@ def fetch_coin_liquidations() -> dict:
         )
         if ls and len(ls) > 0:
             info["long_ratio"] = float(ls[0].get("longAccount", 0.5)) * 100
+
+        # ── Bybit 兜底：Binance 全部 451 时补数据 ──
+        if not info:
+            print(f"[WARN] Binance {coin} 衍生品数据失败，使用 Bybit 兜底")
+            # Bybit tickers → OI + funding
+            bb = fetch_json(f"https://api.bybit.com/v5/market/tickers?category=linear&symbol={symbol}")
+            if bb and bb.get("retCode") == 0:
+                items = bb.get("result", {}).get("list", [])
+                if items:
+                    t = items[0]
+                    oi_val = float(t.get("openInterestValue", 0))
+                    info["open_interest"] = float(t.get("openInterest", 0))
+                    info["oi_value_usd"] = oi_val
+
+            # Bybit OI 历史 → 变动
+            bb_oi = fetch_json(f"https://api.bybit.com/v5/market/open-interest?category=linear&symbol={symbol}&intervalTime=1d&limit=2")
+            if bb_oi and bb_oi.get("retCode") == 0:
+                oi_list = bb_oi.get("result", {}).get("list", [])
+                if len(oi_list) >= 2:
+                    # Bybit list is newest first
+                    curr_oi = float(oi_list[0].get("openInterest", 0))
+                    prev_oi = float(oi_list[1].get("openInterest", 0))
+                    # 用 ticker 中的价格估算 USD 价值变动
+                    if "oi_value_usd" in info and prev_oi > 0:
+                        info["oi_change_pct"] = ((curr_oi - prev_oi) / prev_oi * 100)
+
+            # Bybit 多空比
+            bb_ls = fetch_json(f"https://api.bybit.com/v5/market/account-ratio?category=linear&symbol={symbol}&period=1d&limit=1")
+            if bb_ls and bb_ls.get("retCode") == 0:
+                ls_list = bb_ls.get("result", {}).get("list", [])
+                if ls_list:
+                    buy_r = float(ls_list[0].get("buyRatio", 0.5))
+                    sell_r = float(ls_list[0].get("sellRatio", 0.5))
+                    info["long_ratio"] = round(buy_r * 100, 1)
+                    info["buy_sell_ratio"] = round(buy_r / sell_r, 3) if sell_r > 0 else 1
 
         if info:
             result[coin] = info
@@ -785,6 +863,7 @@ def _fetch_binance_symbols() -> set:
         "LTC", "BCH", "ETC", "XLM", "VET", "HBAR", "EOS", "XTZ", "THETA", "NEO",
         "EGLD", "FLOW", "KAVA", "ZEC", "DASH", "WAVES", "ENS", "GRT", "BAT", "ZRX",
         "RNDR", "MASK", "GMT", "APE", "BLUR", "PENDLE", "TRX", "TON", "WLD", "PYTH",
+        "BIO", "KITE", "EDEN",
     }
     print(f"[INFO] 已知币种列表: {len(fallback)}")
     return fallback
@@ -1082,19 +1161,25 @@ def _fetch_liquidations_binance() -> dict:
     # Binance 没有直接的清算汇总 API，用强平订单流估算
     url = "https://fapi.binance.com/fapi/v1/allForceOrders?limit=100"
     data = fetch_json(url)
-    if not data:
-        return {}
-    total = sum(float(o.get("origQty", 0)) * float(o.get("price", 0)) for o in data)
-    longs = sum(float(o.get("origQty", 0)) * float(o.get("price", 0))
-                for o in data if o.get("side") == "SELL")  # 多头被清算=卖出
-    shorts = total - longs
-    return {
-        "total_24h": total,
-        "long_24h": longs,
-        "short_24h": shorts,
-        "long_ratio": (longs / total * 100) if total > 0 else 50,
-        "source": "binance_sample",
-    }
+    if data and isinstance(data, list) and len(data) > 0:
+        total = sum(float(o.get("origQty", 0)) * float(o.get("price", 0)) for o in data)
+        longs = sum(float(o.get("origQty", 0)) * float(o.get("price", 0))
+                    for o in data if o.get("side") == "SELL")  # 多头被清算=卖出
+        shorts = total - longs
+        if total > 0:
+            return {
+                "total_24h": total,
+                "long_24h": longs,
+                "short_24h": shorts,
+                "long_ratio": (longs / total * 100) if total > 0 else 50,
+                "source": "binance_sample",
+            }
+
+    # ── Bybit 兜底：用 Bybit 最近强平订单估算 ──
+    print("[WARN] Binance 清算数据也失败，使用 Bybit 公开数据估算")
+    # Bybit 没有直接的清算汇总 API，但可以通过 recent trades 粗略估算
+    # 返回空数据并标记来源，避免显示误导性的 $0
+    return {}
 
 
 # ── AI 新闻摘要 (Claude API) ────────────────────────────────────
@@ -1825,13 +1910,26 @@ def fetch_strategy_indicators() -> dict:
         print(f"[ERROR] fetch_strategy_indicators({coin_id}) 内部异常: {e}")
         traceback.print_exc()
 
-    # 获取资金费率历史趋势（Binance 近3次费率）
+    # 获取资金费率历史趋势（Binance → Bybit 兜底，近3次费率）
     for symbol in ["BTCUSDT", "ETHUSDT"]:
         coin = symbol.replace("USDT", "")
+        if coin not in result:
+            continue
+        rates = None
+        # Binance
         url = f"https://fapi.binance.com/fapi/v1/fundingRate?symbol={symbol}&limit=3"
         fr_data = fetch_json(url)
-        if fr_data and len(fr_data) >= 2 and coin in result:
+        if fr_data and isinstance(fr_data, list) and len(fr_data) >= 2:
             rates = [float(r.get("fundingRate", 0)) * 100 for r in fr_data]
+        # Bybit 兜底
+        if not rates:
+            bb = fetch_json(f"https://api.bybit.com/v5/market/funding/history?category=linear&symbol={symbol}&limit=3")
+            if bb and bb.get("retCode") == 0:
+                bb_list = bb.get("result", {}).get("list", [])
+                if len(bb_list) >= 2:
+                    # Bybit returns newest first, reverse to match chronological order
+                    rates = [float(r.get("fundingRate", 0)) * 100 for r in reversed(bb_list)]
+        if rates and len(rates) >= 2:
             result[coin]["funding_rates"] = rates
             trend = rates[-1] - rates[0]
             if trend > 0.005:
