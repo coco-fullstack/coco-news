@@ -5,7 +5,7 @@
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
 [INFO] 25 条
 [INFO] 抓取: https://www.theblock.co/rss.xml
-[INFO] 19 条
+[INFO] 20 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
 [ERROR] https://fapi.binance.com/fapi/v1/premiumIndex... → HTTP Error 451: 
@@ -25,7 +25,6 @@
 [ERROR] https://api.bybit.com/v5/market/account-ratio?category=linear&symbol=BTCUSDT&per... → HTTP Error 403: Forbidden
 [ERROR] https://api.bybit.com/v5/market/account-ratio?category=linear&symbol=ETHUSDT&per... → HTTP Error 403: Forbidden
 [ERROR] https://api.bybit.com/v5/market/account-ratio?category=linear&symbol=SOLUSDT&per... → HTTP Error 403: Forbidden
-[ERROR] https://api.llama.fi/v2/historicalChainTvl... → HTTP Error 404: Not Found
 [ERROR] https://fapi.binance.com/fapi/v1/openInterest?symbol=BTCUSDT... → HTTP Error 451: 
 [ERROR] https://fapi.binance.com/futures/data/openInterestHist?symbol=BTCUSDT&period=1d&... → HTTP Error 451: 
 [ERROR] https://fapi.binance.com/futures/data/takerlongshortRatio?symbol=BTCUSDT&period=... → HTTP Error 451: 
@@ -52,7 +51,8 @@
 [ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin... → HTTP Error 429: Too Many Requests
 [ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/ethereum... → HTTP Error 429: Too Many Requests
 [WARN] CoinGecko fetch_institutional_holdings 失败，使用本地缓存兜底
-[OK] 缓存命中: ['BTC', 'ETH']
+[WARN] 缓存未命中或已过期，cache_dir=/home/runner/work/coco-news/coco-news/scripts/../data/cache
+[OK] 使用过期缓存兜底: ['BTC', 'ETH']
 [ERROR] https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days... → HTTP Error 429: Too Many Requests
 [WARN] CoinGecko fetch_strategy_indicators(bitcoin) 失败，使用 Binance 兜底
 [ERROR] https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=60... → HTTP Error 451: 
@@ -66,7 +66,7 @@
 [WARN] Binance ETHUSDT 被屏蔽，使用 CryptoCompare 兜底
 [OK] CryptoCompare ETH: 61 天数据
 [INFO] Binance 兜底 ethereum: closes=61, volumes=61
-[OK] fetch_strategy_indicators(ethereum): ma=偏空, macd=死叉+绿柱
+[OK] fetch_strategy_indicators(ethereum): ma=空头排列, macd=死叉+绿柱
 [ERROR] https://fapi.binance.com/fapi/v1/fundingRate?symbol=BTCUSDT&limit=3... → HTTP Error 451: 
 [ERROR] https://api.bybit.com/v5/market/funding/history?category=linear&symbol=BTCUSDT&l... → HTTP Error 403: Forbidden
 [ERROR] https://fapi.binance.com/fapi/v1/fundingRate?symbol=ETHUSDT&limit=3... → HTTP Error 451: 
@@ -77,20 +77,20 @@
 [ERROR] https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=1d&limit=60... → HTTP Error 451: 
 [WARN] Binance ETHUSDT 被屏蔽，使用 CryptoCompare 兜底
 [OK] CryptoCompare ETH: 61 天数据
-[OK] ETH/BTC 汇率分析: 0.029986, 偏强
+[OK] ETH/BTC 汇率分析: 0.030038, 偏强
 [INFO] 抓取: https://cointelegraph.com/rss
 [INFO] 30 条
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
 [INFO] 25 条
 [INFO] 抓取: https://www.theblock.co/rss.xml
-[INFO] 19 条
+[INFO] 20 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
 [WARN] Gemini 调用失败: HTTP Error 429: Too Many Requests，尝试 Groq 兜底
-[OK] Groq 响应 (171 字)
+[OK] Groq 响应 (137 字)
 [WARN] Gemini 调用失败: HTTP Error 429: Too Many Requests，尝试 Groq 兜底
-[OK] Groq 响应 (253 字)
-[INFO] 币价:20 费率:0 宏观:1 清算:$0 多空:0 Gas:0.04 TVL:$0 趋势:34 新闻:66 期权到期:5 跑赢BTC:112个 策略:3币
+[OK] Groq 响应 (209 字)
+[INFO] 币价:20 费率:0 宏观:1 清算:$0 多空:0 Gas:0.07 TVL:$91.8B 趋势:30 新闻:69 期权到期:5 跑赢BTC:135个 策略:3币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, YishuaiGao2000@outlook.com
-[OK] 快照已保存: data/snapshots/2026-03-27.json
+[OK] 快照已保存: data/snapshots/2026-03-28.json
