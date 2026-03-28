@@ -77,7 +77,7 @@
 [ERROR] https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=1d&limit=60... → HTTP Error 451: 
 [WARN] Binance ETHUSDT 被屏蔽，使用 CryptoCompare 兜底
 [OK] CryptoCompare ETH: 61 天数据
-[OK] ETH/BTC 汇率分析: 0.030038, 偏强
+[OK] ETH/BTC 汇率分析: 0.030051, 偏强
 [INFO] 抓取: https://cointelegraph.com/rss
 [INFO] 30 条
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
@@ -87,10 +87,10 @@
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
 [WARN] Gemini 调用失败: HTTP Error 429: Too Many Requests，尝试 Groq 兜底
-[OK] Groq 响应 (137 字)
+[OK] Groq 响应 (156 字)
 [WARN] Gemini 调用失败: HTTP Error 429: Too Many Requests，尝试 Groq 兜底
-[OK] Groq 响应 (209 字)
-[INFO] 币价:20 费率:0 宏观:1 清算:$0 多空:0 Gas:0.07 TVL:$91.8B 趋势:30 新闻:69 期权到期:5 跑赢BTC:135个 策略:3币
+[OK] Groq 响应 (245 字)
+[INFO] 币价:20 费率:0 宏观:1 清算:$0 多空:0 Gas:0.12 TVL:$92.7B 趋势:38 新闻:67 期权到期:5 跑赢BTC:138个 策略:3币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, YishuaiGao2000@outlook.com
-[OK] 快照已保存: data/snapshots/2026-03-28.json
+[OK] 快照已保存: data/snapshots/2026-03-29.json
