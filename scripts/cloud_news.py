@@ -1261,6 +1261,42 @@ def _ai_call(prompt: str, max_tokens: int = 300, temperature: float = 0.3) -> tu
     return "", ""
 
 
+import re as _re
+
+def _ai_text_to_html(text: str) -> str:
+    """将 AI 输出的纯文本转为美观的 HTML（编号列表、小标题、段落）"""
+    text = _re.sub(r'\*\*(.+?)\*\*', r'<strong style="color:#1d1d1f">\1</strong>', text)
+    lines = text.strip().split("\n")
+    parts = []
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        # 编号列表：1. xxx 或 1、xxx
+        m = _re.match(r'^(\d+)[.、]\s*(.+)', line)
+        if m:
+            num, content = m.group(1), m.group(2)
+            parts.append(
+                f'<div style="display:flex;gap:10px;margin-bottom:10px">'
+                f'<div style="flex-shrink:0;width:22px;height:22px;border-radius:50%;background:#007aff;'
+                f'color:#fff;font-size:11px;font-weight:700;text-align:center;line-height:22px">{num}</div>'
+                f'<div style="flex:1;font-size:13px;line-height:1.7;color:#1d1d1f">{content}</div></div>'
+            )
+        # 小标题行：「BTC:」「ETH:」
+        elif _re.match(r'^(BTC|ETH|SOL)\s*[:：]', line):
+            coin = _re.match(r'^(BTC|ETH|SOL)', line).group(1)
+            rest = _re.sub(r'^(BTC|ETH|SOL)\s*[:：]\s*', '', line)
+            parts.append(
+                f'<div style="margin-top:12px;margin-bottom:4px">'
+                f'<span style="display:inline-block;background:#007aff;color:#fff;font-size:10px;'
+                f'font-weight:700;padding:2px 8px;border-radius:4px;letter-spacing:.5px">{coin}</span></div>'
+                f'<div style="font-size:13px;line-height:1.7;color:#1d1d1f;margin-bottom:8px">{rest}</div>'
+            )
+        else:
+            parts.append(f'<div style="font-size:13px;line-height:1.7;color:#1d1d1f;margin-bottom:8px">{line}</div>')
+    return "".join(parts)
+
+
 def generate_ai_summary(news: list[dict], prices: dict, fng: dict) -> tuple[str, str]:
     """AI 生成 3 句话的今日要点，返回 (text, engine)"""
     if not GEMINI_API_KEY and not GROQ_API_KEY:
@@ -1273,13 +1309,14 @@ def generate_ai_summary(news: list[dict], prices: dict, fng: dict) -> tuple[str,
     eth = prices.get("ETH", {})
     fng_val = fng.get("value", "N/A")
 
-    prompt = f"""你是一位加密市场分析师。根据以下今日新闻标题和市场数据，用中文写出3句话的「今日要点」摘要。
+    prompt = f"""你是加密市场分析师。根据以下数据写3条「今日要点」。
 
-要求：
-- 只写3句话，每句话聚焦一个核心主题
-- 语言简洁专业，像彭博终端的快讯风格
-- 如果新闻有明显利好/利空倾向，直接点明
-- 不要废话和套话
+规则：
+- 直接输出3条，格式「1. xxx」「2. xxx」「3. xxx」
+- 每条1-2句，聚焦一个核心主题
+- 彭博快讯风格，简洁专业，有明确利好/利空判断
+- 禁止开头寒暄、总结语、"以下是"等套话
+- 禁止使用markdown加粗语法
 
 市场数据：
 BTC: {_p(btc.get('price', 0))} ({'+' if btc.get('change', 0) >= 0 else ''}{btc.get('change', 0):.1f}%)
@@ -1477,7 +1514,7 @@ body{
   background:#f5f5f7;
   border:1px solid #e5e5ea;
   border-radius:14px;padding:16px 18px;margin-top:10px;
-  font-size:12px;line-height:1.8;color:#48484a
+  font-size:13px;line-height:1.8;color:#1d1d1f
 }
 .ni{
   padding:12px 16px;margin:8px 0;font-size:12px;line-height:1.6;
@@ -2037,18 +2074,20 @@ def generate_ai_strategy(indicators: dict, fng: dict, funding: dict) -> tuple[st
     fund_str = ", ".join(f"{k}={v:.4f}%" for k, v in funding.items()) if funding else "无"
     context = "\n".join(lines)
 
-    prompt = f"""你是一位专业加密货币交易策略分析师。根据以下BTC和ETH的技术指标数据，给出简洁的交易策略建议。
+    prompt = f"""根据以下技术指标，输出BTC和ETH的交易策略研判。
 
 数据：
 恐贪指数: {fng_val}
 资金费率: {fund_str}
 {context}
 
-要求：
-- 分别给BTC和ETH各2-3句话的策略分析
-- 包含：当前趋势判断、关键支撑阻力位、操作建议（做多/做空/观望/减仓）
-- 如果指标出现背离或矛盾信号，明确指出
-- 风格：专业简洁，像交易员的盘前笔记
+规则：
+- 格式：先写「BTC:」再写2-3句分析，然后「ETH:」再写2-3句
+- 包含：趋势判断、关键支撑阻力位、操作建议（做多/做空/观望/减仓）
+- 指标有背离或矛盾时明确指出
+- 风格：交易员盘前笔记，简洁直接
+- 禁止开头寒暄、"好的"、"以下是"等套话
+- 禁止使用markdown加粗语法
 - 用中文回答"""
 
     return _ai_call(prompt, max_tokens=1024, temperature=0.3)
@@ -2064,7 +2103,7 @@ def _build_strategy_html(indicators: dict, ai_analysis: str = "", ai_engine: str
 
     # AI 策略研判（放在最前面）
     if ai_analysis:
-        h += f'<div class="sb">{ai_analysis.replace(chr(10), "<br>")}</div>'
+        h += f'<div class="sb">{_ai_text_to_html(ai_analysis)}</div>'
 
     for sym in ["BTC", "ETH"]:
         if sym not in indicators:
@@ -2375,7 +2414,7 @@ def build_daily_html(data: dict) -> str:
         ai_engine = data.get("ai_engine", "")
         engine_tag = f' <span style="font-size:9px;color:#aeaeb2;font-weight:400;letter-spacing:0;text-transform:none">· {ai_engine}</span>' if ai_engine else ""
         h += f'<div class="s"><p class="st" style="border-left-color:#007aff">AI 今日要点{engine_tag}</p>'
-        h += f'<div class="sb">{ai_summary.replace(chr(10), "<br>")}</div>'
+        h += f'<div class="sb">{_ai_text_to_html(ai_summary)}</div>'
         h += '</div>'
 
     # ═══ 交易策略指标（风险仪表盘上方）═══
