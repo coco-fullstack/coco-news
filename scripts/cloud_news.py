@@ -1289,7 +1289,7 @@ ETH: {_p(eth.get('price', 0))} ({'+' if eth.get('change', 0) >= 0 else ''}{eth.g
 今日新闻：
 {titles_text}"""
 
-    return _ai_call(prompt, max_tokens=300, temperature=0.3)
+    return _ai_call(prompt, max_tokens=800, temperature=0.3)
 
 
 def _ai_filter_urgent_news(news_items: list[dict]) -> list[dict]:
@@ -2051,7 +2051,7 @@ def generate_ai_strategy(indicators: dict, fng: dict, funding: dict) -> tuple[st
 - 风格：专业简洁，像交易员的盘前笔记
 - 用中文回答"""
 
-    return _ai_call(prompt, max_tokens=400, temperature=0.3)
+    return _ai_call(prompt, max_tokens=1024, temperature=0.3)
 
 
 def _build_strategy_html(indicators: dict, ai_analysis: str = "", ai_engine: str = "") -> str:
