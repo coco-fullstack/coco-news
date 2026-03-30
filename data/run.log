@@ -9,38 +9,31 @@
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
 [ERROR] https://fapi.binance.com/fapi/v1/premiumIndex... → HTTP Error 451: 
-[WARN] Binance fetch_funding_rates 失败，使用 Bybit 兜底
-[ERROR] https://api.bybit.com/v5/market/tickers?category=linear&symbol=BTCUSDT... → HTTP Error 403: Forbidden
-[ERROR] https://api.bybit.com/v5/market/tickers?category=linear&symbol=ETHUSDT... → HTTP Error 403: Forbidden
-[ERROR] https://api.bybit.com/v5/market/tickers?category=linear&symbol=SOLUSDT... → HTTP Error 403: Forbidden
+[WARN] Binance fetch_funding_rates 失败，使用 OKX 兜底
 [ERROR] https://open-api.coinglass.com/public/v2/liquidation/info?time_type=1... → HTTP Error 500: Internal Server Error
 [ERROR] https://open-api-v3.coinglass.com/api/futures/liquidation/info?time_type=1... → HTTP Error 500: Internal Server Error
 [WARN] 清算数据获取失败，使用 Binance 备用
 [ERROR] https://fapi.binance.com/fapi/v1/allForceOrders?limit=100... → HTTP Error 451: 
-[WARN] Binance 清算数据也失败，使用 Bybit 公开数据估算
+[WARN] Binance 清算数据也失败，使用 OKX 公开数据估算
 [ERROR] https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=BTCUSDT... → HTTP Error 451: 
 [ERROR] https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=ETHUSDT... → HTTP Error 451: 
 [ERROR] https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=SOLUSDT... → HTTP Error 451: 
-[WARN] Binance fetch_long_short_ratio 失败，使用 Bybit 兜底
-[ERROR] https://api.bybit.com/v5/market/account-ratio?category=linear&symbol=BTCUSDT&per... → HTTP Error 403: Forbidden
-[ERROR] https://api.bybit.com/v5/market/account-ratio?category=linear&symbol=ETHUSDT&per... → HTTP Error 403: Forbidden
-[ERROR] https://api.bybit.com/v5/market/account-ratio?category=linear&symbol=SOLUSDT&per... → HTTP Error 403: Forbidden
+[WARN] Binance fetch_long_short_ratio 失败，使用 OKX 兜底
+[ERROR] https://www.okx.com/api/v5/rubik/stat/contracts/long-short-account-ratio?instId=... → HTTP Error 400: Bad Request
+[ERROR] https://www.okx.com/api/v5/rubik/stat/contracts/long-short-account-ratio?instId=... → HTTP Error 400: Bad Request
+[ERROR] https://www.okx.com/api/v5/rubik/stat/contracts/long-short-account-ratio?instId=... → HTTP Error 400: Bad Request
 [ERROR] https://fapi.binance.com/fapi/v1/openInterest?symbol=BTCUSDT... → HTTP Error 451: 
 [ERROR] https://fapi.binance.com/futures/data/openInterestHist?symbol=BTCUSDT&period=1d&... → HTTP Error 451: 
 [ERROR] https://fapi.binance.com/futures/data/takerlongshortRatio?symbol=BTCUSDT&period=... → HTTP Error 451: 
 [ERROR] https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=BTCUSDT... → HTTP Error 451: 
-[WARN] Binance BTC 衍生品数据失败，使用 Bybit 兜底
-[ERROR] https://api.bybit.com/v5/market/tickers?category=linear&symbol=BTCUSDT... → HTTP Error 403: Forbidden
-[ERROR] https://api.bybit.com/v5/market/open-interest?category=linear&symbol=BTCUSDT&int... → HTTP Error 403: Forbidden
-[ERROR] https://api.bybit.com/v5/market/account-ratio?category=linear&symbol=BTCUSDT&per... → HTTP Error 403: Forbidden
+[WARN] Binance BTC 衍生品数据失败，使用 OKX 兜底
+[ERROR] https://www.okx.com/api/v5/rubik/stat/contracts/long-short-account-ratio?instId=... → HTTP Error 400: Bad Request
 [ERROR] https://fapi.binance.com/fapi/v1/openInterest?symbol=ETHUSDT... → HTTP Error 451: 
 [ERROR] https://fapi.binance.com/futures/data/openInterestHist?symbol=ETHUSDT&period=1d&... → HTTP Error 451: 
 [ERROR] https://fapi.binance.com/futures/data/takerlongshortRatio?symbol=ETHUSDT&period=... → HTTP Error 451: 
 [ERROR] https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=ETHUSDT... → HTTP Error 451: 
-[WARN] Binance ETH 衍生品数据失败，使用 Bybit 兜底
-[ERROR] https://api.bybit.com/v5/market/tickers?category=linear&symbol=ETHUSDT... → HTTP Error 403: Forbidden
-[ERROR] https://api.bybit.com/v5/market/open-interest?category=linear&symbol=ETHUSDT&int... → HTTP Error 403: Forbidden
-[ERROR] https://api.bybit.com/v5/market/account-ratio?category=linear&symbol=ETHUSDT&per... → HTTP Error 403: Forbidden
+[WARN] Binance ETH 衍生品数据失败，使用 OKX 兜底
+[ERROR] https://www.okx.com/api/v5/rubik/stat/contracts/long-short-account-ratio?instId=... → HTTP Error 400: Bad Request
 [ERROR] https://api.binance.com/api/v3/exchangeInfo... → HTTP Error 451: 
 [WARN] Binance exchangeInfo 失败，使用已知币种列表兜底
 [INFO] 已知币种列表: 83
@@ -77,7 +70,7 @@
 [ERROR] https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=1d&limit=60... → HTTP Error 451: 
 [WARN] Binance ETHUSDT 被屏蔽，使用 CryptoCompare 兜底
 [OK] CryptoCompare ETH: 61 天数据
-[OK] ETH/BTC 汇率分析: 0.030364, ETH 走强
+[OK] ETH/BTC 汇率分析: 0.030394, ETH 走强
 [INFO] 抓取: https://cointelegraph.com/rss
 [INFO] 30 条
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
@@ -86,9 +79,9 @@
 [INFO] 20 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
-[OK] Gemini 响应 (13 字)
-[OK] Gemini 响应 (30 字)
-[INFO] 币价:20 费率:0 宏观:1 清算:$0 多空:0 Gas:0.11 TVL:$93.5B 趋势:38 新闻:64 期权到期:5 跑赢BTC:155个 策略:3币
+[OK] Gemini 响应 (18 字)
+[OK] Gemini 响应 (28 字)
+[INFO] 币价:20 费率:3 宏观:1 清算:$915M 多空:0 Gas:0.12 TVL:$93.5B 趋势:42 新闻:64 期权到期:5 跑赢BTC:164个 策略:3币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, xhr040300@gmail.com
 [OK] 快照已保存: data/snapshots/2026-03-30.json
