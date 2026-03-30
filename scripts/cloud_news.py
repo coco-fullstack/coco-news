@@ -1206,7 +1206,8 @@ def _ai_call(prompt: str, max_tokens: int = 300, temperature: float = 0.3) -> tu
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {
                 "temperature": temperature,
-                "maxOutputTokens": max_tokens * 3,
+                "maxOutputTokens": max_tokens,
+                "thinkingConfig": {"thinkingBudget": 0},
             },
         }).encode("utf-8")
         req = Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
