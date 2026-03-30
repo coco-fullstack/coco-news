@@ -380,16 +380,14 @@ def fetch_funding_rates() -> dict:
         if result:
             return result
 
-    # ── Bybit 兜底 ──
-    print("[WARN] Binance fetch_funding_rates 失败，使用 Bybit 兜底")
+    # ── OKX 兜底 ──
+    print("[WARN] Binance fetch_funding_rates 失败，使用 OKX 兜底")
     result = {}
-    for symbol in ["BTCUSDT", "ETHUSDT", "SOLUSDT"]:
-        bb = fetch_json(f"https://api.bybit.com/v5/market/tickers?category=linear&symbol={symbol}")
-        if bb and bb.get("retCode") == 0:
-            items = bb.get("result", {}).get("list", [])
-            if items:
-                rate = float(items[0].get("fundingRate", 0)) * 100
-                result[symbol.replace("USDT", "")] = rate
+    for coin, inst_id in [("BTC", "BTC-USD-SWAP"), ("ETH", "ETH-USD-SWAP"), ("SOL", "SOL-USD-SWAP")]:
+        okx = fetch_json(f"https://www.okx.com/api/v5/public/funding-rate?instId={inst_id}")
+        if okx and okx.get("code") == "0" and okx.get("data"):
+            rate = float(okx["data"][0].get("fundingRate", 0)) * 100
+            result[coin] = rate
     return result
 
 
@@ -530,18 +528,20 @@ def fetch_long_short_ratio() -> dict:
     if result:
         return result
 
-    # ── Bybit 兜底 ──
-    print("[WARN] Binance fetch_long_short_ratio 失败，使用 Bybit 兜底")
-    for symbol in ["BTCUSDT", "ETHUSDT", "SOLUSDT"]:
-        bb = fetch_json(f"https://api.bybit.com/v5/market/account-ratio?category=linear&symbol={symbol}&period=1d&limit=1")
-        if bb and bb.get("retCode") == 0:
-            items = bb.get("result", {}).get("list", [])
-            if items:
-                buy_r = float(items[0].get("buyRatio", 0.5))
-                sell_r = float(items[0].get("sellRatio", 0.5))
-                name = symbol.replace("USDT", "")
-                ratio = buy_r / sell_r if sell_r > 0 else 1
-                result[name] = {"ratio": round(ratio, 4), "long_pct": round(buy_r * 100, 1)}
+    # ── OKX 兜底 ──
+    print("[WARN] Binance fetch_long_short_ratio 失败，使用 OKX 兜底")
+    for coin, inst_id in [("BTC", "BTC-USD-SWAP"), ("ETH", "ETH-USD-SWAP"), ("SOL", "SOL-USD-SWAP")]:
+        okx = fetch_json(f"https://www.okx.com/api/v5/rubik/stat/contracts/long-short-account-ratio?instId={inst_id}&period=1H")
+        if okx and okx.get("code") == "0" and okx.get("data"):
+            row = okx["data"][0]
+            # OKX returns [ts, long_ratio, short_ratio] — long_ratio is 0~1
+            # row format could be list or string; handle both
+            if isinstance(row, list) and len(row) >= 2:
+                long_pct = float(row[1]) * 100
+            else:
+                long_pct = 50.0
+            ratio = long_pct / (100 - long_pct) if long_pct < 100 else 1
+            result[coin] = {"ratio": round(ratio, 4), "long_pct": round(long_pct, 1)}
     return result
 
 
@@ -751,40 +751,35 @@ def fetch_coin_liquidations() -> dict:
         if ls and len(ls) > 0:
             info["long_ratio"] = float(ls[0].get("longAccount", 0.5)) * 100
 
-        # ── Bybit 兜底：Binance 全部 451 时补数据 ──
+        # ── OKX 兜底：Binance 全部 451 时补数据 ──
         if not info:
-            print(f"[WARN] Binance {coin} 衍生品数据失败，使用 Bybit 兜底")
-            # Bybit tickers → OI + funding
-            bb = fetch_json(f"https://api.bybit.com/v5/market/tickers?category=linear&symbol={symbol}")
-            if bb and bb.get("retCode") == 0:
-                items = bb.get("result", {}).get("list", [])
-                if items:
-                    t = items[0]
-                    oi_val = float(t.get("openInterestValue", 0))
-                    info["open_interest"] = float(t.get("openInterest", 0))
-                    info["oi_value_usd"] = oi_val
+            inst_id = f"{coin}-USD-SWAP"
+            print(f"[WARN] Binance {coin} 衍生品数据失败，使用 OKX 兜底")
 
-            # Bybit OI 历史 → 变动
-            bb_oi = fetch_json(f"https://api.bybit.com/v5/market/open-interest?category=linear&symbol={symbol}&intervalTime=1d&limit=2")
-            if bb_oi and bb_oi.get("retCode") == 0:
-                oi_list = bb_oi.get("result", {}).get("list", [])
+            # OKX OI
+            okx_oi = fetch_json(f"https://www.okx.com/api/v5/public/open-interest?instType=SWAP&instId={inst_id}")
+            if okx_oi and okx_oi.get("code") == "0" and okx_oi.get("data"):
+                d = okx_oi["data"][0]
+                info["oi_value_usd"] = float(d.get("oiUsd", 0))
+
+            # OKX OI 历史 → 变动
+            okx_oi_hist = fetch_json(f"https://www.okx.com/api/v5/rubik/stat/contracts/open-interest-history?instId={inst_id}&period=1D")
+            if okx_oi_hist and okx_oi_hist.get("code") == "0" and okx_oi_hist.get("data"):
+                oi_list = okx_oi_hist["data"]
                 if len(oi_list) >= 2:
-                    # Bybit list is newest first
-                    curr_oi = float(oi_list[0].get("openInterest", 0))
-                    prev_oi = float(oi_list[1].get("openInterest", 0))
-                    # 用 ticker 中的价格估算 USD 价值变动
-                    if "oi_value_usd" in info and prev_oi > 0:
+                    curr_oi = float(oi_list[0][1]) if isinstance(oi_list[0], list) else float(oi_list[0].get("oi", 0))
+                    prev_oi = float(oi_list[1][1]) if isinstance(oi_list[1], list) else float(oi_list[1].get("oi", 0))
+                    if prev_oi > 0:
                         info["oi_change_pct"] = ((curr_oi - prev_oi) / prev_oi * 100)
 
-            # Bybit 多空比
-            bb_ls = fetch_json(f"https://api.bybit.com/v5/market/account-ratio?category=linear&symbol={symbol}&period=1d&limit=1")
-            if bb_ls and bb_ls.get("retCode") == 0:
-                ls_list = bb_ls.get("result", {}).get("list", [])
-                if ls_list:
-                    buy_r = float(ls_list[0].get("buyRatio", 0.5))
-                    sell_r = float(ls_list[0].get("sellRatio", 0.5))
-                    info["long_ratio"] = round(buy_r * 100, 1)
-                    info["buy_sell_ratio"] = round(buy_r / sell_r, 3) if sell_r > 0 else 1
+            # OKX 多空比
+            okx_ls = fetch_json(f"https://www.okx.com/api/v5/rubik/stat/contracts/long-short-account-ratio?instId={inst_id}&period=1H")
+            if okx_ls and okx_ls.get("code") == "0" and okx_ls.get("data"):
+                row = okx_ls["data"][0]
+                if isinstance(row, list) and len(row) >= 2:
+                    long_pct = float(row[1]) * 100
+                    info["long_ratio"] = round(long_pct, 1)
+                    info["buy_sell_ratio"] = round(long_pct / (100 - long_pct), 3) if long_pct < 100 else 1
 
         if info:
             result[coin] = info
@@ -1175,10 +1170,27 @@ def _fetch_liquidations_binance() -> dict:
                 "source": "binance_sample",
             }
 
-    # ── Bybit 兜底：用 Bybit 最近强平订单估算 ──
-    print("[WARN] Binance 清算数据也失败，使用 Bybit 公开数据估算")
-    # Bybit 没有直接的清算汇总 API，但可以通过 recent trades 粗略估算
-    # 返回空数据并标记来源，避免显示误导性的 $0
+    # ── OKX 兜底：用 OKX 清算订单估算 ──
+    print("[WARN] Binance 清算数据也失败，使用 OKX 公开数据估算")
+    okx = fetch_json("https://www.okx.com/api/v5/public/liquidation-orders?instType=SWAP&instId=BTC-USD-SWAP&state=filled&uly=BTC-USD&limit=100")
+    if okx and okx.get("code") == "0" and okx.get("data"):
+        total = 0
+        longs = 0
+        for item in okx["data"]:
+            details = item.get("details", [])
+            for d in details:
+                amt = float(d.get("bkPx", 0)) * float(d.get("sz", 0))
+                total += amt
+                if d.get("side") == "sell":  # 多头被清算=卖出
+                    longs += amt
+        if total > 0:
+            return {
+                "total_24h": total,
+                "long_24h": longs,
+                "short_24h": total - longs,
+                "long_ratio": (longs / total * 100),
+                "source": "okx_sample",
+            }
     return {}
 
 
