@@ -1,5 +1,19 @@
-# Obsidian - 这些文件每台设备不同，不需要同步
-.obsidian/workspace.json
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
 
-.obsidian/graph.json
-.trash/
+# IDE
+.vscode/
+
+# Local env
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Preview HTML (generated)
+scripts/preview_*.html

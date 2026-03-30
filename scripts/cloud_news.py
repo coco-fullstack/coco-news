@@ -1189,7 +1189,7 @@ def _ai_call(prompt: str, max_tokens: int = 300, temperature: float = 0.3) -> tu
     # ── Gemini ──
     if GEMINI_API_KEY:
         url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
-               f"gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}")
+               f"gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}")
         payload = json.dumps({
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {
