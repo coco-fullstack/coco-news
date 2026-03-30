@@ -530,17 +530,16 @@ def fetch_long_short_ratio() -> dict:
 
     # ── OKX 兜底 ──
     print("[WARN] Binance fetch_long_short_ratio 失败，使用 OKX 兜底")
-    for coin, inst_id in [("BTC", "BTC-USD-SWAP"), ("ETH", "ETH-USD-SWAP"), ("SOL", "SOL-USD-SWAP")]:
-        okx = fetch_json(f"https://www.okx.com/api/v5/rubik/stat/contracts/long-short-account-ratio?instId={inst_id}&period=1H")
+    for coin in ["BTC", "ETH", "SOL"]:
+        okx = fetch_json(f"https://www.okx.com/api/v5/rubik/stat/contracts/long-short-account-ratio?ccy={coin}&period=1H")
         if okx and okx.get("code") == "0" and okx.get("data"):
             row = okx["data"][0]
-            # OKX returns [ts, long_ratio, short_ratio] — long_ratio is 0~1
-            # row format could be list or string; handle both
+            # OKX returns [ts, ratio] where ratio = long/short (e.g. 1.9)
             if isinstance(row, list) and len(row) >= 2:
-                long_pct = float(row[1]) * 100
+                ratio = float(row[1])
+                long_pct = ratio / (1 + ratio) * 100
             else:
-                long_pct = 50.0
-            ratio = long_pct / (100 - long_pct) if long_pct < 100 else 1
+                ratio, long_pct = 1.0, 50.0
             result[coin] = {"ratio": round(ratio, 4), "long_pct": round(long_pct, 1)}
     return result
 
@@ -773,13 +772,14 @@ def fetch_coin_liquidations() -> dict:
                         info["oi_change_pct"] = ((curr_oi - prev_oi) / prev_oi * 100)
 
             # OKX 多空比
-            okx_ls = fetch_json(f"https://www.okx.com/api/v5/rubik/stat/contracts/long-short-account-ratio?instId={inst_id}&period=1H")
+            okx_ls = fetch_json(f"https://www.okx.com/api/v5/rubik/stat/contracts/long-short-account-ratio?ccy={coin}&period=1H")
             if okx_ls and okx_ls.get("code") == "0" and okx_ls.get("data"):
                 row = okx_ls["data"][0]
                 if isinstance(row, list) and len(row) >= 2:
-                    long_pct = float(row[1]) * 100
+                    ratio = float(row[1])  # long/short ratio (e.g. 1.9)
+                    long_pct = ratio / (1 + ratio) * 100
                     info["long_ratio"] = round(long_pct, 1)
-                    info["buy_sell_ratio"] = round(long_pct / (100 - long_pct), 3) if long_pct < 100 else 1
+                    info["buy_sell_ratio"] = round(ratio, 3)
 
         if info:
             result[coin] = info
@@ -1206,14 +1206,20 @@ def _ai_call(prompt: str, max_tokens: int = 300, temperature: float = 0.3) -> tu
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {
                 "temperature": temperature,
-                "maxOutputTokens": max_tokens,
+                "maxOutputTokens": max_tokens * 3,
             },
         }).encode("utf-8")
         req = Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
         try:
-            with urlopen(req, timeout=30) as resp:
+            with urlopen(req, timeout=60) as resp:
                 result = json.loads(resp.read().decode())
-                text = result["candidates"][0]["content"]["parts"][0]["text"]
+                # Gemini 2.5 Flash is a thinking model — parts may include
+                # thought parts before the actual text. Read the last text part.
+                parts = result["candidates"][0]["content"]["parts"]
+                text = ""
+                for p in parts:
+                    if "text" in p and not p.get("thought"):
+                        text = p["text"]
                 print(f"[OK] Gemini 响应 ({len(text)} 字)")
                 return text, "Gemini"
         except Exception as e:
@@ -1933,14 +1939,12 @@ def fetch_strategy_indicators() -> dict:
         fr_data = fetch_json(url)
         if fr_data and isinstance(fr_data, list) and len(fr_data) >= 2:
             rates = [float(r.get("fundingRate", 0)) * 100 for r in fr_data]
-        # Bybit 兜底
+        # OKX 兜底
         if not rates:
-            bb = fetch_json(f"https://api.bybit.com/v5/market/funding/history?category=linear&symbol={symbol}&limit=3")
-            if bb and bb.get("retCode") == 0:
-                bb_list = bb.get("result", {}).get("list", [])
-                if len(bb_list) >= 2:
-                    # Bybit returns newest first, reverse to match chronological order
-                    rates = [float(r.get("fundingRate", 0)) * 100 for r in reversed(bb_list)]
+            okx = fetch_json(f"https://www.okx.com/api/v5/public/funding-rate-history?instId={coin}-USD-SWAP&limit=3")
+            if okx and okx.get("code") == "0" and okx.get("data"):
+                # OKX returns newest first, reverse to chronological
+                rates = [float(r.get("fundingRate", 0)) * 100 for r in reversed(okx["data"])]
         if rates and len(rates) >= 2:
             result[coin]["funding_rates"] = rates
             trend = rates[-1] - rates[0]
