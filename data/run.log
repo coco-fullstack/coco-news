@@ -63,7 +63,7 @@
 [ERROR] https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=1d&limit=60... → HTTP Error 451: 
 [WARN] Binance ETHUSDT 被屏蔽，使用 CryptoCompare 兜底
 [OK] CryptoCompare ETH: 61 天数据
-[OK] ETH/BTC 汇率分析: 0.030642, 偏强
+[OK] ETH/BTC 汇率分析: 0.030510, 偏强
 [INFO] 抓取: https://cointelegraph.com/rss
 [INFO] 30 条
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
@@ -72,9 +72,9 @@
 [INFO] 20 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
-[OK] Gemini 响应 (145 字)
-[OK] Gemini 响应 (390 字)
-[INFO] 币价:20 费率:3 宏观:1 清算:$190M 多空:3 Gas:0.09 TVL:$92.4B 趋势:42 新闻:59 期权到期:5 跑赢BTC:89个 策略:3币
+[OK] Gemini 响应 (190 字)
+[OK] Gemini 响应 (458 字)
+[INFO] 币价:20 费率:3 宏观:1 清算:$167M 多空:3 Gas:0.04 TVL:$93.0B 趋势:38 新闻:60 期权到期:5 跑赢BTC:88个 策略:3币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, xhr040300@gmail.com
-[OK] 快照已保存: data/snapshots/2026-04-06.json
+[OK] 快照已保存: data/snapshots/2026-04-07.json
