@@ -5,7 +5,7 @@
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
 [INFO] 25 条
 [INFO] 抓取: https://www.theblock.co/rss.xml
-[INFO] 19 条
+[INFO] 20 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
 [ERROR] https://fapi.binance.com/fapi/v1/premiumIndex... → HTTP Error 451: 
@@ -45,14 +45,14 @@
 [WARN] Binance BTCUSDT 被屏蔽，使用 CryptoCompare 兜底
 [OK] CryptoCompare BTC: 61 天数据
 [INFO] Binance 兜底 bitcoin: closes=61, volumes=61
-[OK] fetch_strategy_indicators(bitcoin): ma=偏多, macd=金叉+红柱
+[OK] fetch_strategy_indicators(bitcoin): ma=多头排列, macd=金叉+红柱
 [ERROR] https://api.coingecko.com/api/v3/coins/ethereum/market_chart?vs_currency=usd&day... → HTTP Error 429: Too Many Requests
 [WARN] CoinGecko fetch_strategy_indicators(ethereum) 失败，使用 Binance 兜底
 [ERROR] https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=1d&limit=60... → HTTP Error 451: 
 [WARN] Binance ETHUSDT 被屏蔽，使用 CryptoCompare 兜底
 [OK] CryptoCompare ETH: 61 天数据
 [INFO] Binance 兜底 ethereum: closes=61, volumes=61
-[OK] fetch_strategy_indicators(ethereum): ma=偏多, macd=金叉+红柱
+[OK] fetch_strategy_indicators(ethereum): ma=多头排列, macd=金叉+红柱
 [ERROR] https://fapi.binance.com/fapi/v1/fundingRate?symbol=BTCUSDT&limit=3... → HTTP Error 451: 
 [ERROR] https://fapi.binance.com/fapi/v1/fundingRate?symbol=ETHUSDT&limit=3... → HTTP Error 451: 
 [ERROR] https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=60... → HTTP Error 451: 
@@ -61,18 +61,18 @@
 [ERROR] https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=1d&limit=60... → HTTP Error 451: 
 [WARN] Binance ETHUSDT 被屏蔽，使用 CryptoCompare 兜底
 [OK] CryptoCompare ETH: 61 天数据
-[OK] ETH/BTC 汇率分析: 0.030760, ETH 走强
+[OK] ETH/BTC 汇率分析: 0.030509, 偏弱
 [INFO] 抓取: https://cointelegraph.com/rss
 [INFO] 30 条
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
 [INFO] 25 条
 [INFO] 抓取: https://www.theblock.co/rss.xml
-[INFO] 19 条
+[INFO] 20 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
-[OK] Gemini 响应 (174 字)
-[OK] Gemini 响应 (418 字)
-[INFO] 币价:20 费率:3 宏观:1 清算:$24M 多空:3 Gas:0.06 TVL:$95.3B 趋势:45 新闻:69 期权到期:5 跑赢BTC:82个 策略:3币
+[OK] Gemini 响应 (183 字)
+[OK] Gemini 响应 (227 字)
+[INFO] 币价:20 费率:3 宏观:1 清算:$365M 多空:3 Gas:0.05 TVL:$95.3B 趋势:45 新闻:68 期权到期:5 跑赢BTC:92个 策略:3币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, xhr040300@gmail.com
-[OK] 快照已保存: data/snapshots/2026-04-09.json
+[OK] 快照已保存: data/snapshots/2026-04-10.json
