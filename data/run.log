@@ -5,7 +5,7 @@
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
 [INFO] 25 条
 [INFO] 抓取: https://www.theblock.co/rss.xml
-[INFO] 20 条
+[INFO] 19 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
 [ERROR] https://fapi.binance.com/fapi/v1/premiumIndex... → HTTP Error 451: 
@@ -34,13 +34,6 @@
 [INFO] 已知币种列表: 83
 [ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
 [ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
-[ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
-[WARN] CoinGecko fetch_top200_vs_btc 失败，使用 CoinPaprika 兜底
-[ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin... → HTTP Error 429: Too Many Requests
-[ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/ethereum... → HTTP Error 429: Too Many Requests
-[WARN] CoinGecko fetch_institutional_holdings 失败，使用本地缓存兜底
-[WARN] 缓存未命中或已过期，cache_dir=/home/runner/work/coco-news/coco-news/scripts/../data/cache
-[OK] 使用过期缓存兜底: ['BTC', 'ETH']
 [ERROR] https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days... → HTTP Error 429: Too Many Requests
 [WARN] CoinGecko fetch_strategy_indicators(bitcoin) 失败，使用 Binance 兜底
 [ERROR] https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=60... → HTTP Error 451: 
@@ -54,7 +47,7 @@
 [WARN] Binance ETHUSDT 被屏蔽，使用 CryptoCompare 兜底
 [OK] CryptoCompare ETH: 61 天数据
 [INFO] Binance 兜底 ethereum: closes=61, volumes=61
-[OK] fetch_strategy_indicators(ethereum): ma=多头排列, macd=死叉+绿柱
+[OK] fetch_strategy_indicators(ethereum): ma=偏多, macd=死叉+绿柱
 [ERROR] https://fapi.binance.com/fapi/v1/fundingRate?symbol=BTCUSDT&limit=3... → HTTP Error 451: 
 [ERROR] https://fapi.binance.com/fapi/v1/fundingRate?symbol=ETHUSDT&limit=3... → HTTP Error 451: 
 [ERROR] https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=60... → HTTP Error 451: 
@@ -63,18 +56,18 @@
 [ERROR] https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=1d&limit=60... → HTTP Error 451: 
 [WARN] Binance ETHUSDT 被屏蔽，使用 CryptoCompare 兜底
 [OK] CryptoCompare ETH: 61 天数据
-[OK] ETH/BTC 汇率分析: 0.030386, ETH 走弱
+[OK] ETH/BTC 汇率分析: 0.029773, ETH 走弱
 [INFO] 抓取: https://cointelegraph.com/rss
 [INFO] 30 条
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
 [INFO] 25 条
 [INFO] 抓取: https://www.theblock.co/rss.xml
-[INFO] 20 条
+[INFO] 19 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
-[OK] Gemini 响应 (214 字)
-[OK] Gemini 响应 (266 字)
-[INFO] 币价:20 费率:3 宏观:1 清算:$1.4B 多空:3 Gas:0.28 TVL:$86.6B 趋势:55 新闻:65 期权到期:5 跑赢BTC:67个 策略:3币
+[OK] Gemini 响应 (179 字)
+[OK] Gemini 响应 (291 字)
+[INFO] 币价:20 费率:3 宏观:1 清算:$149M 多空:3 Gas:0.71 TVL:$84.4B 趋势:53 新闻:74 期权到期:5 跑赢BTC:70个 策略:3币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, xhr040300@gmail.com
-[OK] 快照已保存: data/snapshots/2026-04-23.json
+[OK] 快照已保存: data/snapshots/2026-04-24.json
