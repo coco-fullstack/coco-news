@@ -34,6 +34,8 @@
 [INFO] 已知币种列表: 83
 [ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
 [ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
+[ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
+[WARN] CoinGecko fetch_top200_vs_btc 失败，使用 CoinPaprika 兜底
 [ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin... → HTTP Error 429: Too Many Requests
 [ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/ethereum... → HTTP Error 429: Too Many Requests
 [WARN] CoinGecko fetch_institutional_holdings 失败，使用本地缓存兜底
@@ -60,7 +62,7 @@
 [ERROR] https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=1d&limit=60... → HTTP Error 451: 
 [WARN] Binance ETHUSDT 被屏蔽，使用 CryptoCompare 兜底
 [OK] CryptoCompare ETH: 61 天数据
-[OK] ETH/BTC 汇率分析: 0.029912, ETH 走弱
+[OK] ETH/BTC 汇率分析: 0.029887, ETH 走弱
 [INFO] 抓取: https://cointelegraph.com/rss
 [INFO] 30 条
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
@@ -69,9 +71,9 @@
 [INFO] 19 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 0 条
-[OK] Gemini 响应 (145 字)
-[OK] Gemini 响应 (286 字)
-[INFO] 币价:20 费率:3 宏观:1 清算:$35M 多空:3 Gas:0.22 TVL:$83.8B 趋势:43 新闻:64 期权到期:5 跑赢BTC:100个 策略:3币
+[OK] Gemini 响应 (134 字)
+[OK] Gemini 响应 (296 字)
+[INFO] 币价:20 费率:3 宏观:1 清算:$88M 多空:3 Gas:0.2 TVL:$84.0B 趋势:47 新闻:65 期权到期:5 跑赢BTC:79个 策略:3币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, xhr040300@gmail.com
-[OK] 快照已保存: data/snapshots/2026-04-25.json
+[OK] 快照已保存: data/snapshots/2026-04-26.json
