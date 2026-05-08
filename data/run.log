@@ -5,7 +5,7 @@
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
 [INFO] 25 条
 [INFO] 抓取: https://www.theblock.co/rss.xml
-[INFO] 19 条
+[INFO] 20 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
 [ERROR] https://fapi.binance.com/fapi/v1/premiumIndex... → HTTP Error 451: 
@@ -52,7 +52,7 @@
 [WARN] Binance ETHUSDT 被屏蔽，使用 CryptoCompare 兜底
 [OK] CryptoCompare ETH: 61 天数据
 [INFO] Binance 兜底 ethereum: closes=61, volumes=61
-[OK] fetch_strategy_indicators(ethereum): ma=空头排列, macd=死叉+绿柱
+[OK] fetch_strategy_indicators(ethereum): ma=偏空, macd=死叉+绿柱
 [ERROR] https://fapi.binance.com/fapi/v1/fundingRate?symbol=BTCUSDT&limit=3... → HTTP Error 451: 
 [ERROR] https://fapi.binance.com/fapi/v1/fundingRate?symbol=ETHUSDT&limit=3... → HTTP Error 451: 
 [ERROR] https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=60... → HTTP Error 451: 
@@ -61,18 +61,18 @@
 [ERROR] https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=1d&limit=60... → HTTP Error 451: 
 [WARN] Binance ETHUSDT 被屏蔽，使用 CryptoCompare 兜底
 [OK] CryptoCompare ETH: 61 天数据
-[OK] ETH/BTC 汇率分析: 0.028643, ETH 走弱
+[OK] ETH/BTC 汇率分析: 0.028770, ETH 走弱
 [INFO] 抓取: https://cointelegraph.com/rss
 [INFO] 30 条
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
 [INFO] 25 条
 [INFO] 抓取: https://www.theblock.co/rss.xml
-[INFO] 19 条
+[INFO] 20 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
-[OK] Gemini 响应 (178 字)
-[OK] Gemini 响应 (271 字)
-[INFO] 币价:20 费率:3 宏观:1 清算:$25M 多空:3 Gas:0.12 TVL:$85.0B 趋势:53 新闻:70 期权到期:5 跑赢BTC:115个 策略:3币
+[OK] Gemini 响应 (170 字)
+[OK] Gemini 响应 (285 字)
+[INFO] 币价:20 费率:3 宏观:1 清算:$8M 多空:3 Gas:0.12 TVL:$85.4B 趋势:47 新闻:72 期权到期:5 跑赢BTC:137个 策略:3币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, xhr040300@gmail.com
-[OK] 快照已保存: data/snapshots/2026-05-08.json
+[OK] 快照已保存: data/snapshots/2026-05-09.json
