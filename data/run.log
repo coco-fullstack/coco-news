@@ -5,9 +5,9 @@
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
 [INFO] 25 条
 [INFO] 抓取: https://www.theblock.co/rss.xml
-[INFO] 20 条
+[INFO] 19 条
 [INFO] 抓取: https://36kr.com/feed
-[INFO] 30 条
+[INFO] 0 条
 [ERROR] https://fapi.binance.com/fapi/v1/premiumIndex... → HTTP Error 451: 
 [WARN] Binance fetch_funding_rates 失败，使用 OKX 兜底
 [ERROR] https://open-api.coinglass.com/public/v2/liquidation/info?time_type=1... → HTTP Error 500: Internal Server Error
@@ -37,7 +37,8 @@
 [ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin... → HTTP Error 429: Too Many Requests
 [ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/ethereum... → HTTP Error 429: Too Many Requests
 [WARN] CoinGecko fetch_institutional_holdings 失败，使用本地缓存兜底
-[OK] 缓存命中: ['BTC', 'ETH']
+[WARN] 缓存未命中或已过期，cache_dir=/home/runner/work/coco-news/coco-news/scripts/../data/cache
+[OK] 使用过期缓存兜底: ['BTC', 'ETH']
 [ERROR] https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days... → HTTP Error 429: Too Many Requests
 [WARN] CoinGecko fetch_strategy_indicators(bitcoin) 失败，使用 Binance 兜底
 [ERROR] https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=60... → HTTP Error 451: 
@@ -60,18 +61,19 @@
 [ERROR] https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=1d&limit=60... → HTTP Error 451: 
 [WARN] Binance ETHUSDT 被屏蔽，使用 CryptoCompare 兜底
 [OK] CryptoCompare ETH: 61 天数据
-[OK] ETH/BTC 汇率分析: 0.027199, ETH 走弱
+[OK] ETH/BTC 汇率分析: 0.027286, ETH 走弱
 [INFO] 抓取: https://cointelegraph.com/rss
 [INFO] 30 条
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
 [INFO] 25 条
 [INFO] 抓取: https://www.theblock.co/rss.xml
-[INFO] 20 条
+[INFO] 19 条
 [INFO] 抓取: https://36kr.com/feed
-[INFO] 30 条
-[OK] Gemini 响应 (175 字)
-[OK] Gemini 响应 (218 字)
-[INFO] 币价:20 费率:3 宏观:1 清算:$527M 多空:3 Gas:0.17 TVL:$80.4B 趋势:27 新闻:68 期权到期:5 跑赢BTC:181个 策略:3币
+[INFO] 0 条
+[OK] Gemini 响应 (173 字)
+[WARN] Gemini 调用失败: HTTP Error 503: Service Unavailable，尝试 Groq 兜底
+[OK] Groq 响应 (268 字)
+[INFO] 币价:20 费率:3 宏观:1 清算:$435M 多空:3 Gas:0.18 TVL:$80.1B 趋势:27 新闻:66 期权到期:5 跑赢BTC:179个 策略:3币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, xhr040300@gmail.com
-[OK] 快照已保存: data/snapshots/2026-05-28.json
+[OK] 快照已保存: data/snapshots/2026-05-29.json
