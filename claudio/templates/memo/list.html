@@ -1,0 +1,392 @@
+{% extends "base.html" %}
+
+{% block title %}メモ - Claudio{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+    <div>
+        <h1>メモ</h1>
+        <span class="text-muted">個人メモの作成・管理</span>
+    </div>
+    <button class="btn btn-primary" id="btnNewMemo">+ 新規メモ</button>
+</div>
+
+<!-- Search -->
+<form method="get" action="{{ request.url_for('memo_list') }}" style="margin-bottom:1.5rem">
+    <div style="display:flex;gap:8px;max-width:480px">
+        <input type="text" name="q" value="{{ search }}" placeholder="メモを検索..." class="form-input" style="flex:1">
+        <button type="submit" class="btn btn-light">検索</button>
+        {% if search %}
+        <a href="{{ request.url_for('memo_list') }}" class="btn btn-light">クリア</a>
+        {% endif %}
+    </div>
+</form>
+
+<!-- Memo Grid -->
+<div class="memo-grid" id="memoGrid">
+    {% for memo in memos %}
+    <div class="memo-card {% if memo.is_pinned %}memo-pinned{% endif %}" data-id="{{ memo.id }}" style="border-top: 3px solid {{ memo.color }}">
+        <div class="memo-card-header">
+            <h3 class="memo-title">{{ memo.title }}</h3>
+            <div class="memo-actions">
+                <button class="memo-btn memo-pin-btn" data-id="{{ memo.id }}" title="{% if memo.is_pinned %}ピン解除{% else %}ピン留め{% endif %}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="{% if memo.is_pinned %}currentColor{% else %}none{% endif %}"><path d="M12 2l2.09 6.26L20 9.27l-5 3.64L16.18 20 12 16.77 7.82 20 9 12.91l-5-3.64 5.91-1.01L12 2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <button class="memo-btn memo-delete-btn" data-id="{{ memo.id }}" title="削除">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><polyline points="3,6 5,6 21,6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" stroke="currentColor" stroke-width="1.5"/><path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" stroke="currentColor" stroke-width="1.5"/></svg>
+                </button>
+            </div>
+        </div>
+        <div class="memo-content">{{ memo.content[:200] }}{% if memo.content|length > 200 %}...{% endif %}</div>
+        <div class="memo-meta">{{ memo.updated_at[:16] }}</div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if not memos %}
+<div style="text-align:center;padding:3rem 1rem;color:var(--text-secondary, #86868b)">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" style="opacity:0.4;margin-bottom:12px"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="1.5"/><polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="1.5"/><line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="1.5"/><line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="1.5"/></svg>
+    <p>{% if search %}「{{ search }}」に一致するメモはありません{% else %}メモはまだありません。「新規メモ」ボタンで作成しましょう{% endif %}</p>
+</div>
+{% endif %}
+
+<!-- Modal -->
+<div class="memo-modal-overlay" id="memoModal">
+    <div class="memo-modal">
+        <div class="memo-modal-header">
+            <h2 id="modalTitle">新規メモ</h2>
+            <button class="memo-btn" id="modalClose">&times;</button>
+        </div>
+        <div class="memo-modal-body">
+            <input type="hidden" id="editMemoId" value="">
+            <div class="form-group">
+                <label class="form-label">タイトル</label>
+                <input type="text" id="memoTitleInput" class="form-input" placeholder="メモのタイトル" maxlength="200">
+            </div>
+            <div class="form-group">
+                <label class="form-label">内容</label>
+                <textarea id="memoContentInput" class="form-input" rows="8" placeholder="メモの内容を入力..."></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">カラー</label>
+                <div class="memo-color-picker" id="colorPicker">
+                    <button type="button" class="memo-color-swatch active" data-color="#fff" style="background:#fff" title="白"></button>
+                    <button type="button" class="memo-color-swatch" data-color="#fef3c7" style="background:#fef3c7" title="黄色"></button>
+                    <button type="button" class="memo-color-swatch" data-color="#d1fae5" style="background:#d1fae5" title="緑"></button>
+                    <button type="button" class="memo-color-swatch" data-color="#dbeafe" style="background:#dbeafe" title="青"></button>
+                    <button type="button" class="memo-color-swatch" data-color="#ede9fe" style="background:#ede9fe" title="紫"></button>
+                    <button type="button" class="memo-color-swatch" data-color="#fce7f3" style="background:#fce7f3" title="ピンク"></button>
+                    <button type="button" class="memo-color-swatch" data-color="#fed7aa" style="background:#fed7aa" title="オレンジ"></button>
+                </div>
+            </div>
+        </div>
+        <div class="memo-modal-footer">
+            <button class="btn btn-light" id="modalCancel">キャンセル</button>
+            <button class="btn btn-primary" id="modalSave">保存</button>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Memo Grid */
+.memo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+.memo-card {
+    background: var(--bg-primary, #fff);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    cursor: pointer;
+    transition: box-shadow .2s, transform .15s;
+    position: relative;
+}
+.memo-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+.memo-pinned {
+    box-shadow: 0 2px 8px rgba(251,191,36,0.2);
+}
+.memo-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+.memo-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0;
+    line-height: 1.4;
+    word-break: break-word;
+    flex: 1;
+}
+.memo-actions {
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity .15s;
+}
+.memo-card:hover .memo-actions { opacity: 1; }
+.memo-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    color: var(--text-secondary, #86868b);
+    transition: background .15s, color .15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.memo-btn:hover { background: var(--bg-secondary, #f5f5f7); color: var(--text-primary, #1d1d1f); }
+.memo-pin-btn svg { color: #fbbf24; }
+.memo-delete-btn:hover { color: #e74c3c !important; }
+.memo-content {
+    font-size: 13px;
+    color: var(--text-secondary, #86868b);
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 120px;
+    overflow: hidden;
+}
+.memo-meta {
+    font-size: 11px;
+    color: var(--text-tertiary, #aeaeb2);
+    margin-top: 12px;
+}
+
+/* Modal */
+.memo-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+.memo-modal-overlay.open { display: flex; }
+.memo-modal {
+    background: var(--bg-primary, #fff);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 560px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+.memo-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px 0;
+}
+.memo-modal-header h2 { font-size: 18px; margin: 0; }
+.memo-modal-header .memo-btn { font-size: 24px; padding: 4px 8px; }
+.memo-modal-body { padding: 16px 24px; }
+.memo-modal-body .form-group { margin-bottom: 16px; }
+.memo-modal-body .form-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--text-secondary, #86868b);
+}
+.memo-modal-body .form-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color, #e5e5ea);
+    border-radius: 8px;
+    font-size: 14px;
+    background: var(--bg-primary, #fff);
+    color: var(--text-primary, #1d1d1f);
+    box-sizing: border-box;
+    font-family: inherit;
+}
+.memo-modal-body .form-input:focus {
+    outline: none;
+    border-color: #007aff;
+    box-shadow: 0 0 0 3px rgba(0,122,255,0.1);
+}
+.memo-modal-body textarea.form-input { resize: vertical; min-height: 120px; }
+.memo-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 0 24px 20px;
+}
+
+/* Color Picker */
+.memo-color-picker { display: flex; gap: 8px; flex-wrap: wrap; }
+.memo-color-swatch {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid var(--border-color, #e5e5ea);
+    cursor: pointer;
+    transition: transform .15s, border-color .15s;
+    padding: 0;
+}
+.memo-color-swatch:hover { transform: scale(1.15); }
+.memo-color-swatch.active { border-color: #007aff; box-shadow: 0 0 0 2px rgba(0,122,255,0.3); }
+
+@media (max-width: 600px) {
+    .memo-grid { grid-template-columns: 1fr; }
+    .memo-modal { max-width: 100%; }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    var modal = document.getElementById('memoModal');
+    var grid = document.getElementById('memoGrid');
+    var titleInput = document.getElementById('memoTitleInput');
+    var contentInput = document.getElementById('memoContentInput');
+    var editIdInput = document.getElementById('editMemoId');
+    var modalTitleEl = document.getElementById('modalTitle');
+    var colorPicker = document.getElementById('colorPicker');
+    var selectedColor = '#fff';
+
+    function openModal(memo) {
+        if (memo) {
+            modalTitleEl.textContent = 'メモを編集';
+            editIdInput.value = memo.id;
+            titleInput.value = memo.title;
+            contentInput.value = memo.content;
+            selectedColor = memo.color || '#fff';
+        } else {
+            modalTitleEl.textContent = '新規メモ';
+            editIdInput.value = '';
+            titleInput.value = '';
+            contentInput.value = '';
+            selectedColor = '#fff';
+        }
+        colorPicker.querySelectorAll('.memo-color-swatch').forEach(function(s) {
+            s.classList.toggle('active', s.dataset.color === selectedColor);
+        });
+        modal.classList.add('open');
+        setTimeout(function() { titleInput.focus(); }, 100);
+    }
+
+    function closeModal() {
+        modal.classList.remove('open');
+    }
+
+    // New memo button
+    document.getElementById('btnNewMemo').addEventListener('click', function() { openModal(null); });
+    document.getElementById('modalClose').addEventListener('click', closeModal);
+    document.getElementById('modalCancel').addEventListener('click', closeModal);
+    modal.addEventListener('click', function(e) { if (e.target === modal) closeModal(); });
+
+    // Color picker
+    colorPicker.addEventListener('click', function(e) {
+        var swatch = e.target.closest('.memo-color-swatch');
+        if (!swatch) return;
+        colorPicker.querySelectorAll('.memo-color-swatch').forEach(function(s) { s.classList.remove('active'); });
+        swatch.classList.add('active');
+        selectedColor = swatch.dataset.color;
+    });
+
+    // Click card to edit
+    grid.addEventListener('click', function(e) {
+        var card = e.target.closest('.memo-card');
+        if (!card) return;
+        // Ignore if clicking action buttons
+        if (e.target.closest('.memo-pin-btn') || e.target.closest('.memo-delete-btn')) return;
+        var id = card.dataset.id;
+        // Read data from card
+        openModal({
+            id: id,
+            title: card.querySelector('.memo-title').textContent,
+            content: card.querySelector('.memo-content').textContent.replace(/\.\.\.$/,''),
+            color: card.style.borderTopColor || '#fff',
+        });
+        // Fetch full content
+        fetch('/memo/' + id + '/edit', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({title: '__FETCH__', content: ''})
+        }).catch(function(){});
+    });
+
+    // Save
+    document.getElementById('modalSave').addEventListener('click', function() {
+        var title = titleInput.value.trim();
+        var content = contentInput.value;
+        if (!title) { titleInput.focus(); return; }
+
+        var memoId = editIdInput.value;
+        var url = memoId ? '/memo/' + memoId + '/edit' : '/memo/new';
+
+        fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({title: title, content: content, color: selectedColor})
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.status === 'ok') {
+                closeModal();
+                location.reload();
+            } else {
+                alert(data.error || 'エラーが発生しました');
+            }
+        })
+        .catch(function() { alert('通信エラーが発生しました'); });
+    });
+
+    // Pin toggle
+    grid.addEventListener('click', function(e) {
+        var btn = e.target.closest('.memo-pin-btn');
+        if (!btn) return;
+        e.stopPropagation();
+        var id = btn.dataset.id;
+        fetch('/memo/' + id + '/pin', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: '{}'
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.status === 'ok') location.reload();
+        });
+    });
+
+    // Delete
+    grid.addEventListener('click', function(e) {
+        var btn = e.target.closest('.memo-delete-btn');
+        if (!btn) return;
+        e.stopPropagation();
+        if (!confirm('このメモを削除しますか？')) return;
+        var id = btn.dataset.id;
+        fetch('/memo/' + id + '/delete', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: '{}'
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.status === 'ok') {
+                var card = document.querySelector('.memo-card[data-id="' + id + '"]');
+                if (card) card.remove();
+            }
+        });
+    });
+
+    // Keyboard shortcut: Escape closes modal
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && modal.classList.contains('open')) closeModal();
+    });
+})();
+</script>
+{% endblock %}

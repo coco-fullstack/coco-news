@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ja" id="htmlRoot">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>{% block title %}Claudio{% endblock %}</title>
+    <!-- PWA -->
+    <link rel="manifest" href="{{ request.url_for('static', path='manifest.json') }}">
+    <meta name="theme-color" content="#f2f2f7">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Claudio">
+    <link rel="apple-touch-icon" href="{{ request.url_for('static', path='icons/icon-192x192.png') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=M+PLUS+Rounded+1c:wght@300;400;500;700&family=Noto+Sans+JP:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/style.css') }}?v=16">
+</head>
+<body>
+    {% if current_user %}
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <a href="{{ request.url_for('dashboard') }}" class="sidebar-brand">
+                <img src="{{ request.url_for('static', path='logo_icon.png') }}" alt="Claudio" class="sidebar-logo">
+                <span class="sidebar-company-name">株式会社クラウディオ</span>
+            </a>
+            <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" title="メニューを折りたたむ" style="position:absolute;top:1rem;right:0.75rem">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+        </div>
+
+        <nav class="sidebar-nav">
+
+            <!-- ツール -->
+            <div class="sidebar-section-label">ツール</div>
+            <a href="{{ request.url_for('converter_upload') }}" class="sidebar-link {% if '/convert' in request.url.path and '/history' not in request.url.path %}active{% endif %}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M7 21h10a2 2 0 002-2V9l-5-5H7a2 2 0 00-2 2v13a2 2 0 002 2z" stroke="currentColor" stroke-width="1.5"/><polyline points="14,4 14,9 19,9" stroke="currentColor" stroke-width="1.5"/><path d="M8 15l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                <span>ファイル変換</span>
+            </a>
+            <a href="{{ request.url_for('chat_page') }}" class="sidebar-link {% if '/chat' in request.url.path and '/my-questions' not in request.url.path %}active{% endif %}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>社内問い合わせ</span>
+            </a>
+            <a href="{{ request.url_for('chat_my_questions_page') }}" class="sidebar-link {% if '/chat/my-questions' in request.url.path %}active{% endif %}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><rect x="9" y="3" width="6" height="4" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>
+                <span>質問履歴</span>
+            </a>
+            <a href="{{ request.url_for('memo_list') }}" class="sidebar-link {% if '/memo' in request.url.path %}active{% endif %}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="1.5"/><polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="1.5"/><line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                <span>メモ</span>
+            </a>
+
+            <!-- その他 -->
+            <div class="sidebar-section-label">その他</div>
+            <a href="{{ request.url_for('profile_page') }}" class="sidebar-link {% if '/profile' in request.url.path %}active{% endif %}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="1.5"/></svg>
+                <span>個人情報</span>
+            </a>
+            <a href="{{ request.url_for('converter_history') }}" class="sidebar-link {% if '/convert/history' in request.url.path %}active{% endif %}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><polyline points="12,6 12,12 16,14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                <span>使用履歴</span>
+            </a>
+            {% if current_user.role in ['admin', 'manager'] %}
+            {% set on_admin = '/admin' in request.url.path %}
+            <!-- 管理 (collapsible) -->
+            <div class="sidebar-section-label sidebar-section-toggle {% if on_admin %}open{% endif %}" id="adminSectionToggle">
+                <span>管理</span>
+                <svg class="toggle-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="sidebar-collapsible {% if on_admin %}open{% endif %}" id="adminSectionItems">
+                <a href="{{ request.url_for('admin_dashboard') }}" class="sidebar-link {% if request.url.path == '/admin' or request.url.path == '/admin/' %}active{% endif %}">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/></svg>
+                    <span>ダッシュボード</span>
+                </a>
+                <a href="{{ request.url_for('admin_knowledge_base') }}" class="sidebar-link {% if '/admin/knowledge-base' in request.url.path %}active{% endif %}">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                    <span>知識ベース管理</span>
+                </a>
+                <a href="{{ request.url_for('admin_users') }}" class="sidebar-link {% if '/admin/users' in request.url.path %}active{% endif %}">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M23 21v-2a4 4 0 00-3-3.87" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M16 3.13a4 4 0 010 7.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                    <span>ユーザー管理</span>
+                </a>
+                <a href="{{ request.url_for('admin_escalations') }}" class="sidebar-link {% if '/admin/escalations' in request.url.path %}active{% endif %}">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span>質問管理</span>
+                </a>
+                {% if current_user.role == 'admin' %}
+                <a href="{{ request.url_for('admin_settings') }}" class="sidebar-link {% if '/admin/settings' in request.url.path %}active{% endif %}">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" stroke-width="1.5"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" stroke-width="1.5"/></svg>
+                    <span>システム設定</span>
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="sidebar-user">
+                <span class="sidebar-user-avatar">{{ (current_user.display_name or current_user.username)[0]|upper }}</span>
+                <div class="sidebar-user-info">
+                    <span class="sidebar-user-name">{{ current_user.display_name or current_user.username }}</span>
+                    <span class="sidebar-user-role role-{{ current_user.role }}">{{ {'admin':'管理者','manager':'マネージャー','user':'一般ユーザー'}.get(current_user.role, current_user.role) }}</span>
+                </div>
+            </div>
+            <a href="{{ request.url_for('logout') }}" class="sidebar-logout" title="ログアウト">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><polyline points="16,17 21,12 16,7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="21" y1="12" x2="9" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </a>
+        </div>
+    </aside>
+
+    <!-- Mobile top bar -->
+    <div class="mobile-topbar" id="mobileTopbar">
+        <button class="hamburger" id="hamburger" aria-label="メニュー">
+            <span></span><span></span><span></span>
+        </button>
+        <span class="mobile-brand">Claudio</span>
+    </div>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Main content -->
+    <div class="main-wrap">
+        {% if flashes %}
+            {% for flash in flashes %}
+                <div class="alert alert-{{ flash.category }} flash-auto">{{ flash.message }}</div>
+            {% endfor %}
+        {% endif %}
+        {% block content %}{% endblock %}
+    </div>
+
+
+
+    {% else %}
+    <!-- No sidebar for unauthenticated pages -->
+    <main class="container">
+        {% if flashes %}
+            {% for flash in flashes %}
+                <div class="alert alert-{{ flash.category }} flash-auto">{{ flash.message }}</div>
+            {% endfor %}
+        {% endif %}
+        {% block auth_content %}{% endblock %}
+    </main>
+    {% endif %}
+
+    <script src="{{ request.url_for('static', path='js/app.js') }}"></script>
+    <script>
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/static/sw.js').catch(function(){});
+    }
+    // Sidebar collapse
+    (function() {
+        const btn = document.getElementById('sidebarCollapseBtn');
+        const sidebar = document.getElementById('sidebar');
+        if (!btn || !sidebar) return;
+        const COLLAPSED_CLASS = 'collapsed';
+        const STORAGE_KEY = 'claudio_sidebar_collapsed';
+        function applyState(collapsed) {
+            sidebar.classList.toggle(COLLAPSED_CLASS, collapsed);
+        }
+        applyState(localStorage.getItem(STORAGE_KEY) === '1');
+        btn.addEventListener('click', function() {
+            const next = !sidebar.classList.contains(COLLAPSED_CLASS);
+            applyState(next);
+            localStorage.setItem(STORAGE_KEY, next ? '1' : '0');
+        });
+    })();
+    // Admin section toggle
+    (function() {
+        const toggle = document.getElementById('adminSectionToggle');
+        const items = document.getElementById('adminSectionItems');
+        if (!toggle || !items) return;
+        toggle.addEventListener('click', function() {
+            const open = items.classList.toggle('open');
+            toggle.classList.toggle('open', open);
+        });
+    })();
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
