@@ -5,7 +5,7 @@
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
 [INFO] 25 条
 [INFO] 抓取: https://www.theblock.co/rss.xml
-[INFO] 20 条
+[INFO] 19 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
 [ERROR] https://fapi.binance.com/fapi/v1/premiumIndex... → HTTP Error 451: 
@@ -63,18 +63,18 @@
 [ERROR] https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=1d&limit=60... → HTTP Error 451: 
 [WARN] Binance ETHUSDT 被屏蔽，使用 CryptoCompare 兜底
 [OK] CryptoCompare ETH: 61 天数据
-[OK] ETH/BTC 汇率分析: 0.027235, ETH 走弱
+[OK] ETH/BTC 汇率分析: 0.028108, 偏强
 [INFO] 抓取: https://cointelegraph.com/rss
 [INFO] 30 条
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
 [INFO] 25 条
 [INFO] 抓取: https://www.theblock.co/rss.xml
-[INFO] 20 条
+[INFO] 19 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
-[OK] Gemini 响应 (161 字)
-[OK] Gemini 响应 (277 字)
-[INFO] 币价:20 费率:3 宏观:1 清算:$35M 多空:3 Gas:0.13 TVL:$79.9B 趋势:39 新闻:65 期权到期:5 跑赢BTC:184个 策略:3币
+[OK] Gemini 响应 (186 字)
+[OK] Gemini 响应 (202 字)
+[INFO] 币价:20 费率:3 宏观:1 清算:$1.1B 多空:3 Gas:0.17 TVL:$79.5B 趋势:15 新闻:69 期权到期:5 跑赢BTC:230个 策略:3币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, xhr040300@gmail.com
-[OK] 快照已保存: data/snapshots/2026-06-01.json
+[OK] 快照已保存: data/snapshots/2026-06-02.json
