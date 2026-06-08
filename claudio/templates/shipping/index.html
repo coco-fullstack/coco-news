@@ -1,0 +1,566 @@
+{% extends "base.html" %}
+
+{% block title %}発送平準化シミュレーター - Claudio{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+    <div>
+        <h1>発送平準化シミュレーター</h1>
+        <span class="text-muted">到着希望日から発送日を自動決定し、日次発送件数を平準化</span>
+    </div>
+</div>
+
+<!-- Parameter Form -->
+<div class="ship-params-card">
+    <h3 class="ship-section-title">パラメータ設定</h3>
+    <div class="ship-params-grid">
+        <div class="ship-param">
+            <label>熊本支社 日次上限</label>
+            <input type="number" id="capKumamoto" value="{{ default_cap_kumamoto }}" min="100" step="100">
+        </div>
+        <div class="ship-param">
+            <label>宮崎支社 日次上限</label>
+            <input type="number" id="capMiyazaki" value="{{ default_cap_miyazaki }}" min="100" step="100">
+        </div>
+        <div class="ship-param">
+            <label>最大保管日数</label>
+            <input type="number" id="maxStorage" value="{{ default_max_storage }}" min="1" max="30">
+        </div>
+        <div class="ship-param">
+            <label>到着希望日（開始）</label>
+            <input type="date" id="startDate" value="{{ default_start }}">
+        </div>
+        <div class="ship-param">
+            <label>到着希望日（終了）</label>
+            <input type="date" id="endDate" value="{{ default_end }}">
+        </div>
+        <div class="ship-param" style="display:flex;align-items:flex-end">
+            <button class="btn btn-primary" id="btnRun" style="width:100%;height:42px;font-size:15px">
+                シミュレーション実行
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Loading -->
+<div id="loading" style="display:none;text-align:center;padding:3rem">
+    <div class="ship-spinner"></div>
+    <p style="margin-top:12px;color:var(--text-secondary,#86868b)">計算中...</p>
+</div>
+
+<!-- Results (hidden until run) -->
+<div id="results" style="display:none">
+
+    <!-- Summary Cards -->
+    <div class="ship-summary-grid" id="summaryCards"></div>
+
+    <!-- Charts -->
+    <div class="ship-charts-row" id="chartsRow"></div>
+
+    <!-- Schedule Table -->
+    <div class="ship-table-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+            <h3 class="ship-section-title" style="margin:0">発送予定表</h3>
+            <div style="display:flex;gap:8px;align-items:center">
+                <select id="scheduleFilter" class="ship-select">
+                    <option value="">全拠点</option>
+                    <option value="熊本支社">熊本支社</option>
+                    <option value="宮崎支社">宮崎支社</option>
+                </select>
+                <button class="btn btn-light" id="btnDownload" style="font-size:13px">Excel出力</button>
+            </div>
+        </div>
+        <div class="ship-table-wrap">
+            <table class="ship-table" id="scheduleTable">
+                <thead>
+                    <tr>
+                        <th>発送拠点</th>
+                        <th>発送日</th>
+                        <th>発送件数</th>
+                        <th>必要人数</th>
+                        <th>状態</th>
+                    </tr>
+                </thead>
+                <tbody id="scheduleBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Unplaced -->
+    <div class="ship-table-card" id="unplacedSection" style="display:none">
+        <h3 class="ship-section-title">配置不可一覧</h3>
+        <div class="ship-table-wrap">
+            <table class="ship-table">
+                <thead>
+                    <tr>
+                        <th>発送拠点</th>
+                        <th>都道府県</th>
+                        <th>到着希望日</th>
+                        <th>仮発送日</th>
+                        <th>件数</th>
+                    </tr>
+                </thead>
+                <tbody id="unplacedBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+.ship-params-card {
+    background: var(--bg-primary, #fff);
+    border-radius: 12px;
+    padding: 20px 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    margin-bottom: 24px;
+}
+.ship-section-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0 0 16px;
+}
+.ship-params-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+}
+.ship-param label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary, #86868b);
+    margin-bottom: 6px;
+}
+.ship-param input, .ship-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color, #e5e5ea);
+    border-radius: 8px;
+    font-size: 14px;
+    background: var(--bg-primary, #fff);
+    color: var(--text-primary, #1d1d1f);
+    box-sizing: border-box;
+    font-family: inherit;
+}
+.ship-param input:focus, .ship-select:focus {
+    outline: none;
+    border-color: #007aff;
+    box-shadow: 0 0 0 3px rgba(0,122,255,0.1);
+}
+
+/* Summary Cards */
+.ship-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 24px;
+}
+.ship-stat-card {
+    background: var(--bg-primary, #fff);
+    border-radius: 12px;
+    padding: 18px 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    border-left: 4px solid #007aff;
+}
+.ship-stat-card.green { border-left-color: #34c759; }
+.ship-stat-card.orange { border-left-color: #ff9500; }
+.ship-stat-card.red { border-left-color: #ff3b30; }
+.ship-stat-card.purple { border-left-color: #af52de; }
+.ship-stat-label {
+    font-size: 12px;
+    color: var(--text-secondary, #86868b);
+    margin-bottom: 4px;
+}
+.ship-stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-primary, #1d1d1f);
+}
+.ship-stat-sub {
+    font-size: 12px;
+    color: var(--text-secondary, #86868b);
+    margin-top: 2px;
+}
+
+/* Charts */
+.ship-charts-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+.ship-chart-card {
+    background: var(--bg-primary, #fff);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.ship-chart-card h4 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 12px;
+}
+.ship-chart-canvas {
+    width: 100%;
+    height: 260px;
+}
+.ship-legend {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--text-secondary, #86868b);
+}
+.ship-legend-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    margin-right: 4px;
+    vertical-align: middle;
+}
+
+/* Tables */
+.ship-table-card {
+    background: var(--bg-primary, #fff);
+    border-radius: 12px;
+    padding: 20px 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    margin-bottom: 24px;
+}
+.ship-table-wrap {
+    overflow-x: auto;
+    max-height: 400px;
+    overflow-y: auto;
+}
+.ship-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+.ship-table th {
+    position: sticky;
+    top: 0;
+    background: #f5f5f7;
+    font-weight: 600;
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-color, #e5e5ea);
+    white-space: nowrap;
+    z-index: 1;
+}
+.ship-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #f0f0f0;
+    white-space: nowrap;
+}
+.ship-table tbody tr:hover {
+    background: rgba(0,122,255,0.03);
+}
+.ship-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+.ship-badge-ok { background: #d1fae5; color: #065f46; }
+.ship-badge-over { background: #fee2e2; color: #991b1b; }
+
+/* Spinner */
+.ship-spinner {
+    width: 36px; height: 36px;
+    border: 3px solid #e5e5ea;
+    border-top-color: #007aff;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    margin: 0 auto;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 600px) {
+    .ship-params-grid { grid-template-columns: 1fr 1fr; }
+    .ship-charts-row { grid-template-columns: 1fr; }
+    .ship-summary-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    var data = null; // Store last result
+
+    function fmt(n) { return n.toLocaleString(); }
+
+    document.getElementById('btnRun').addEventListener('click', runSimulation);
+
+    function runSimulation() {
+        var btn = document.getElementById('btnRun');
+        btn.disabled = true;
+        btn.textContent = '計算中...';
+        document.getElementById('loading').style.display = '';
+        document.getElementById('results').style.display = 'none';
+
+        var payload = {
+            cap_kumamoto: +document.getElementById('capKumamoto').value,
+            cap_miyazaki: +document.getElementById('capMiyazaki').value,
+            max_storage: +document.getElementById('maxStorage').value,
+            start: document.getElementById('startDate').value,
+            end: document.getElementById('endDate').value,
+        };
+
+        fetch('/shipping/run', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload),
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            data = d;
+            data._payload = payload;
+            renderResults(d);
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('results').style.display = '';
+            btn.disabled = false;
+            btn.textContent = 'シミュレーション実行';
+        })
+        .catch(function(e) {
+            alert('エラー: ' + e.message);
+            document.getElementById('loading').style.display = 'none';
+            btn.disabled = false;
+            btn.textContent = 'シミュレーション実行';
+        });
+    }
+
+    function renderResults(d) {
+        renderSummary(d);
+        renderCharts(d);
+        renderSchedule(d.schedule);
+        renderUnplaced(d.unplaced_rows);
+    }
+
+    // ---- Summary Cards ----
+    function renderSummary(d) {
+        var html = '';
+        html += card('総受注件数', fmt(d.total), '', '');
+        html += card('配置済', fmt(d.placed), d.rate + '%', 'green');
+        html += card('配置不可', fmt(d.unplaced), '', d.unplaced > 0 ? 'red' : 'green');
+
+        for (var name in d.offices) {
+            var o = d.offices[name];
+            html += card(name, fmt(o.after_max) + ' 件/日', '平準化前: ' + fmt(o.before_max) + ' | 上限: ' + fmt(o.cap), 'purple');
+        }
+
+        // Storage stats
+        for (var name in d.offices) {
+            var o = d.offices[name];
+            html += card(name + ' 保管', '平均 ' + o.avg_storage + ' 日', '最大 ' + o.max_storage + ' 日', 'orange');
+        }
+
+        document.getElementById('summaryCards').innerHTML = html;
+    }
+
+    function card(label, value, sub, color) {
+        return '<div class="ship-stat-card ' + color + '">'
+            + '<div class="ship-stat-label">' + label + '</div>'
+            + '<div class="ship-stat-value">' + value + '</div>'
+            + (sub ? '<div class="ship-stat-sub">' + sub + '</div>' : '')
+            + '</div>';
+    }
+
+    // ---- Charts (vanilla Canvas) ----
+    function renderCharts(d) {
+        var container = document.getElementById('chartsRow');
+        container.innerHTML = '';
+
+        for (var name in d.chart_data) {
+            var cd = d.chart_data[name];
+            var div = document.createElement('div');
+            div.className = 'ship-chart-card';
+            div.innerHTML = '<h4>' + name + ' 日次発送件数</h4>'
+                + '<canvas class="ship-chart-canvas" id="chart_' + name + '"></canvas>'
+                + '<div class="ship-legend">'
+                + '<span><span class="ship-legend-dot" style="background:rgba(255,149,0,0.5)"></span>平準化前</span>'
+                + '<span><span class="ship-legend-dot" style="background:#007aff"></span>平準化後</span>'
+                + '<span><span class="ship-legend-dot" style="background:#ff3b30"></span>上限</span>'
+                + '</div>';
+            container.appendChild(div);
+
+            drawChart(div.querySelector('canvas'), cd);
+        }
+    }
+
+    function drawChart(canvas, cd) {
+        var dpr = window.devicePixelRatio || 1;
+        var rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        var ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        var W = rect.width, H = rect.height;
+        var pad = {top: 10, right: 16, bottom: 50, left: 50};
+        var cW = W - pad.left - pad.right;
+        var cH = H - pad.top - pad.bottom;
+
+        // Merge all dates
+        var allDates = {};
+        cd.before.dates.forEach(function(d, i) { allDates[d] = allDates[d] || {before: 0, after: 0}; allDates[d].before = cd.before.values[i]; });
+        cd.after.dates.forEach(function(d, i) { allDates[d] = allDates[d] || {before: 0, after: 0}; allDates[d].after = cd.after.values[i]; });
+        var dates = Object.keys(allDates).sort();
+        var n = dates.length;
+        if (n === 0) return;
+
+        var maxVal = Math.max(cd.cap, Math.max.apply(null, dates.map(function(d) {
+            return Math.max(allDates[d].before, allDates[d].after);
+        })));
+        maxVal = Math.ceil(maxVal / 1000) * 1000;
+
+        var barW = Math.max(2, (cW / n) * 0.35);
+        var gap = 2;
+
+        ctx.save();
+        ctx.translate(pad.left, pad.top);
+
+        // Y axis grid
+        ctx.strokeStyle = '#e5e5ea';
+        ctx.lineWidth = 0.5;
+        ctx.fillStyle = '#86868b';
+        ctx.font = '10px -apple-system, sans-serif';
+        ctx.textAlign = 'right';
+        for (var i = 0; i <= 4; i++) {
+            var y = cH - (cH * i / 4);
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(cW, y);
+            ctx.stroke();
+            ctx.fillText(fmt(Math.round(maxVal * i / 4)), -6, y + 3);
+        }
+
+        // Cap line
+        var capY = cH - (cd.cap / maxVal) * cH;
+        ctx.strokeStyle = '#ff3b30';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(0, capY);
+        ctx.lineTo(cW, capY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Bars
+        dates.forEach(function(d, i) {
+            var x = (i / n) * cW + (cW / n) * 0.15;
+            var bVal = allDates[d].before;
+            var aVal = allDates[d].after;
+            var bH = (bVal / maxVal) * cH;
+            var aH = (aVal / maxVal) * cH;
+
+            // Before bar (semi-transparent orange)
+            ctx.fillStyle = 'rgba(255,149,0,0.35)';
+            ctx.fillRect(x, cH - bH, barW, bH);
+
+            // After bar (blue)
+            ctx.fillStyle = '#007aff';
+            ctx.fillRect(x + barW + gap, cH - aH, barW, aH);
+        });
+
+        // X axis labels (every few days)
+        ctx.fillStyle = '#86868b';
+        ctx.font = '9px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        var step = Math.max(1, Math.floor(n / 12));
+        dates.forEach(function(d, i) {
+            if (i % step === 0) {
+                var x = (i / n) * cW + (cW / n) * 0.5;
+                ctx.save();
+                ctx.translate(x, cH + 8);
+                ctx.rotate(-Math.PI / 4);
+                ctx.textAlign = 'right';
+                ctx.fillText(d.slice(5), 0, 0); // MM-DD
+                ctx.restore();
+            }
+        });
+
+        ctx.restore();
+    }
+
+    // ---- Schedule Table ----
+    function renderSchedule(rows) {
+        var body = document.getElementById('scheduleBody');
+        body.innerHTML = '';
+        rows.forEach(function(r) {
+            var tr = document.createElement('tr');
+            tr.dataset.office = r.office;
+            tr.innerHTML = '<td>' + r.office + '</td>'
+                + '<td>' + r.date + '</td>'
+                + '<td style="text-align:right;font-weight:600">' + fmt(r.qty) + '</td>'
+                + '<td style="text-align:right">' + r.people + '</td>'
+                + '<td><span class="ship-badge ' + (r.over ? 'ship-badge-over' : 'ship-badge-ok') + '">'
+                + (r.over ? '上限超過' : 'OK') + '</span></td>';
+            body.appendChild(tr);
+        });
+    }
+
+    // Filter
+    document.getElementById('scheduleFilter').addEventListener('change', function() {
+        var val = this.value;
+        var rows = document.querySelectorAll('#scheduleBody tr');
+        rows.forEach(function(tr) {
+            tr.style.display = (!val || tr.dataset.office === val) ? '' : 'none';
+        });
+    });
+
+    // ---- Unplaced ----
+    function renderUnplaced(rows) {
+        var section = document.getElementById('unplacedSection');
+        var body = document.getElementById('unplacedBody');
+        if (!rows || rows.length === 0) {
+            section.style.display = 'none';
+            return;
+        }
+        section.style.display = '';
+        body.innerHTML = '';
+        rows.forEach(function(r) {
+            var tr = document.createElement('tr');
+            tr.innerHTML = '<td>' + r.office + '</td>'
+                + '<td>' + r.pref + '</td>'
+                + '<td>' + r.arrival + '</td>'
+                + '<td>' + r.ideal + '</td>'
+                + '<td style="text-align:right;font-weight:600;color:#ff3b30">' + fmt(r.qty) + '</td>';
+            body.appendChild(tr);
+        });
+    }
+
+    // ---- Excel Download ----
+    document.getElementById('btnDownload').addEventListener('click', function() {
+        if (!data) return;
+        var btn = this;
+        btn.disabled = true;
+        btn.textContent = '生成中...';
+        fetch('/shipping/download', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data._payload),
+        })
+        .then(function(r) { return r.blob(); })
+        .then(function(blob) {
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'shipping_result.xlsx';
+            a.click();
+            URL.revokeObjectURL(url);
+            btn.disabled = false;
+            btn.textContent = 'Excel出力';
+        })
+        .catch(function() {
+            alert('ダウンロードに失敗しました');
+            btn.disabled = false;
+            btn.textContent = 'Excel出力';
+        });
+    });
+})();
+</script>
+{% endblock %}

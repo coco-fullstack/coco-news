@@ -153,6 +153,13 @@ try:
 except ImportError:
     logger.warning("memo not available — skipping")
 
+try:
+    from shipping import router as shipping_router
+    app.include_router(shipping_router)
+    logger.info("Router loaded: shipping")
+except ImportError:
+    logger.warning("shipping not available — skipping")
+
 
 # --------------- Notifications ---------------
 

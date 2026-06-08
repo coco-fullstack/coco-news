@@ -50,6 +50,10 @@
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="1.5"/><polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="1.5"/><line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
                 <span>メモ</span>
             </a>
+            <a href="{{ request.url_for('shipping_index') }}" class="sidebar-link {% if '/shipping' in request.url.path %}active{% endif %}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="1" y="6" width="15" height="13" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M16 10h4l3 4v5h-7V10z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="5.5" cy="19" r="2" stroke="currentColor" stroke-width="1.5"/><circle cx="18.5" cy="19" r="2" stroke="currentColor" stroke-width="1.5"/></svg>
+                <span>発送平準化</span>
+            </a>
 
             <!-- その他 -->
             <div class="sidebar-section-label">その他</div>

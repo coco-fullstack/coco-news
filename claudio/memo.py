@@ -77,6 +77,27 @@ async def memo_create(request: Request):
     return JSONResponse({"status": "ok", "memo": dict(row)})
 
 
+# --------------- Get (full content) ---------------
+
+@router.get("/{memo_id}", name="memo_get")
+async def memo_get(request: Request, memo_id: int):
+    user = require_login(request)
+    conn = get_db()
+    try:
+        row = conn.execute(
+            """SELECT id, title, content, color, is_pinned,
+                      datetime(created_at, '+9 hours') as created_at,
+                      datetime(updated_at, '+9 hours') as updated_at
+               FROM memos WHERE id = ? AND user_id = ?""",
+            (memo_id, user["id"]),
+        ).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return JSONResponse({"error": "メモが見つかりません"}, status_code=404)
+    return JSONResponse({"status": "ok", "memo": dict(row)})
+
+
 # --------------- Update ---------------
 
 @router.post("/{memo_id}/edit", name="memo_update")
