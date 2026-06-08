@@ -37,7 +37,8 @@
 [ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin... → HTTP Error 429: Too Many Requests
 [ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/ethereum... → HTTP Error 429: Too Many Requests
 [WARN] CoinGecko fetch_institutional_holdings 失败，使用本地缓存兜底
-[OK] 缓存命中: ['BTC', 'ETH']
+[WARN] 缓存未命中或已过期，cache_dir=/home/runner/work/coco-news/coco-news/scripts/../data/cache
+[OK] 使用过期缓存兜底: ['BTC', 'ETH']
 [ERROR] https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days... → HTTP Error 429: Too Many Requests
 [WARN] CoinGecko fetch_strategy_indicators(bitcoin) 失败，使用 Binance 兜底
 [ERROR] https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=60... → HTTP Error 451: 
@@ -60,7 +61,7 @@
 [ERROR] https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=1d&limit=60... → HTTP Error 451: 
 [WARN] Binance ETHUSDT 被屏蔽，使用 CryptoCompare 兜底
 [OK] CryptoCompare ETH: 61 天数据
-[OK] ETH/BTC 汇率分析: 0.025775, ETH 走弱
+[OK] ETH/BTC 汇率分析: 0.026648, ETH 走弱
 [INFO] 抓取: https://cointelegraph.com/rss
 [INFO] 30 条
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
@@ -69,10 +70,9 @@
 [INFO] 19 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
-[WARN] Gemini 调用失败: HTTP Error 503: Service Unavailable，尝试 Groq 兜底
-[OK] Groq 响应 (265 字)
-[OK] Gemini 响应 (213 字)
-[INFO] 币价:20 费率:3 宏观:1 清算:$119M 多空:3 Gas:0.06 TVL:$69.6B 趋势:19 新闻:65 期权到期:5 跑赢BTC:179个 策略:3币
+[OK] Gemini 响应 (201 字)
+[OK] Gemini 响应 (268 字)
+[INFO] 币价:20 费率:3 宏观:1 清算:$555M 多空:3 Gas:0.16 TVL:$71.4B 趋势:37 新闻:67 期权到期:5 跑赢BTC:173个 策略:3币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, xhr040300@gmail.com
-[OK] 快照已保存: data/snapshots/2026-06-07.json
+[OK] 快照已保存: data/snapshots/2026-06-08.json
