@@ -2873,7 +2873,7 @@ def send_email(subject: str, html_body: str):
     try:
         imap = imaplib.IMAP4_SSL("imap.gmail.com")
         imap.login(SMTP_USER, SMTP_PASS)
-        imap.select('"[Gmail]/Sent Mail"')
+        imap.select("[Gmail]/Sent Mail")
         _, msg_ids = imap.search(None, "SUBJECT", f'"{subject}"')
         if msg_ids[0]:
             for mid in msg_ids[0].split():
