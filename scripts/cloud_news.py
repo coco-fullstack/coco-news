@@ -2871,9 +2871,27 @@ def send_email(subject: str, html_body: str):
         return
     # 自动清理发件箱中刚发出的这封邮件（按标题精确匹配，不影响其他邮件）
     try:
+        import time
+        time.sleep(3)  # 等 Gmail 同步到 Sent
         imap = imaplib.IMAP4_SSL("imap.gmail.com")
         imap.login(SMTP_USER, SMTP_PASS)
-        imap.select("[Gmail]/Sent Mail")
+        # 自动查找 Sent 文件夹（不同语言环境名称不同）
+        _, folders = imap.list()
+        sent_folder = None
+        for f in folders:
+            decoded = f.decode()
+            if "\\Sent" in decoded:
+                sent_folder = decoded.split('"/"')[-1].strip().strip('"')
+                break
+        if not sent_folder:
+            print("[WARN] 未找到 Sent 文件夹")
+            imap.logout()
+            return
+        status, _ = imap.select(f'"{sent_folder}"')
+        if status != "OK":
+            print(f"[WARN] 无法打开 {sent_folder}")
+            imap.logout()
+            return
         _, msg_ids = imap.search(None, "SUBJECT", f'"{subject}"')
         if msg_ids[0]:
             for mid in msg_ids[0].split():
