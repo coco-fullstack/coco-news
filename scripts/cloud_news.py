@@ -2863,6 +2863,7 @@ def send_email(subject: str, html_body: str):
     req = Request("https://api.resend.com/emails", data=payload, method="POST")
     req.add_header("Authorization", f"Bearer {RESEND_API_KEY}")
     req.add_header("Content-Type", "application/json")
+    req.add_header("User-Agent", "cloud-news/1.0")
     try:
         with urlopen(req, timeout=30) as resp:
             print(f"[OK] 邮件已发送: {', '.join(recipients)}")
