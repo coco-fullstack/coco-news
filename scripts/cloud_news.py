@@ -2867,7 +2867,8 @@ def send_email(subject: str, html_body: str):
         with urlopen(req, timeout=30) as resp:
             print(f"[OK] 邮件已发送: {', '.join(recipients)}")
     except Exception as e:
-        print(f"[ERROR] 邮件失败: {e}")
+        body = e.read().decode() if hasattr(e, "read") else ""
+        print(f"[ERROR] 邮件失败: {e} {body}")
 
 
 def push_all(title: str, html_body: str):
