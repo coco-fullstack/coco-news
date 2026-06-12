@@ -63,10 +63,9 @@
 [INFO] 19 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
-[WARN] Gemini 调用失败: HTTP Error 503: Service Unavailable，尝试 Groq 兜底
-[OK] Groq 响应 (215 字)
-[INFO] 币价:20 费率:3 宏观:1 清算:$59M 多空:3 Gas:0.14 TVL:$71.5B 趋势:41 新闻:71 期权到期:5 跑赢BTC:82个 策略:0币
+[OK] Gemini 响应 (196 字)
+[INFO] 币价:20 费率:3 宏观:1 清算:$59M 多空:3 Gas:0.1 TVL:$71.5B 趋势:41 新闻:71 期权到期:5 跑赢BTC:77个 策略:0币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, xhr040300@gmail.com, h714414273@outlook.com
-[WARN] 清理发件箱失败(不影响发送): SELECT command error: BAD [b'Could not parse command']
+[OK] 已清理发件箱记录
 [OK] 快照已保存: data/snapshots/2026-06-12.json
