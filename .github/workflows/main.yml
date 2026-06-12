@@ -31,8 +31,7 @@ jobs:
       - name: Daily Digest
         env:
           PUSHPLUS_TOKENS: ${{ secrets.PUSHPLUS_TOKENS }}
-          SMTP_USER: ${{ secrets.SMTP_USER }}
-          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -65,7 +64,6 @@ jobs:
       - name: Trigger Alert
         env:
           PUSHPLUS_TOKENS: ${{ secrets.PUSHPLUS_TOKENS }}
-          SMTP_USER: ${{ secrets.SMTP_USER }}
-          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
         run: python scripts/cloud_news.py alert
