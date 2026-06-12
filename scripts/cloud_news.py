@@ -2860,7 +2860,7 @@ def send_email(subject: str, html_body: str):
     msg["To"] = ", ".join(recipients)
     msg.attach(MIMEText(html_body, "html", "utf-8"))
     try:
-        with smtplib.SMTP("smtp.office365.com", 587) as server:
+        with smtplib.SMTP("smtp-mail.outlook.com", 587) as server:
             server.starttls()
             server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(SMTP_USER, recipients, msg.as_string())
