@@ -34,8 +34,6 @@
 [INFO] 已知币种列表: 83
 [ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
 [ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
-[ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
-[WARN] CoinGecko fetch_top200_vs_btc 失败，使用 CoinPaprika 兜底
 [ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin... → HTTP Error 429: Too Many Requests
 [ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/ethereum... → HTTP Error 429: Too Many Requests
 [WARN] CoinGecko fetch_institutional_holdings 失败，使用本地缓存兜底
@@ -63,8 +61,8 @@
 [INFO] 19 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
-[OK] Gemini 响应 (184 字)
-[INFO] 币价:20 费率:3 宏观:1 清算:$59M 多空:3 Gas:0.12 TVL:$71.5B 趋势:41 新闻:71 期权到期:5 跑赢BTC:72个 策略:0币
+[OK] Gemini 响应 (199 字)
+[INFO] 币价:20 费率:3 宏观:1 清算:$59M 多空:3 Gas:0.14 TVL:$71.5B 趋势:41 新闻:71 期权到期:5 跑赢BTC:134个 策略:0币
 [OK] 微信推送: token=df520032...
-[ERROR] 邮件失败: (535, b'5.7.139 Authentication unsuccessful, SmtpClientAuthentication is disabled for the Mailbox. Visit https://aka.ms/smtp_auth_disabled for more information. [BL1PR13CA0253.namprd13.prod.outlook.com 2026-06-12T02:20:18.968Z 08DEC7AED7D3BAFD]')
+[ERROR] 邮件失败: (535, b'5.7.139 Authentication unsuccessful, SmtpClientAuthentication is disabled for the Mailbox. Visit https://aka.ms/smtp_auth_disabled for more information. [PH8PR20CA0024.namprd20.prod.outlook.com 2026-06-12T02:28:45.228Z 08DEC7A5438C27D5]')
 [OK] 快照已保存: data/snapshots/2026-06-12.json
