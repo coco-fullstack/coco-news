@@ -21,6 +21,7 @@ jobs:
       - name: Generate weekly report
         env:
           PUSHPLUS_TOKENS: ${{ secrets.PUSHPLUS_TOKENS }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
         run: python scripts/cloud_news.py weekly

@@ -8,8 +8,8 @@ cloud_news.py - 加密市场智能推送系统 v3
 import json
 import os
 import re
+import imaplib
 import smtplib
-from urllib.request import Request, urlopen
 import sys
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone, timedelta
@@ -132,7 +132,8 @@ LIQUIDATION_ALERT = 200_000_000  # 24h 清算超 2 亿美金触发预警
 
 # ── 推送配置 ──────────────────────────────────────────────────────
 PUSHPLUS_TOKENS = os.environ.get("PUSHPLUS_TOKENS", "").split(",")
-RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+SMTP_USER = os.environ.get("SMTP_USER", "")
+SMTP_PASS = os.environ.get("SMTP_PASS", "")
 EMAIL_TO = os.environ.get("EMAIL_TO", "")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
@@ -2847,29 +2848,41 @@ def push_wechat(title: str, html_body: str):
 
 
 def send_email(subject: str, html_body: str):
-    if not RESEND_API_KEY or not EMAIL_TO:
+    if not SMTP_USER or not SMTP_PASS or not EMAIL_TO:
         print("[SKIP] 邮件未配置")
         return
     recipients = [addr.strip() for addr in EMAIL_TO.split(",") if addr.strip()]
     if not recipients:
         print("[SKIP] 无有效收件人")
         return
-    payload = json.dumps({
-        "from": "Market Bot <onboarding@resend.dev>",
-        "to": recipients,
-        "subject": subject,
-        "html": html_body,
-    }).encode()
-    req = Request("https://api.resend.com/emails", data=payload, method="POST")
-    req.add_header("Authorization", f"Bearer {RESEND_API_KEY}")
-    req.add_header("Content-Type", "application/json")
-    req.add_header("User-Agent", "cloud-news/1.0")
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = f"Market Bot <{SMTP_USER}>"
+    msg["To"] = ", ".join(recipients)
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
     try:
-        with urlopen(req, timeout=30) as resp:
-            print(f"[OK] 邮件已发送: {', '.join(recipients)}")
+        with smtplib.SMTP("smtp.gmail.com", 587) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(SMTP_USER, recipients, msg.as_string())
+        print(f"[OK] 邮件已发送: {', '.join(recipients)}")
     except Exception as e:
-        body = e.read().decode() if hasattr(e, "read") else ""
-        print(f"[ERROR] 邮件失败: {e} {body}")
+        print(f"[ERROR] 邮件失败: {e}")
+        return
+    # 自动清理发件箱中刚发出的这封邮件（按标题精确匹配，不影响其他邮件）
+    try:
+        imap = imaplib.IMAP4_SSL("imap.gmail.com")
+        imap.login(SMTP_USER, SMTP_PASS)
+        imap.select('"[Gmail]/Sent Mail"')
+        _, msg_ids = imap.search(None, "SUBJECT", f'"{subject}"')
+        if msg_ids[0]:
+            for mid in msg_ids[0].split():
+                imap.store(mid, "+FLAGS", "\\Deleted")
+            imap.expunge()
+            print("[OK] 已清理发件箱记录")
+        imap.logout()
+    except Exception as e:
+        print(f"[WARN] 清理发件箱失败(不影响发送): {e}")
 
 
 def push_all(title: str, html_body: str):
