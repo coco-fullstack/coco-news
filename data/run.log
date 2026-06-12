@@ -61,8 +61,9 @@
 [INFO] 19 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
-[OK] Gemini 响应 (157 字)
-[INFO] 币价:20 费率:3 宏观:1 清算:$59M 多空:3 Gas:0.12 TVL:$71.5B 趋势:41 新闻:71 期权到期:5 跑赢BTC:137个 策略:0币
+[OK] Gemini 响应 (148 字)
+[INFO] 币价:20 费率:3 宏观:1 清算:$59M 多空:3 Gas:0.11 TVL:$71.5B 趋势:41 新闻:71 期权到期:5 跑赢BTC:136个 策略:0币
 [OK] 微信推送: token=df520032...
-[ERROR] 邮件失败: HTTP Error 403: Forbidden {"statusCode":403,"name":"validation_error","message":"You can only send testing emails to your own email address (wangwangjiahang3@gmail.com). To send emails to other recipients, please verify a domain at resend.com/domains, and change the `from` address to an email using this domain."}
+[OK] 邮件已发送: wangwangjiahang3@gmail.com, xhr040300@gmail.com, h714414273@outlook.com
+[WARN] 清理发件箱失败(不影响发送): command SEARCH illegal in state AUTH, only allowed in states SELECTED
 [OK] 快照已保存: data/snapshots/2026-06-12.json
