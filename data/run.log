@@ -63,8 +63,8 @@
 [INFO] 19 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
-[OK] Gemini 响应 (165 字)
-[INFO] 币价:20 费率:3 宏观:1 清算:$60M 多空:3 Gas:0.14 TVL:$71.5B 趋势:37 新闻:74 期权到期:5 跑赢BTC:67个 策略:0币
+[OK] Gemini 响应 (184 字)
+[INFO] 币价:20 费率:3 宏观:1 清算:$59M 多空:3 Gas:0.12 TVL:$71.5B 趋势:41 新闻:71 期权到期:5 跑赢BTC:72个 策略:0币
 [OK] 微信推送: token=df520032...
-[OK] 邮件已发送: wangwangjiahang3@gmail.com, xhr040300@gmail.com
+[ERROR] 邮件失败: (535, b'5.7.139 Authentication unsuccessful, SmtpClientAuthentication is disabled for the Mailbox. Visit https://aka.ms/smtp_auth_disabled for more information. [BL1PR13CA0253.namprd13.prod.outlook.com 2026-06-12T02:20:18.968Z 08DEC7AED7D3BAFD]')
 [OK] 快照已保存: data/snapshots/2026-06-12.json
