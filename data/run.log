@@ -34,8 +34,6 @@
 [INFO] 已知币种列表: 83
 [ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
 [ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
-[ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
-[WARN] CoinGecko fetch_top200_vs_btc 失败，使用 CoinPaprika 兜底
 [ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin... → HTTP Error 429: Too Many Requests
 [ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/ethereum... → HTTP Error 429: Too Many Requests
 [WARN] CoinGecko fetch_institutional_holdings 失败，使用本地缓存兜底
@@ -63,8 +61,8 @@
 [INFO] 19 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
-[OK] Gemini 响应 (158 字)
-[INFO] 币价:20 费率:3 宏观:1 清算:$59M 多空:3 Gas:0.12 TVL:$71.5B 趋势:41 新闻:71 期权到期:5 跑赢BTC:78个 策略:0币
+[OK] Gemini 响应 (157 字)
+[INFO] 币价:20 费率:3 宏观:1 清算:$59M 多空:3 Gas:0.12 TVL:$71.5B 趋势:41 新闻:71 期权到期:5 跑赢BTC:137个 策略:0币
 [OK] 微信推送: token=df520032...
-[ERROR] 邮件失败: HTTP Error 403: Forbidden error code: 1010
+[ERROR] 邮件失败: HTTP Error 403: Forbidden {"statusCode":403,"name":"validation_error","message":"You can only send testing emails to your own email address (wangwangjiahang3@gmail.com). To send emails to other recipients, please verify a domain at resend.com/domains, and change the `from` address to an email using this domain."}
 [OK] 快照已保存: data/snapshots/2026-06-12.json
