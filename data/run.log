@@ -5,7 +5,7 @@
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
 [INFO] 25 条
 [INFO] 抓取: https://www.theblock.co/rss.xml
-[INFO] 19 条
+[INFO] 20 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
 [ERROR] https://fapi.binance.com/fapi/v1/premiumIndex... → HTTP Error 451: 
@@ -60,12 +60,12 @@
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
 [INFO] 25 条
 [INFO] 抓取: https://www.theblock.co/rss.xml
-[INFO] 19 条
+[INFO] 20 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
-[OK] Gemini 响应 (198 字)
-[INFO] 币价:20 费率:3 宏观:1 清算:$379M 多空:3 Gas:0.17 TVL:$72.8B 趋势:27 新闻:71 期权到期:5 跑赢BTC:181个 策略:0币
+[OK] Gemini 响应 (202 字)
+[INFO] 币价:20 费率:3 宏观:1 清算:$1.8B 多空:3 Gas:0.13 TVL:$72.3B 趋势:19 新闻:61 期权到期:5 跑赢BTC:214个 策略:0币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, xhr040300@gmail.com, h714414273@outlook.com
 [OK] 已清理发件箱记录
-[OK] 快照已保存: data/snapshots/2026-06-18.json
+[OK] 快照已保存: data/snapshots/2026-06-19.json
