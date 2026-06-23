@@ -1,13 +1,18 @@
 [INFO] === 每日晨报 ===
 [INFO] 获取数据...
 [INFO] 抓取: https://cointelegraph.com/rss
-[ERROR] 失败: The read operation timed out
+[INFO] 30 条
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
 [INFO] 25 条
 [INFO] 抓取: https://www.theblock.co/rss.xml
-[INFO] 19 条
+[INFO] 20 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
+[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
+[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
+[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
+[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
+[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
 [ERROR] https://fapi.binance.com/fapi/v1/premiumIndex... → HTTP Error 451: 
 [WARN] Binance fetch_funding_rates 失败，使用 OKX 兜底
 [ERROR] https://open-api.coinglass.com/public/v2/liquidation/info?time_type=1... → HTTP Error 500: Internal Server Error
@@ -54,16 +59,19 @@
 [INFO] Binance 兜底 ethereum: closes=None, volumes=None
 [WARN] fetch_strategy_indicators(ethereum): 无足够数据，跳过
 [INFO] 抓取: https://cointelegraph.com/rss
-[ERROR] 失败: The read operation timed out
+[INFO] 30 条
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
 [INFO] 25 条
 [INFO] 抓取: https://www.theblock.co/rss.xml
-[INFO] 19 条
+[INFO] 20 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
-[OK] Gemini 响应 (179 字)
-[INFO] 币价:20 费率:3 宏观:1 清算:$8M 多空:3 Gas:0.08 TVL:$72.9B 趋势:33 新闻:40 期权到期:5 跑赢BTC:191个 策略:0币
+[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
+[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
+[WARN] Gemini 调用失败: HTTP Error 503: Service Unavailable，尝试 Groq 兜底
+[OK] Groq 响应 (241 字)
+[INFO] 币价:20 费率:3 宏观:1 清算:$201M 多空:3 Gas:0.14 TVL:$73.3B 趋势:37 新闻:76 期权到期:5 跑赢BTC:187个 策略:0币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, xhr040300@gmail.com, h714414273@outlook.com
 [OK] 已清理发件箱记录
-[OK] 快照已保存: data/snapshots/2026-06-22.json
+[OK] 快照已保存: data/snapshots/2026-06-23.json
