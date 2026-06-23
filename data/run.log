@@ -8,11 +8,6 @@
 [INFO] 20 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
 [ERROR] https://fapi.binance.com/fapi/v1/premiumIndex... → HTTP Error 451: 
 [WARN] Binance fetch_funding_rates 失败，使用 OKX 兜底
 [ERROR] https://open-api.coinglass.com/public/v2/liquidation/info?time_type=1... → HTTP Error 500: Internal Server Error
@@ -66,12 +61,9 @@
 [INFO] 20 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
-[WARN] Gemini 调用失败: HTTP Error 503: Service Unavailable，尝试 Groq 兜底
-[OK] Groq 响应 (241 字)
-[INFO] 币价:20 费率:3 宏观:1 清算:$201M 多空:3 Gas:0.14 TVL:$73.3B 趋势:37 新闻:76 期权到期:5 跑赢BTC:187个 策略:0币
+[OK] Gemini 响应 (158 字)
+[INFO] 币价:20 费率:3 宏观:1 清算:$529M 多空:3 Gas:0.21 TVL:$71.7B 趋势:20 新闻:66 期权到期:5 跑赢BTC:179个 策略:0币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, xhr040300@gmail.com, h714414273@outlook.com
 [OK] 已清理发件箱记录
-[OK] 快照已保存: data/snapshots/2026-06-23.json
+[OK] 快照已保存: data/snapshots/2026-06-24.json
