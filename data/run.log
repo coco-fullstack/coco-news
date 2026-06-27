@@ -1,7 +1,7 @@
 [INFO] === 每日晨报 ===
 [INFO] 获取数据...
 [INFO] 抓取: https://cointelegraph.com/rss
-[ERROR] 失败: The read operation timed out
+[INFO] 30 条
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
 [INFO] 25 条
 [INFO] 抓取: https://www.theblock.co/rss.xml
@@ -34,6 +34,8 @@
 [INFO] 已知币种列表: 83
 [ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
 [ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
+[ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
+[WARN] CoinGecko fetch_top200_vs_btc 失败，使用 CoinPaprika 兜底
 [ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin... → HTTP Error 429: Too Many Requests
 [ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/ethereum... → HTTP Error 429: Too Many Requests
 [WARN] CoinGecko fetch_institutional_holdings 失败，使用本地缓存兜底
@@ -54,17 +56,16 @@
 [INFO] Binance 兜底 ethereum: closes=None, volumes=None
 [WARN] fetch_strategy_indicators(ethereum): 无足够数据，跳过
 [INFO] 抓取: https://cointelegraph.com/rss
-[ERROR] 失败: The read operation timed out
+[INFO] 30 条
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
 [INFO] 25 条
 [INFO] 抓取: https://www.theblock.co/rss.xml
 [INFO] 20 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
-[WARN] Gemini 调用失败: HTTP Error 503: Service Unavailable，尝试 Groq 兜底
-[OK] Groq 响应 (301 字)
-[INFO] 币价:20 费率:3 宏观:1 清算:$443M 多空:3 Gas:0.12 TVL:$70.3B 趋势:19 新闻:41 期权到期:5 跑赢BTC:184个 策略:0币
+[OK] Gemini 响应 (199 字)
+[INFO] 币价:20 费率:3 宏观:1 清算:$32M 多空:3 Gas:0.07 TVL:$70.4B 趋势:25 新闻:70 期权到期:5 跑赢BTC:154个 策略:0币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, xhr040300@gmail.com, h714414273@outlook.com
 [OK] 已清理发件箱记录
-[OK] 快照已保存: data/snapshots/2026-06-27.json
+[OK] 快照已保存: data/snapshots/2026-06-28.json
