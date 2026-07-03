@@ -8,23 +8,6 @@
 [INFO] 20 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
 [ERROR] https://fapi.binance.com/fapi/v1/premiumIndex... → HTTP Error 451: 
 [WARN] Binance fetch_funding_rates 失败，使用 OKX 兜底
 [ERROR] https://open-api.coinglass.com/public/v2/liquidation/info?time_type=1... → HTTP Error 500: Internal Server Error
@@ -63,13 +46,9 @@
 [ERROR] https://min-api.cryptocompare.com/data/v2/histoday?fsym=BTC&tsym=USD&limit=60... → HTTP Error 401: Unauthorized
 [INFO] Binance 兜底 bitcoin: closes=None, volumes=None
 [WARN] fetch_strategy_indicators(bitcoin): 无足够数据，跳过
-[ERROR] https://api.coingecko.com/api/v3/coins/ethereum/market_chart?vs_currency=usd&day... → HTTP Error 429: Too Many Requests
-[WARN] CoinGecko fetch_strategy_indicators(ethereum) 失败，使用 Binance 兜底
-[ERROR] https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=1d&limit=60... → HTTP Error 451: 
-[WARN] Binance ETHUSDT 被屏蔽，使用 CryptoCompare 兜底
-[ERROR] https://min-api.cryptocompare.com/data/v2/histoday?fsym=ETH&tsym=USD&limit=60... → HTTP Error 401: Unauthorized
-[INFO] Binance 兜底 ethereum: closes=None, volumes=None
-[WARN] fetch_strategy_indicators(ethereum): 无足够数据，跳过
+[INFO] fetch_strategy_indicators(ethereum): CoinGecko OK, 61 points
+[OK] fetch_strategy_indicators(ethereum): ma=偏多, macd=金叉+红柱
+[ERROR] https://fapi.binance.com/fapi/v1/fundingRate?symbol=ETHUSDT&limit=3... → HTTP Error 451: 
 [INFO] 抓取: https://cointelegraph.com/rss
 [INFO] 30 条
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
@@ -78,12 +57,11 @@
 [INFO] 20 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
-[OK] Gemini 响应 (184 字)
-[INFO] 币价:20 费率:3 宏观:1 清算:$615M 多空:3 Gas:0.09 TVL:$70.8B 趋势:31 新闻:76 期权到期:5 跑赢BTC:179个 策略:0币
+[WARN] Gemini 调用失败: HTTP Error 503: Service Unavailable，尝试 Groq 兜底
+[OK] Groq 响应 (203 字)
+[OK] Gemini 响应 (161 字)
+[INFO] 币价:20 费率:3 宏观:1 清算:$465M 多空:3 Gas:0.09 TVL:$72.6B 趋势:50 新闻:71 期权到期:5 跑赢BTC:149个 策略:1币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, xhr040300@gmail.com, h714414273@outlook.com
 [OK] 已清理发件箱记录
-[OK] 快照已保存: data/snapshots/2026-07-02.json
+[OK] 快照已保存: data/snapshots/2026-07-03.json
