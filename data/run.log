@@ -17,6 +17,10 @@
 [ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
 [ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
 [ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
+[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
+[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
+[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
+[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
 [ERROR] https://fapi.binance.com/fapi/v1/premiumIndex... → HTTP Error 451: 
 [WARN] Binance fetch_funding_rates 失败，使用 OKX 兜底
 [ERROR] https://open-api.coinglass.com/public/v2/liquidation/info?time_type=1... → HTTP Error 500: Internal Server Error
@@ -41,6 +45,7 @@
 [ERROR] https://api.binance.com/api/v3/exchangeInfo... → HTTP Error 451: 
 [WARN] Binance exchangeInfo 失败，使用已知币种列表兜底
 [INFO] 已知币种列表: 83
+[ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
 [ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
 [ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin... → HTTP Error 429: Too Many Requests
 [ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/ethereum... → HTTP Error 429: Too Many Requests
@@ -70,10 +75,10 @@
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
 [ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
-[WARN] Gemini 调用失败: HTTP Error 503: Service Unavailable，尝试 Groq 兜底
-[OK] Groq 响应 (239 字)
-[INFO] 币价:20 费率:3 宏观:1 清算:$85M 多空:3 Gas:0.09 TVL:$74.5B 趋势:41 新闻:72 期权到期:5 跑赢BTC:260个 策略:0币
+[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
+[OK] Gemini 响应 (171 字)
+[INFO] 币价:20 费率:3 宏观:1 清算:$290M 多空:3 Gas:0.12 TVL:$74.8B 趋势:51 新闻:75 期权到期:5 跑赢BTC:122个 策略:0币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, xhr040300@gmail.com, h714414273@outlook.com
 [OK] 已清理发件箱记录
-[OK] 快照已保存: data/snapshots/2026-07-06.json
+[OK] 快照已保存: data/snapshots/2026-07-07.json
