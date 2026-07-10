@@ -5,11 +5,9 @@
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
 [INFO] 25 条
 [INFO] 抓取: https://www.theblock.co/rss.xml
-[INFO] 20 条
+[INFO] 19 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 500: Internal Server Error
 [ERROR] https://fapi.binance.com/fapi/v1/premiumIndex... → HTTP Error 451: 
 [WARN] Binance fetch_funding_rates 失败，使用 OKX 兜底
 [ERROR] https://open-api.coinglass.com/public/v2/liquidation/info?time_type=1... → HTTP Error 500: Internal Server Error
@@ -60,12 +58,13 @@
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
 [INFO] 25 条
 [INFO] 抓取: https://www.theblock.co/rss.xml
-[INFO] 20 条
+[INFO] 19 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
-[OK] Gemini 响应 (199 字)
-[INFO] 币价:20 费率:3 宏观:1 清算:$265M 多空:3 Gas:0.11 TVL:$72.4B 趋势:28 新闻:68 期权到期:5 跑赢BTC:130个 策略:0币
+[WARN] Gemini 调用失败: HTTP Error 503: Service Unavailable，尝试 Groq 兜底
+[OK] Groq 响应 (365 字)
+[INFO] 币价:20 费率:3 宏观:1 清算:$147M 多空:3 Gas:0.09 TVL:$72.7B 趋势:41 新闻:75 期权到期:5 跑赢BTC:104个 策略:0币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, xhr040300@gmail.com, h714414273@outlook.com
 [OK] 已清理发件箱记录
-[OK] 快照已保存: data/snapshots/2026-07-09.json
+[OK] 快照已保存: data/snapshots/2026-07-10.json
