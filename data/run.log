@@ -33,9 +33,6 @@
 [WARN] Binance exchangeInfo 失败，使用已知币种列表兜底
 [INFO] 已知币种列表: 83
 [ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
-[ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
-[ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
-[WARN] CoinGecko fetch_top200_vs_btc 失败，使用 CoinPaprika 兜底
 [ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin... → HTTP Error 429: Too Many Requests
 [ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/ethereum... → HTTP Error 429: Too Many Requests
 [WARN] CoinGecko fetch_institutional_holdings 失败，使用本地缓存兜底
@@ -63,9 +60,9 @@
 [INFO] 19 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 30 条
-[OK] Gemini 响应 (177 字)
-[INFO] 币价:20 费率:3 宏观:1 清算:$43M 多空:3 Gas:0.09 TVL:$77.1B 趋势:47 新闻:69 期权到期:5 跑赢BTC:60个 策略:0币
+[OK] Gemini 响应 (194 字)
+[INFO] 币价:20 费率:3 宏观:1 清算:$215M 多空:3 Gas:0.1 TVL:$76.0B 趋势:38 新闻:74 期权到期:5 跑赢BTC:197个 策略:0币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, xhr040300@gmail.com, h714414273@outlook.com
 [OK] 已清理发件箱记录
-[OK] 快照已保存: data/snapshots/2026-07-23.json
+[OK] 快照已保存: data/snapshots/2026-07-24.json
