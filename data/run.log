@@ -7,7 +7,7 @@
 [INFO] 抓取: https://www.theblock.co/rss.xml
 [INFO] 20 条
 [INFO] 抓取: https://36kr.com/feed
-[INFO] 30 条
+[INFO] 0 条
 [ERROR] https://fapi.binance.com/fapi/v1/premiumIndex... → HTTP Error 451: 
 [WARN] Binance fetch_funding_rates 失败，使用 OKX 兜底
 [ERROR] https://open-api.coinglass.com/public/v2/liquidation/info?time_type=1... → HTTP Error 500: Internal Server Error
@@ -34,6 +34,8 @@
 [INFO] 已知币种列表: 83
 [ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
 [ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
+[ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
+[WARN] CoinGecko fetch_top200_vs_btc 失败，使用 CoinPaprika 兜底
 [ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin... → HTTP Error 429: Too Many Requests
 [ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/ethereum... → HTTP Error 429: Too Many Requests
 [WARN] CoinGecko fetch_institutional_holdings 失败，使用本地缓存兜底
@@ -60,10 +62,10 @@
 [INFO] 抓取: https://www.theblock.co/rss.xml
 [INFO] 20 条
 [INFO] 抓取: https://36kr.com/feed
-[INFO] 30 条
-[OK] Gemini 响应 (242 字)
-[INFO] 币价:20 费率:3 宏观:1 清算:$27M 多空:3 Gas:0.05 TVL:$74.9B 趋势:38 新闻:75 期权到期:5 跑赢BTC:97个 策略:0币
+[INFO] 0 条
+[OK] Gemini 响应 (161 字)
+[INFO] 币价:20 费率:3 宏观:1 清算:$10M 多空:3 Gas:0.11 TVL:$75.4B 趋势:48 新闻:71 期权到期:5 跑赢BTC:112个 策略:0币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, xhr040300@gmail.com, h714414273@outlook.com
 [OK] 已清理发件箱记录
-[OK] 快照已保存: data/snapshots/2026-08-05.json
+[OK] 快照已保存: data/snapshots/2026-08-06.json
