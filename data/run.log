@@ -63,9 +63,9 @@
 [INFO] 20 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 0 条
-[OK] Gemini 响应 (157 字)
-[INFO] 币价:20 费率:3 宏观:1 清算:$111M 多空:3 Gas:0.07 TVL:$74.7B 趋势:41 新闻:65 期权到期:5 跑赢BTC:202个 策略:0币
+[OK] Gemini 响应 (176 字)
+[INFO] 币价:20 费率:3 宏观:1 清算:$0 多空:3 Gas:0.04 TVL:$74.9B 趋势:41 新闻:65 期权到期:5 跑赢BTC:177个 策略:0币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, xhr040300@gmail.com, h714414273@outlook.com
 [OK] 已清理发件箱记录
-[OK] 快照已保存: data/snapshots/2026-08-15.json
+[OK] 快照已保存: data/snapshots/2026-08-16.json
