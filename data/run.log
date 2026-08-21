@@ -5,7 +5,7 @@
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
 [INFO] 25 条
 [INFO] 抓取: https://www.theblock.co/rss.xml
-[INFO] 20 条
+[ERROR] 失败: The read operation timed out
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 0 条
 [ERROR] https://fapi.binance.com/fapi/v1/premiumIndex... → HTTP Error 451: 
@@ -33,7 +33,6 @@
 [WARN] Binance exchangeInfo 失败，使用已知币种列表兜底
 [INFO] 已知币种列表: 83
 [ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
-[ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
 [ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin... → HTTP Error 429: Too Many Requests
 [ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/ethereum... → HTTP Error 429: Too Many Requests
 [WARN] CoinGecko fetch_institutional_holdings 失败，使用本地缓存兜底
@@ -58,12 +57,12 @@
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
 [INFO] 25 条
 [INFO] 抓取: https://www.theblock.co/rss.xml
-[INFO] 20 条
+[ERROR] 失败: The read operation timed out
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 0 条
-[OK] Gemini 响应 (112 字)
-[INFO] 币价:20 费率:3 宏观:1 清算:$471M 多空:3 Gas:0.05 TVL:$83.9B 趋势:79 新闻:71 期权到期:5 跑赢BTC:86个 策略:0币
+[OK] Gemini 响应 (211 字)
+[INFO] 币价:20 费率:3 宏观:1 清算:$2.5B 多空:3 Gas:0.21 TVL:$87.6B 趋势:84 新闻:55 期权到期:5 跑赢BTC:201个 策略:0币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, xhr040300@gmail.com, h714414273@outlook.com
 [OK] 已清理发件箱记录
-[OK] 快照已保存: data/snapshots/2026-08-21.json
+[OK] 快照已保存: data/snapshots/2026-08-22.json
