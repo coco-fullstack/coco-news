@@ -126,16 +126,6 @@
 [ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 429: Too Many Requests
 [ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 429: Too Many Requests
 [ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 429: Too Many Requests
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 429: Too Many Requests
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 429: Too Many Requests
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 429: Too Many Requests
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 429: Too Many Requests
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 429: Too Many Requests
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 429: Too Many Requests
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 429: Too Many Requests
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 429: Too Many Requests
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 429: Too Many Requests
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 429: Too Many Requests
 [ERROR] https://fapi.binance.com/fapi/v1/premiumIndex... → HTTP Error 451: 
 [WARN] Binance fetch_funding_rates 失败，使用 OKX 兜底
 [ERROR] https://open-api.coinglass.com/public/v2/liquidation/info?time_type=1... → HTTP Error 500: Internal Server Error
@@ -160,19 +150,8 @@
 [ERROR] https://api.binance.com/api/v3/exchangeInfo... → HTTP Error 451: 
 [WARN] Binance exchangeInfo 失败，使用已知币种列表兜底
 [INFO] 已知币种列表: 83
-[ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
-[ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin... → HTTP Error 429: Too Many Requests
-[ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/ethereum... → HTTP Error 429: Too Many Requests
-[WARN] CoinGecko fetch_institutional_holdings 失败，使用本地缓存兜底
-[WARN] 缓存未命中或已过期，cache_dir=/home/runner/work/coco-news/coco-news/scripts/../data/cache
-[OK] 使用过期缓存兜底: ['BTC', 'ETH']
-[ERROR] https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days... → HTTP Error 429: Too Many Requests
-[WARN] CoinGecko fetch_strategy_indicators(bitcoin) 失败，使用 Binance 兜底
-[ERROR] https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=60... → HTTP Error 451: 
-[WARN] Binance BTCUSDT 被屏蔽，使用 CryptoCompare 兜底
-[ERROR] https://min-api.cryptocompare.com/data/v2/histoday?fsym=BTC&tsym=USD&limit=60... → HTTP Error 401: Unauthorized
-[INFO] Binance 兜底 bitcoin: closes=None, volumes=None
-[WARN] fetch_strategy_indicators(bitcoin): 无足够数据，跳过
+[INFO] fetch_strategy_indicators(bitcoin): CoinGecko OK, 61 points
+[OK] fetch_strategy_indicators(bitcoin): ma=偏多, macd=金叉+红柱
 [ERROR] https://api.coingecko.com/api/v3/coins/ethereum/market_chart?vs_currency=usd&day... → HTTP Error 429: Too Many Requests
 [WARN] CoinGecko fetch_strategy_indicators(ethereum) 失败，使用 Binance 兜底
 [ERROR] https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=1d&limit=60... → HTTP Error 451: 
@@ -180,6 +159,7 @@
 [ERROR] https://min-api.cryptocompare.com/data/v2/histoday?fsym=ETH&tsym=USD&limit=60... → HTTP Error 401: Unauthorized
 [INFO] Binance 兜底 ethereum: closes=None, volumes=None
 [WARN] fetch_strategy_indicators(ethereum): 无足够数据，跳过
+[ERROR] https://fapi.binance.com/fapi/v1/fundingRate?symbol=BTCUSDT&limit=3... → HTTP Error 451: 
 [INFO] 抓取: https://cointelegraph.com/rss
 [INFO] 30 条
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
@@ -306,19 +286,13 @@
 [ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 429: Too Many Requests
 [ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 429: Too Many Requests
 [ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 429: Too Many Requests
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 429: Too Many Requests
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 429: Too Many Requests
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 429: Too Many Requests
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 429: Too Many Requests
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 429: Too Many Requests
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 429: Too Many Requests
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 429: Too Many Requests
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 429: Too Many Requests
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 429: Too Many Requests
-[ERROR] https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt... → HTTP Error 429: Too Many Requests
-[OK] Gemini 响应 (159 字)
-[INFO] 币价:20 费率:3 宏观:1 清算:$322M 多空:3 Gas:0.05 TVL:$88.5B 趋势:72 新闻:65 期权到期:5 跑赢BTC:219个 策略:0币
+[WARN] Gemini 调用失败: HTTP Error 503: Service Unavailable，尝试 Groq 兜底
+[ERROR] Groq 调用失败: HTTP Error 404: Not Found {"error":{"message":"The model `llama-3.3-70b-versatile` does not exist or you do not have access to it.","type":"invalid_request_error","code":"model_not_found"}}
+
+[SKIP] AI 未配置 (需要 GEMINI_API_KEY 或 GROQ_API_KEY)
+[OK] Gemini 响应 (299 字)
+[INFO] 币价:20 费率:3 宏观:1 清算:$649M 多空:3 Gas:0.04 TVL:$87.6B 趋势:48 新闻:59 期权到期:5 跑赢BTC:364个 策略:1币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, xhr040300@gmail.com, h714414273@outlook.com
 [OK] 已清理发件箱记录
-[OK] 快照已保存: data/snapshots/2026-08-28.json
+[OK] 快照已保存: data/snapshots/2026-08-29.json
