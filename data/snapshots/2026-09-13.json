@@ -1,0 +1,14 @@
+{
+  "date": "2026-09-13",
+  "timestamp": "2026-09-13T09:32:43.623316+09:00",
+  "btc_price": 77261,
+  "eth_price": 2525.32,
+  "fng": 61,
+  "btc_rsi": 62.18546108933273,
+  "total_market_cap": 2658517154445.012,
+  "btc_dominance": 58.22768943996801,
+  "defi_tvl": 88264679600,
+  "funding_btc": 0.00796461577638,
+  "liquidation_24h": null,
+  "trend_score": 62
+}
