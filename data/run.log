@@ -63,9 +63,12 @@
 [INFO] 19 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 0 条
-[OK] Gemini 响应 (187 字)
-[INFO] 币价:20 费率:3 宏观:1 清算:$55M 多空:3 Gas:0.06 TVL:$90.9B 趋势:55 新闻:68 期权到期:5 跑赢BTC:99个 策略:0币
+[WARN] Gemini 调用失败: HTTP Error 503: Service Unavailable，尝试 Groq 兜底
+[ERROR] Groq 调用失败: HTTP Error 404: Not Found {"error":{"message":"The model `llama-3.3-70b-versatile` does not exist or you do not have access to it.","type":"invalid_request_error","code":"model_not_found"}}
+
+[SKIP] AI 未配置 (需要 GEMINI_API_KEY 或 GROQ_API_KEY)
+[INFO] 币价:20 费率:3 宏观:1 清算:$285M 多空:3 Gas:0.06 TVL:$89.5B 趋势:44 新闻:65 期权到期:5 跑赢BTC:90个 策略:0币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, xhr040300@gmail.com, h714414273@outlook.com
 [OK] 已清理发件箱记录
-[OK] 快照已保存: data/snapshots/2026-10-14.json
+[OK] 快照已保存: data/snapshots/2026-10-15.json
