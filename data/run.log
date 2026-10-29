@@ -34,8 +34,6 @@
 [INFO] 已知币种列表: 83
 [ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
 [ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
-[ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
-[WARN] CoinGecko fetch_top200_vs_btc 失败，使用 CoinPaprika 兜底
 [ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin... → HTTP Error 429: Too Many Requests
 [ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/ethereum... → HTTP Error 429: Too Many Requests
 [WARN] CoinGecko fetch_institutional_holdings 失败，使用本地缓存兜底
@@ -63,9 +61,12 @@
 [INFO] 20 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 0 条
-[OK] Gemini 响应 (181 字)
-[INFO] 币价:20 费率:3 宏观:1 清算:$78M 多空:3 Gas:0.04 TVL:$88.5B 趋势:42 新闻:58 期权到期:5 跑赢BTC:98个 策略:0币
+[WARN] Gemini 调用失败: HTTP Error 503: Service Unavailable，尝试 Groq 兜底
+[ERROR] Groq 调用失败: HTTP Error 404: Not Found {"error":{"message":"The model `llama-3.3-70b-versatile` does not exist or you do not have access to it.","type":"invalid_request_error","code":"model_not_found"}}
+
+[SKIP] AI 未配置 (需要 GEMINI_API_KEY 或 GROQ_API_KEY)
+[INFO] 币价:20 费率:3 宏观:1 清算:$62M 多空:3 Gas:0.12 TVL:$88.7B 趋势:42 新闻:62 期权到期:5 跑赢BTC:118个 策略:0币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, xhr040300@gmail.com, h714414273@outlook.com
 [OK] 已清理发件箱记录
-[OK] 快照已保存: data/snapshots/2026-10-28.json
+[OK] 快照已保存: data/snapshots/2026-10-29.json
