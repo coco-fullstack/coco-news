@@ -33,12 +33,6 @@
 [WARN] Binance exchangeInfo 失败，使用已知币种列表兜底
 [INFO] 已知币种列表: 83
 [ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
-[ERROR] https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_... → HTTP Error 429: Too Many Requests
-[ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin... → HTTP Error 429: Too Many Requests
-[ERROR] https://api.coingecko.com/api/v3/companies/public_treasury/ethereum... → HTTP Error 429: Too Many Requests
-[WARN] CoinGecko fetch_institutional_holdings 失败，使用本地缓存兜底
-[WARN] 缓存未命中或已过期，cache_dir=/home/runner/work/coco-news/coco-news/scripts/../data/cache
-[OK] 使用过期缓存兜底: ['BTC', 'ETH']
 [ERROR] https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days... → HTTP Error 429: Too Many Requests
 [WARN] CoinGecko fetch_strategy_indicators(bitcoin) 失败，使用 Binance 兜底
 [ERROR] https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=60... → HTTP Error 451: 
@@ -46,13 +40,9 @@
 [ERROR] https://min-api.cryptocompare.com/data/v2/histoday?fsym=BTC&tsym=USD&limit=60... → HTTP Error 401: Unauthorized
 [INFO] Binance 兜底 bitcoin: closes=None, volumes=None
 [WARN] fetch_strategy_indicators(bitcoin): 无足够数据，跳过
-[ERROR] https://api.coingecko.com/api/v3/coins/ethereum/market_chart?vs_currency=usd&day... → HTTP Error 429: Too Many Requests
-[WARN] CoinGecko fetch_strategy_indicators(ethereum) 失败，使用 Binance 兜底
-[ERROR] https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=1d&limit=60... → HTTP Error 451: 
-[WARN] Binance ETHUSDT 被屏蔽，使用 CryptoCompare 兜底
-[ERROR] https://min-api.cryptocompare.com/data/v2/histoday?fsym=ETH&tsym=USD&limit=60... → HTTP Error 401: Unauthorized
-[INFO] Binance 兜底 ethereum: closes=None, volumes=None
-[WARN] fetch_strategy_indicators(ethereum): 无足够数据，跳过
+[INFO] fetch_strategy_indicators(ethereum): CoinGecko OK, 61 points
+[OK] fetch_strategy_indicators(ethereum): ma=偏多, macd=金叉+红柱
+[ERROR] https://fapi.binance.com/fapi/v1/fundingRate?symbol=ETHUSDT&limit=3... → HTTP Error 451: 
 [INFO] 抓取: https://cointelegraph.com/rss
 [INFO] 30 条
 [INFO] 抓取: https://feeds.feedburner.com/CoinDesk
@@ -61,9 +51,10 @@
 [INFO] 20 条
 [INFO] 抓取: https://36kr.com/feed
 [INFO] 0 条
-[OK] Gemini 响应 (210 字)
-[INFO] 币价:20 费率:3 宏观:1 清算:$127M 多空:3 Gas:0.05 TVL:$82.0B 趋势:31 新闻:69 期权到期:5 跑赢BTC:131个 策略:0币
+[OK] Gemini 响应 (155 字)
+[OK] Gemini 响应 (137 字)
+[INFO] 币价:20 费率:3 宏观:1 清算:$634M 多空:3 Gas:0.04 TVL:$84.9B 趋势:66 新闻:64 期权到期:5 跑赢BTC:241个 策略:1币
 [OK] 微信推送: token=df520032...
 [OK] 邮件已发送: wangwangjiahang3@gmail.com, xhr040300@gmail.com, h714414273@outlook.com
 [OK] 已清理发件箱记录
-[OK] 快照已保存: data/snapshots/2026-11-04.json
+[OK] 快照已保存: data/snapshots/2026-11-05.json
